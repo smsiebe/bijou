@@ -614,6 +614,129 @@ input:focus, select:focus, textarea:focus {
   color: var(--accent-cyan);
 }
 
+/* --- Phase 7: Advanced Analytics & Direct Manipulation Workbench Styles --- */
+#ego-network-canvas {
+  width: 100%;
+  height: 320px;
+  background: #0b0f17;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  cursor: crosshair;
+}
+
+.telemetry-sparkline {
+  display: inline-block;
+  vertical-align: middle;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+  padding: 1px;
+}
+
+.pareto-tooltip {
+  position: absolute;
+  background: rgba(19, 25, 34, 0.95);
+  border: 1px solid #f59e0b;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  color: #ffffff;
+  pointer-events: none;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-mono);
+}
+
+.diagnostic-hud {
+  background: var(--bg-card);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+}
+
+.diagnostic-hud.has-blockers {
+  border: 1px solid var(--color-blocked);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.diagnostic-hud.has-warnings {
+  border: 1px solid var(--color-ready);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.diagnostic-hud.clean {
+  border: 1px solid var(--color-achieved);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.visual-lanes-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.visual-lane {
+  background: var(--bg-primary);
+  border: 1px dashed var(--border-subtle);
+  border-radius: 6px;
+  padding: 8px;
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.visual-lane.dragover {
+  border-color: var(--accent-cyan);
+  background-color: rgba(56, 189, 248, 0.06);
+}
+
+.visual-lane-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.visual-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 8px;
+  cursor: grab;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+
+.visual-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.visual-card:active {
+  cursor: grabbing;
+}
+
+.visual-card-title {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text-main);
+}
+
+.visual-card-meta {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  margin-top: 4px;
+  display: flex;
+  justify-content: space-between;
+}
+
 @page {
   size: landscape;
   margin: 10mm;

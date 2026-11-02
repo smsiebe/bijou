@@ -55,6 +55,11 @@ const TechTreeManager = {
         this.applyTransform();
       });
     }
+
+    const commitDecisionBtn = document.getElementById("commit-decision-btn");
+    if (commitDecisionBtn) {
+      commitDecisionBtn.addEventListener("click", () => this.commitDecisionLog());
+    }
   },
 
   initCanvasInteractions() {
@@ -306,6 +311,59 @@ const TechTreeManager = {
     if (resultBox) resultBox.innerHTML = "";
 
     drawer.classList.add("open");
+    this.loadDecisionLogs(node.milestone_id);
+  },
+
+  async loadDecisionLogs(milestoneId) {
+    const logsContainer = document.getElementById("drawer-decision-logs");
+    if (!logsContainer) return;
+    logsContainer.innerHTML = `<div style="color: var(--text-dim); font-size: 0.75rem;">Loading decision provenance...</div>`;
+    try {
+      const logs = await BijouAPI.getDecisionLogs(milestoneId);
+      if (!logs || logs.length === 0) {
+        logsContainer.innerHTML = `<div style="color: var(--text-dim); font-size: 0.75rem;">No strategic decisions logged for this milestone.</div>`;
+        return;
+      }
+      logsContainer.innerHTML = logs.map(l => `
+        <div style="background: var(--bg-card); border-left: 2px solid var(--accent-cyan); padding: 6px 8px; border-radius: 3px; font-size: 0.75rem;">
+          <div style="display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.7rem;">
+            <strong>${l.author}</strong>
+            <span style="font-family: var(--font-mono);">${new Date(l.timestamp).toLocaleDateString()}</span>
+          </div>
+          <div style="color: var(--text-main); margin-top: 3px; font-style: italic;">"${l.justification}"</div>
+        </div>
+      `).join("");
+    } catch (err) {
+      logsContainer.innerHTML = `<div style="color: var(--color-blocked); font-size: 0.75rem;">Error loading decision logs: ${err.message}</div>`;
+    }
+  },
+
+  async commitDecisionLog() {
+    if (!this.selectedMilestoneId) {
+      alert("No milestone currently selected.");
+      return;
+    }
+    const authorInput = document.getElementById("decision-author");
+    const justInput = document.getElementById("decision-justification");
+    const author = authorInput ? authorInput.value.trim() : "";
+    const justification = justInput ? justInput.value.trim() : "";
+
+    if (!author || !justification) {
+      alert("Both Author and Strategic Justification are required to record a decision.");
+      return;
+    }
+
+    try {
+      await BijouAPI.createDecisionLog({
+        target_milestone_id: this.selectedMilestoneId,
+        author,
+        justification
+      });
+      if (justInput) justInput.value = "";
+      await this.loadDecisionLogs(this.selectedMilestoneId);
+    } catch (err) {
+      alert("Failed to commit decision: " + err.message);
+    }
   },
 
   async executeSlipSimulation() {

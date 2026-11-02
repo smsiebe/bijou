@@ -110,5 +110,26 @@ const BijouAPI = {
 
   importManifest(manifestData, replaceAll = false) {
     return this.post("/api/v1/manifest/import", manifestData, { replace_all: replaceAll });
+  },
+
+  getParetoFrontier(budgetCeiling = 100000000.0, asOfDate = null) {
+    return this.get("/api/v1/analysis/pareto-frontier", {
+      budget_ceiling: budgetCeiling,
+      as_of_date: asOfDate
+    });
+  },
+
+  validateManifest(manifestData) {
+    return this.post("/api/v1/manifest/validate", manifestData);
+  },
+
+  getDecisionLogs(targetMilestoneId = null) {
+    return this.get("/api/v1/decision-logs", {
+      target_milestone_id: targetMilestoneId
+    });
+  },
+
+  createDecisionLog(entry) {
+    return this.post("/api/v1/decision-logs", entry);
   }
 };

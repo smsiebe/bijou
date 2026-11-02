@@ -473,27 +473,31 @@ class SqlAlchemyGraphRepository(IGraphRepository):
                 raise
 
     def upsert_decision_log(self, entry: DecisionLogEntryDTO) -> DecisionLogEntryDTO:
-        with self._write_lock, self._session_scope() as session:
-            record = session.get(DecisionLogRecord, entry.id)
-            if record:
-                record.target_milestone_id = entry.target_milestone_id
-                record.author = entry.author
-                record.justification = entry.justification
-                record.timestamp = entry.timestamp
-            else:
-                record = DecisionLogRecord(
-                    id=entry.id,
-                    target_milestone_id=entry.target_milestone_id,
-                    author=entry.author,
-                    justification=entry.justification,
-                    timestamp=entry.timestamp,
-                )
-                session.add(record)
-            session.commit()
-            return entry
+        with self._write_lock, self._session_factory() as session:
+            try:
+                record = session.get(DecisionLogRecord, entry.id)
+                if record:
+                    record.target_milestone_id = entry.target_milestone_id
+                    record.author = entry.author
+                    record.justification = entry.justification
+                    record.timestamp = entry.timestamp
+                else:
+                    record = DecisionLogRecord(
+                        id=entry.id,
+                        target_milestone_id=entry.target_milestone_id,
+                        author=entry.author,
+                        justification=entry.justification,
+                        timestamp=entry.timestamp,
+                    )
+                    session.add(record)
+                session.commit()
+                return entry
+            except Exception:
+                session.rollback()
+                raise
 
     def list_decision_logs(self, target_milestone_id: str | None = None) -> list[DecisionLogEntryDTO]:
-        with self._session_scope() as session:
+        with self._session_factory() as session:
             stmt = select(DecisionLogRecord)
             if target_milestone_id:
                 stmt = stmt.where(DecisionLogRecord.target_milestone_id == target_milestone_id)

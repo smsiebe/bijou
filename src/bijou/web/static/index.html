@@ -98,6 +98,26 @@
               <!-- Populated by app.js -->
             </div>
             <button id="run-tradeoff-btn" class="btn-primary" style="margin-top: 10px; width: 100%; background: var(--color-ready); color: #0a0e14;">Evaluate Trade-Off</button>
+
+            <!-- Pareto Frontier Optimizer (REC-008) -->
+            <div style="margin-top: 14px; border-top: 1px solid var(--border-subtle); padding-top: 12px;">
+              <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Pareto Budget Ceiling ($M):</label>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="number" id="pareto-budget-ceiling" value="100" min="5" max="1000" step="5" style="flex: 1; padding: 6px 8px; font-size: 0.85rem;" />
+                <button id="compute-pareto-btn" class="btn-primary" style="padding: 6px 12px; font-size: 0.8rem; background: var(--accent-cyan); color: #0a0e14; font-weight: 700;">Compute Pareto</button>
+              </div>
+            </div>
+
+            <div id="pareto-scatterplot-wrapper" style="margin-top: 14px; display: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <h4 style="font-size: 0.85rem; color: #f59e0b; font-weight: 700;">Pareto Frontier</h4>
+                <span id="pareto-frontier-count" class="badge-pill" style="font-size: 0.7rem; color: #f59e0b; border-color: rgba(245,158,11,0.3);">0 Portfolios</span>
+              </div>
+              <div style="background: var(--bg-card); border-radius: 6px; padding: 8px; border: 1px solid var(--border-subtle); position: relative;">
+                <svg id="pareto-scatter-svg" width="100%" height="200" viewBox="0 0 320 200" style="overflow: visible; font-family: var(--font-mono);"></svg>
+                <div id="pareto-tooltip" class="pareto-tooltip" style="display: none;"></div>
+              </div>
+            </div>
           </div>
 
           <div id="tradeoff-results-target">
@@ -139,20 +159,34 @@
           </div>
         </div>
 
-        <!-- Right: JSON Manifest Import / Export -->
+        <!-- Right: JSON Manifest Import / Export & Direct Manipulation Workbench -->
         <div style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 18px; display: flex; flex-direction: column; gap: 12px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="font-size: 1rem; color: var(--accent-cyan);">Manifest JSON Studio</h3>
-            <div style="display: flex; gap: 10px; align-items: center;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <h3 style="font-size: 1rem; color: var(--accent-cyan);">Manifest JSON Studio & Direct Manipulation</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
               <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
                 <input type="checkbox" id="crud-replace-all-checkbox" />
                 <span>Replace All (Atomic Swap)</span>
               </label>
+              <button id="crud-validate-btn" class="btn-primary" style="background: #0284c7;">Pre-Flight Diagnostics</button>
               <button id="crud-export-btn" class="btn-primary" style="background: #334155;">Export Manifest</button>
               <button id="crud-import-btn" class="btn-primary">Import Manifest</button>
             </div>
           </div>
-          <textarea id="crud-manifest-json" style="flex: 1; min-height: 400px; font-family: var(--font-mono); font-size: 0.8rem; padding: 12px; resize: vertical;" placeholder="Paste Bijou manifest JSON here or click Export Manifest..."></textarea>
+
+          <!-- Diagnostic HUD (REC-017) -->
+          <div id="crud-diagnostic-hud" class="diagnostic-hud" style="display: none;"></div>
+
+          <textarea id="crud-manifest-json" style="flex: 1; min-height: 260px; font-family: var(--font-mono); font-size: 0.8rem; padding: 12px; resize: vertical;" placeholder="Paste Bijou manifest JSON here or click Export Manifest..."></textarea>
+
+          <!-- Direct Manipulation Visual Entity Workbench (REC-016) -->
+          <div id="crud-visual-entities-wrapper" style="border-top: 1px solid var(--border-subtle); padding-top: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h4 style="font-size: 0.85rem; color: var(--accent-cyan); font-weight: 700;">Visual Entity Cards (Drag-and-Drop Lifecycle Workbench)</h4>
+              <span style="font-size: 0.75rem; color: var(--text-muted);">Drag cards between lifecycle states to update manifest directly</span>
+            </div>
+            <div id="crud-visual-lanes" class="visual-lanes-container"></div>
+          </div>
         </div>
       </div>
     </section>
@@ -191,6 +225,17 @@
 
       <div id="slip-simulation-results">
         <!-- Rendered by tech_tree.js -->
+      </div>
+
+      <!-- Decision Provenance Ledger (REC-019) -->
+      <div style="margin-top: 14px; border-top: 1px solid var(--border-subtle); padding-top: 12px;">
+        <h4 style="font-size: 0.85rem; color: var(--accent-cyan); font-weight: 700; margin-bottom: 8px;">Log Strategic Decision (Provenance Ledger)</h4>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <input type="text" id="decision-author" placeholder="Author / Decision Maker ID" style="font-size: 0.8rem; padding: 6px;" />
+          <textarea id="decision-justification" placeholder="Strategic justification for this milestone shift..." style="font-size: 0.8rem; min-height: 48px; padding: 6px; resize: vertical;"></textarea>
+          <button id="commit-decision-btn" class="btn-primary" style="font-size: 0.8rem; padding: 6px;">Commit Decision to Ledger</button>
+        </div>
+        <div id="drawer-decision-logs" style="margin-top: 10px; max-height: 130px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;"></div>
       </div>
     </div>
   </aside>
