@@ -156,6 +156,20 @@ def test_gui_full_lens_workflows_and_interactions(live_gui_server: str, browser_
     assert "Impacted Nodes" in results_text
     assert "ROI Delta" in results_text
 
+    # Test Decision Provenance Ledger (REC-019)
+    author_input = driver.find_element(By.ID, "decision-author")
+    just_input = driver.find_element(By.ID, "decision-justification")
+    commit_btn = driver.find_element(By.ID, "commit-decision-btn")
+    author_input.send_keys("Chief Architect")
+    just_input.send_keys("Accelerated thermal testing to mitigate sensor payload delivery risk.")
+    driver.execute_script("arguments[0].click();", commit_btn)
+    time.sleep(0.5)
+
+    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#drawer-decision-logs div")))
+    logs_text = driver.find_element(By.ID, "drawer-decision-logs").text
+    assert "Chief Architect" in logs_text
+    assert "Accelerated thermal testing" in logs_text
+
     close_btn = driver.find_element(By.ID, "close-drawer-btn")
     driver.execute_script("arguments[0].click();", close_btn)
     time.sleep(0.3)
@@ -181,6 +195,10 @@ def test_gui_full_lens_workflows_and_interactions(live_gui_server: str, browser_
     focal_tab = driver.find_element(By.CSS_SELECTOR, "button[data-lens='focal-dashboard']")
     focal_tab.click()
 
+    # Select thing known to have operational telemetry events
+    thing_select = wait.until(EC.presence_of_element_located((By.ID, "focal-thing-select")))
+    driver.execute_script("arguments[0].value = 'thing-hypersonic-sensor-constellation';", thing_select)
+
     inspect_btn = wait.until(EC.element_to_be_clickable((By.ID, "focal-refresh-btn")))
     inspect_btn.click()
 
@@ -188,6 +206,24 @@ def test_gui_full_lens_workflows_and_interactions(live_gui_server: str, browser_
     focal_target = driver.find_element(By.ID, "focal-dashboard-target")
     assert "Milestone Progression" in focal_target.text
     assert "Direct Causal Linkages" in focal_target.text
+
+    # Verify 2-Hop Radial Ego-Network HTML5 Canvas (REC-013)
+    canvas = driver.find_element(By.ID, "ego-network-canvas")
+    assert canvas is not None
+
+    # Verify Telemetry Rollups with inline SVG Sparklines (REC-014)
+    sparklines = driver.find_elements(By.CLASS_NAME, "telemetry-sparkline")
+    assert len(sparklines) > 0
+
+    # Verify Pareto Frontier Optimizer (REC-008)
+    pareto_btn = driver.find_element(By.ID, "compute-pareto-btn")
+    driver.execute_script("arguments[0].click();", pareto_btn)
+    time.sleep(0.6)
+
+    pareto_wrapper = driver.find_element(By.ID, "pareto-scatterplot-wrapper")
+    assert pareto_wrapper.is_displayed()
+    pareto_svg = driver.find_element(By.ID, "pareto-scatter-svg")
+    assert pareto_svg is not None
 
     # Check candidate boxes and run tradeoff
     checkboxes = driver.find_elements(By.CLASS_NAME, "tradeoff-candidate-checkbox")
@@ -204,7 +240,7 @@ def test_gui_full_lens_workflows_and_interactions(live_gui_server: str, browser_
     assert "Trade-Off Evaluation Results" in tradeoff_results
     assert "Aggregate ROI" in tradeoff_results
 
-    # 6. Lens 4: Manifest JSON Studio & Admin CRUD
+    # 6. Lens 4: Manifest JSON Studio, Diagnostics & Direct Manipulation Workbench
     crud_tab = driver.find_element(By.CSS_SELECTOR, "button[data-lens='crud-studio']")
     crud_tab.click()
 
@@ -217,3 +253,18 @@ def test_gui_full_lens_workflows_and_interactions(live_gui_server: str, browser_
     assert "organizations" in exported_val
     assert "things" in exported_val
     assert "causal_gates" in exported_val
+
+    # Verify Pre-Flight Diagnostics Linter HUD (REC-017)
+    validate_btn = driver.find_element(By.ID, "crud-validate-btn")
+    driver.execute_script("arguments[0].click();", validate_btn)
+    time.sleep(0.6)
+
+    hud = driver.find_element(By.ID, "crud-diagnostic-hud")
+    assert hud.is_displayed()
+    assert "CRITICAL TOPOLOGICAL BLOCKERS" in hud.text or "ALL PRE-FLIGHT CHECKS PASSED" in hud.text or "Zero blockers" in hud.text
+
+    # Verify Visual Entity Direct Manipulation Workbench (REC-016)
+    visual_cards = driver.find_elements(By.CLASS_NAME, "visual-card")
+    assert len(visual_cards) > 0
+    visual_lanes = driver.find_elements(By.CLASS_NAME, "visual-lane")
+    assert len(visual_lanes) == 4

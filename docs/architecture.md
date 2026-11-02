@@ -245,6 +245,24 @@ When generating an Executive Briefing through the lens of Organization $O_{\text
    - **Supported Concerns**: Concerns where `owner_org_id` $\in \text{ResolvedOrgs}$.
    - **Cross-Boundary Dependencies**: Milestones owned by external organizations that have outgoing `PREREQUISITE_OF` or `INPUT_TO` edges entering owned assets or gates.
 
+### Pareto Optimal Frontier Evaluation Algorithm (`REC-008`)
+
+To solve the multi-objective capital allocation problem (maximizing Aggregate ROI while minimizing Total Cost under a budget ceiling $B_{\text{ceiling}}$), Bijou performs non-dominated sorting over the candidate acquisition space:
+1. **Candidate Portfolio Space**: Enumerates valid portfolios $P \subseteq \text{Things}_{\text{proposed}}$ such that $\sum_{T \in P} \text{Cost}(T) \le B_{\text{ceiling}}$.
+2. **Non-Dominated Criterion**: Portfolio $A$ strictly dominates portfolio $B$ ($A \succ B$) if and only if:
+   $$\text{Cost}(A) \le \text{Cost}(B) \quad \land \quad \text{ROI}(A) \ge \text{ROI}(B)$$
+   $$\text{with at least one strict inequality } (\text{Cost}(A) < \text{Cost}(B) \lor \text{ROI}(A) > \text{ROI}(B))$$
+3. **Micro-Precision Protection**: To prevent floating-point underflow on multi-million dollar defense acquisitions ($10M–$500M), ROI calculation maintains $\ge 10$ decimal places:
+   $$\text{ROI}_{\text{candidate}} = \text{round}\left(\frac{\text{Yield}}{\text{Cost}}, 10\right)$$
+4. The resulting Pareto frontier $\mathcal{P}^*$ forms an ascending non-dominated frontier curve rendered on the 2D SVG scatterplot.
+
+### Pre-Flight Diagnostic Linting Algorithm (`REC-017`)
+
+Prior to manifest import, Bijou executes topological diagnostic linting:
+1. **Cycle Detection**: Builds a directed graph $G = (V, E)$ from all entity nodes and relationship edges and computes `nx.simple_cycles(G)`. Any detected loop paths are flagged as **Critical Blockers** (`blockers`), blocking import.
+2. **Orphan Node Identification**: Identifies nodes where $\text{deg}_{\text{in}}(v) + \text{deg}_{\text{out}}(v) = 0$. Flagged as architectural smells (`warnings`).
+3. **Anchor Verification**: Validates that all milestone anchor IDs referenced by incoming/outgoing edges exist within their parent Thing.
+
 ---
 
 ## 5. Storage & Persistence Architecture
@@ -274,6 +292,13 @@ All entities, relationships, and manifests are persisted in an embedded SQLite d
 High-frequency operational telemetry events are routed to an embedded DuckDB columnar engine (`src/bijou/adapters/telemetry/duckdb_store.py`).
 - **High Ingestion Throughput**: Appends telemetry records into columnar storage without degrading SQLite relational performance.
 - **Parameterized Aggregation**: Executes rollups (`SUM`, `AVG`, `MIN`, `MAX`, `LAST`) using parameterized SQL queries (`?` markers) to completely eliminate SQL injection vulnerabilities.
+
+### Decision Provenance Ledger (`REC-019`)
+
+Strategic decision justifications are persisted in a dedicated relational table `decision_logs` managed by `SqlAlchemyGraphRepository`:
+- **Schema**: Columns for `id` (UUIDv4), `target_milestone_id`, `author`, `justification`, and `timestamp` (UTC ISO-8601).
+- **Concurrency & WAL Mode**: Write transactions are guarded by `_write_lock` and context-managed SQLAlchemy sessions with explicit commits and rollback on error.
+- **Audit Traceability**: Allows leadership to review the historical chain of justifications that led to schedule shifts and milestone reorganizations.
 
 ---
 
@@ -310,9 +335,39 @@ Dependency connectors are rendered in an inline `<svg id="connections-svg">` ove
   $$M(x_1, y_1) \quad C(x_1 + dx, y_1) \quad (x_2 - dx, y_2) \quad (x_2, y_2)$$
 - Upstream critical-path spines are highlighted dynamically on hover by traversing prerequisite edges recursively in JavaScript.
 
+### 2-Hop Concentric Radial Ego-Network (`REC-013`)
+
+In Lens 3, focal asset relationships are rendered on an HTML5 `<canvas id="ego-network-canvas">`:
+- **Center**: Focal Thing illuminated with glowing cyan aesthetic (`#06b6d4`, `#38bdf8`).
+- **Concentric Orbits**:
+  - Inner-left semi-circle arc ($r_1 \approx 110\text{px}$): 1-hop upstream predecessor Things (`#3b82f6`) with inward directed arrows.
+  - Inner-right semi-circle arc ($r_1 \approx 110\text{px}$): 1-hop downstream dependent Things (`#10b981`) with outward directed arrows.
+  - Outer-right semi-circle arc ($r_2 \approx 190\text{px}$): 2-hop produced strategic Effects (`#f59e0b`) with incident arrows.
+- Interactive canvas mousemove listener calculates Euclidean distance to detect node hover, highlighting connected edges and rendering entity tooltips.
+
+### Telemetry Sparklines & Horizontal SLA Threshold Bands (`REC-014`)
+
+Operational telemetry rollups feature compact inline SVG sparklines:
+- 8-point trendline polyline rendered in `#38bdf8`.
+- Horizontal red dashed line (`#ef4444`, `stroke-dasharray="2,2"`) indicating the target metric SLA threshold.
+
+### Interactive 2D SVG Pareto Scatterplot (`REC-008`)
+
+The Trade-Off Matrix section renders an interactive 2D SVG coordinate plane:
+- $X$-Axis: Total Cost ($0 to $BudgetCeiling).
+- $Y$-Axis: Aggregate ROI ($0 to $\text{MaxROI}$).
+- Non-dominated portfolios are rendered as illuminated gold circular points (`#f59e0b`) connected by an ascending frontier curve.
+- Hover tooltips display proposed Thing IDs, total cost in millions, and aggregate ROI. Clicking any point selects candidate checkboxes and re-evaluates the trade-off.
+
+### Direct Manipulation Lifecycle Workbench (`REC-016`)
+
+In the Manifest Studio, entities are rendered across 4 lifecycle columns: `PROPOSED`, `ACTIVE`, `DELIVERED`, `RETIRED`.
+- HTML5 Drag and Drop API (`dragstart`, `dragover`, `drop`) allows dragging cards between lanes.
+- Dropping a card updates the entity's lifecycle state in the manifest JSON and re-renders the workbench in real-time.
+
 ### Executive 1-Slide Print Engine
 
-The Executive Briefing lens (`executive.js`) incorporates a specialized print stylesheet:
+The Executive Briefing lens incorporates a specialized print stylesheet:
 - `@page { size: landscape; margin: 0; }`
 - Forces dark-theme contrast retention via `-webkit-print-color-adjust: exact;`.
 - Automatically hides header bars, navigation tabs, and scroll controls during browser print or PDF export.

@@ -152,6 +152,12 @@ Clicking any milestone card in the Tech Tree slides open the What-If Simulator D
    - **Degraded Effects**: Capabilities compromised by the slip.
    - **Broken Concerns**: Strategic goals no longer adequately covered.
 
+#### Strategic Decision Provenance Ledger (`REC-019`):
+Right beneath the simulation results, architects and leadership can record decision provenance directly into an immutable audit trail:
+- **Author ID**: Identifies the responsible decision-maker or authority.
+- **Strategic Justification**: Records the strategic rationale or mitigation plan justifying the schedule shift.
+- Click **Commit Decision to Ledger**: Persists the entry to SQLite using WAL mode and thread locks. Existing decisions for the selected milestone are displayed chronologically with author and date tags.
+
 ---
 
 ### Lens 2: Executive Multi-Perspective 1-Slide Briefing
@@ -173,35 +179,57 @@ Click **Export PDF (Print)**. Bijou's CSS includes dedicated `@media print` and 
 
 ### Lens 3: Single-Thing Focal Ego-Network & Tradeoff Matrix
 
-Focuses on a single capital asset to examine its local 2-hop ecosystem and evaluate portfolio tradeoffs.
+Focuses on a single capital asset to examine its local 2-hop ecosystem, review operational telemetry trends, and evaluate Pareto-optimal portfolio tradeoffs.
 
 ![Focal Dashboard](assets/snapshots/04_focal_dashboard.png)
 
 #### Components:
-- **Milestone Progression**: Status and cost delta across all internal milestones.
-- **Direct Causal Linkages**: Upstream predecessor Things, downstream dependents, and produced capabilities.
-- **DuckDB Telemetry Rollups**: Live operational telemetry metrics ingested via DuckDB, tracking event count and aggregated SLA thresholds.
+- **Milestone Progression**: Status, TRL maturity, and cost delta across all internal milestones.
+- **2-Hop Concentric Radial Ego-Network (`REC-013`)**:
+  - Rendered on a zero-dependency HTML5 `<canvas id="ego-network-canvas">`.
+  - **Center**: Focal Thing illuminated with glowing cyan aesthetic.
+  - **Inner-Left Ring**: 1-hop upstream predecessor Things (`#3b82f6`) with inward directed arrows.
+  - **Inner-Right Ring**: 1-hop downstream dependent Things (`#10b981`) with outward directed arrows.
+  - **Outer-Right Ring**: 2-hop produced strategic Effects (`#f59e0b`) with incident arrows.
+  - Interactive canvas hover detects nodes under cursor, rendering clear entity labels and highlighting incident connections.
+- **Inline Telemetry Sparklines & SLA Threshold Bands (`REC-014`)**:
+  - Live operational telemetry ingested via DuckDB.
+  - Renders compact inline SVG trendlines alongside a red dashed horizontal line representing the **Target Metric SLA Threshold**.
 
-#### Portfolio Trade-Off Evaluation:
-Select two or more candidate Things in the sidebar and click **Evaluate Trade-Off**:
+#### Pareto Frontier Optimizer & Trade-Off Matrix (`REC-008`):
+Select candidate Things in the sidebar or evaluate trade-offs under dynamic budget constraints:
 
 ![Trade-Off Matrix](assets/snapshots/05_tradeoff_matrix.png)
 
-Bijou evaluates the candidate combination and displays:
-- Aggregate portfolio cost.
-- Aggregate ROI efficiency score.
-- Unlocked effects and capabilities.
-- Concern coverage deltas ($+\Delta\%$) for each strategic objective.
+1. **Interactive 2D SVG Pareto Scatterplot**:
+   - Specify a **Budget Ceiling ($M)** (e.g., $100M) and click **Compute Pareto**.
+   - Evaluates all candidate combinations using high-precision non-dominated sorting ($\ge 10$ decimal places).
+   - Plots solutions on a Cartesian coordinate plane ($X$: Total Cost $M, $Y$: Aggregate ROI).
+   - Connected by an illuminated gold frontier line; hovering over any point displays candidate IDs, cost, and ROI.
+   - Clicking any point on the frontier automatically populates candidate checkboxes and triggers trade-off evaluation.
+2. **Trade-Off Results**:
+   - Aggregate portfolio cost and aggregate ROI efficiency.
+   - Unlocked effects and capabilities.
+   - Concern coverage deltas ($+\Delta\%$) for each strategic objective.
 
 ---
 
 ### Lens 4: Manifest JSON Studio & Entity Administration
 
-Provides direct, atomic data management and quick provisioning.
+Provides direct, atomic data management, pre-flight linting, and visual lifecycle manipulation.
 
 ![Manifest Studio](assets/snapshots/06_manifest_crud_studio.png)
 
 #### Capabilities:
+- **Pre-Flight Diagnostics Linter HUD (`REC-017`)**:
+  - Click **Pre-Flight Diagnostics** prior to importing.
+  - Uses `nx.simple_cycles` to detect circular dependency loops across the graph.
+  - Identifies orphaned entities (degree 0).
+  - Renders a Diagnostic HUD displaying critical blockers in red, detected cycle paths (`Node A -> Node B -> Node C -> Node A`), and non-fatal warnings in amber.
+  - Prevents corrupt imports if critical blockers exist.
+- **Direct Manipulation Entity Workbench (`REC-016`)**:
+  - Below the JSON editor, Things are rendered as interactive cards organized across 4 lifecycle lanes: `PROPOSED`, `ACTIVE`, `DELIVERED`, and `RETIRED`.
+  - Dragging a card between lanes immediately updates the entity's lifecycle state in the manifest JSON in real-time.
 - **Quick Organization Create**: Rapidly define new organizational units with ID, Name, Echelon Level, and Mission Statement.
 - **Export Manifest**: Generates a byte-level serialized JSON representation of the entire active portfolio.
 - **Atomic Import Swap**: Paste or modify manifest JSON and click **Import Manifest**. Checking **Replace All** executes an atomic database rollback and replacement.

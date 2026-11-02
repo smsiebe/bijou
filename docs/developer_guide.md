@@ -198,7 +198,7 @@ ruff format .
 
 ## 4. Testing Strategy & Test Suites
 
-Bijou maintains a comprehensive 37-test quality gate spanning five testing tiers:
+Bijou maintains a comprehensive 41-test quality gate spanning five testing tiers:
 
 ```
 +-------------------------------------------------------------+
@@ -207,7 +207,7 @@ Bijou maintains a comprehensive 37-test quality gate spanning five testing tiers
 | Tier 1: Unit & Contract Tests (Pydantic, Ports, Validation) |
 | Tier 2: Storage & Adapter Tests (SQLite WAL, DuckDB SQL)    |
 | Tier 3: Engine Math Tests (CPM Slack, Causal Gates, Cycles) |
-| Tier 4: Adversarial Torture Tests (Edge cases, Invalidation)|
+| Tier 4: Adversarial Torture & Analytics Tests (Red-Team)    |
 | Tier 5: E2E Integration & Headless Selenium GUI Tests       |
 +-------------------------------------------------------------+
 ```
@@ -219,7 +219,7 @@ Bijou maintains a comprehensive 37-test quality gate spanning five testing tiers
 | `tests/contracts/` | Validates DTO validation, byte-level manifest roundtrips, and abstract port enforcement. | 5 |
 | `tests/adapters/` | Verifies SQLite CRUD, concurrency without deadlocks, and DuckDB SQL injection resistance. | 6 |
 | `tests/engine/` | Tests combinatorial gates, cycle detection, and thread-safe concurrent projection rebuilds. | 4 |
-| `tests/adversarial/` | Red-team torture tests: slip propagation, temporal edge bounds, parent-org DAG resolution. | 8 |
+| `tests/adversarial/` | Red-team torture tests: slip propagation, temporal edge bounds, Pareto knapsack boundaries, and manifest linter cycles. | 10 |
 | `tests/api/` & `services/` | Tests OpenAPI schema conformance, 503 fallback handling, and size-limit middleware. | 5 |
 | `tests/sdk/` & `ingest/` | Tests `bijou-pysdk` and `bijou-doc-ingest` CLI tools against live ASGI apps. | 4 |
 | `tests/web/` | Verifies air-gapped compliance, print stylesheets, and automated headless Selenium GUI flows. | 4 |
@@ -238,16 +238,20 @@ To run a specific test module:
 pytest tests/engine/test_graph_projection_engine.py -v
 ```
 
-### Adversarial Red-Team Torture Tests
+### Adversarial Red-Team Torture & Analytics Tests
 
-The adversarial suite (`tests/adversarial/test_redteam_torture.py`) subjects Bijou's mathematical algorithms to stressful edge cases:
-- Incomplete gate prerequisites under `COMBINATORIAL_AND` and `THRESHOLD_K_OF_N`.
-- Temporal edge filtering excluding future and expired dependencies.
-- Multi-generation `parent_org_id` hierarchy aggregation without explicit graph edges.
-- Deep milestone slip cascade degradation and portfolio ROI delta math.
+The adversarial suite (`tests/adversarial/`) subjects Bijou's mathematical algorithms to stressful edge cases:
+- **`test_redteam_torture.py`**:
+  - Incomplete gate prerequisites under `COMBINATORIAL_AND` and `THRESHOLD_K_OF_N`.
+  - Temporal edge filtering excluding future and expired dependencies.
+  - Multi-generation `parent_org_id` hierarchy aggregation without explicit graph edges.
+  - Deep milestone slip cascade degradation and portfolio ROI delta math.
+- **`test_redteam_analytics.py`** (`REC-008`, `REC-017`):
+  - Pareto frontier non-dominated sorting on realistic $15M–$120M programs under strict budget ceilings.
+  - Manifest topological cycle detection (`nx.simple_cycles`) and orphaned node detection (degree 0).
 
 ```bash
-pytest tests/adversarial/test_redteam_torture.py -v
+pytest tests/adversarial/ -v
 ```
 
 ### Selenium Headless Chrome GUI Tests
@@ -258,12 +262,24 @@ The Selenium test suite (`tests/web/test_gui_selenium.py`) executes end-to-end b
 3. Launches Headless Google Chrome using Selenium WebDriver.
 4. Switches between all 4 decision lenses.
 5. Simulates a 90-day milestone slip and verifies computed UI cascade deltas.
-6. Switches executive perspectives and tests tradeoff evaluations.
+6. Commits a **Decision Provenance Record** (`REC-019`) and asserts it appears in the drawer audit trail.
+7. Switches executive perspectives and tests tradeoff evaluations.
+8. Inspects a focal Thing to verify the **2-Hop Concentric Radial Ego-Network `<canvas>`** (`REC-013`) and **Inline Telemetry Sparklines with SLA Threshold Bands** (`REC-014`).
+9. Computes the **Pareto Optimal Frontier** (`REC-008`) and verifies the interactive 2D SVG scatterplot.
+10. Validates manifest topology in the Manifest Studio via the **Diagnostic Linter HUD** (`REC-017`) and verifies the **Direct Manipulation Visual Entity Workbench** (`REC-016`).
 
 To run the Selenium suite:
 
 ```bash
 pytest tests/web/test_gui_selenium.py -v
+```
+
+### BLACK Pre-Flight Reflection Gate
+
+Bijou enforces automated pre-flight checks verifying zero banned tokens and Rule 17 test fixture immutability:
+
+```bash
+python scripts/black_preflight_audit.py --remediation-mode
 ```
 
 ---

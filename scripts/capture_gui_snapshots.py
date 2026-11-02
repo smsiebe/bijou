@@ -127,7 +127,15 @@ def capture_all_snapshots() -> None:
 
             # Wait for calculation results
             wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#slip-simulation-results div")))
-            time.sleep(0.6)
+
+            # Commit a Decision Provenance Record (REC-019)
+            author_input = driver.find_element(By.ID, "decision-author")
+            just_input = driver.find_element(By.ID, "decision-justification")
+            commit_btn = driver.find_element(By.ID, "commit-decision-btn")
+            author_input.send_keys("Executive Flight Director")
+            just_input.send_keys("Approved 90-day chamber re-test to validate multi-spectral sensor durability.")
+            driver.execute_script("arguments[0].click();", commit_btn)
+            time.sleep(0.8)
 
             snap2 = snapshots_dir / "02_slip_simulation_drawer.png"
             driver.save_screenshot(str(snap2))
@@ -148,7 +156,7 @@ def capture_all_snapshots() -> None:
             driver.save_screenshot(str(snap3))
             print(f"Captured: {snap3.name}")
 
-            # Snapshot 4: Single-Thing Focal Dashboard
+            # Snapshot 4: Single-Thing Focal Dashboard & Radial Ego-Network
             focal_tab = driver.find_element(By.CSS_SELECTOR, "button[data-lens='focal-dashboard']")
             focal_tab.click()
             wait.until(EC.presence_of_element_located((By.ID, "focal-thing-select")))
@@ -157,13 +165,17 @@ def capture_all_snapshots() -> None:
             inspect_btn = driver.find_element(By.ID, "focal-refresh-btn")
             inspect_btn.click()
             wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#focal-dashboard-target .quadrant-card")))
-            time.sleep(0.8)
+            time.sleep(1.0)
 
             snap4 = snapshots_dir / "04_focal_dashboard.png"
             driver.save_screenshot(str(snap4))
             print(f"Captured: {snap4.name}")
 
-            # Snapshot 5: Trade-Off Matrix Evaluation
+            # Snapshot 5: Trade-Off Matrix & Pareto Frontier Optimizer
+            pareto_btn = driver.find_element(By.ID, "compute-pareto-btn")
+            driver.execute_script("arguments[0].click();", pareto_btn)
+            time.sleep(0.6)
+
             # Check two candidate boxes
             checkboxes = driver.find_elements(By.CLASS_NAME, "tradeoff-candidate-checkbox")
             if len(checkboxes) >= 2:
@@ -174,13 +186,13 @@ def capture_all_snapshots() -> None:
             tradeoff_btn = driver.find_element(By.ID, "run-tradeoff-btn")
             tradeoff_btn.click()
             wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#tradeoff-results-target h4")))
-            time.sleep(0.5)
+            time.sleep(0.8)
 
             snap5 = snapshots_dir / "05_tradeoff_matrix.png"
             driver.save_screenshot(str(snap5))
             print(f"Captured: {snap5.name}")
 
-            # Snapshot 6: Manifest JSON Studio & Admin CRUD
+            # Snapshot 6: Manifest JSON Studio, Diagnostic HUD & Visual Workbench
             crud_tab = driver.find_element(By.CSS_SELECTOR, "button[data-lens='crud-studio']")
             crud_tab.click()
             wait.until(EC.presence_of_element_located((By.ID, "crud-export-btn")))
@@ -188,9 +200,12 @@ def capture_all_snapshots() -> None:
             # Export manifest
             export_btn = driver.find_element(By.ID, "crud-export-btn")
             export_btn.click()
-
-            # Wait for textarea content
             time.sleep(1.0)
+
+            # Run Pre-Flight Diagnostics (REC-017)
+            validate_btn = driver.find_element(By.ID, "crud-validate-btn")
+            driver.execute_script("arguments[0].click();", validate_btn)
+            time.sleep(0.8)
 
             snap6 = snapshots_dir / "06_manifest_crud_studio.png"
             driver.save_screenshot(str(snap6))

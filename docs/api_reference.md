@@ -252,6 +252,20 @@ Import a complete portfolio manifest.
 - **Request Body**: `BijouManifestDTO`.
 - **Response**: `200 OK` with `{"status": "success", "imported": { ... }}`.
 
+#### `POST /api/v1/manifest/validate`
+Validate manifest topology and run pre-flight diagnostic linting before import (`REC-017`).
+- **Request Body**: `BijouManifestDTO`.
+- **Response**: `200 OK` with `DiagnosticReportDTO`:
+  ```json
+  {
+    "blockers": ["Cycle detected: thing-sensor-constellation -> thing-edge-ai -> thing-sensor-constellation"],
+    "warnings": ["Orphan node detected (degree 0): org-tac-strike"],
+    "cycles_detected": [
+      ["thing-sensor-constellation", "thing-edge-ai", "thing-sensor-constellation"]
+    ]
+  }
+  ```
+
 ---
 
 ### Operational Telemetry
@@ -348,6 +362,52 @@ Evaluate a portfolio tradeoff across multiple candidate Things.
   ["thing-space-constellation", "thing-edge-correlator"]
   ```
 - **Response**: `200 OK` with `TradeoffProposalComparisonDTO` (Total Cost, Aggregate ROI, Unlocked Capabilities, Concern Coverage Deltas).
+
+#### `GET /api/v1/analysis/pareto-frontier`
+Evaluate the Pareto-optimal frontier of funding candidate portfolios subject to a budget ceiling (`REC-008`).
+- **Query Parameters**:
+  - `budget_ceiling` (float, default: `100000000.0`): Maximum portfolio budget constraint.
+  - `as_of_date` (optional): Reference evaluation date (`YYYY-MM-DD`).
+- **Response**: `200 OK` with `ParetoFrontierDTO`:
+  ```json
+  {
+    "budget_ceiling": 100000000.0,
+    "optimal_portfolios": [
+      {
+        "proposed_thing_ids": ["thing-space-constellation", "thing-edge-correlator"],
+        "total_cost": 75000000.0,
+        "aggregate_roi": 0.052841,
+        "concern_coverage_deltas": { "concern-hypersonic-track": 0.45 },
+        "unlocked_effect_ids": ["eff-persistent-hypersonic-track"],
+        "reasoning_recommendation": null
+      }
+    ]
+  }
+  ```
+
+---
+
+### Decision Provenance Ledger
+
+#### `POST /api/v1/decision-logs`
+Append a strategic decision provenance record to the immutable audit ledger (`REC-019`).
+- **Request Body**: `DecisionLogEntryDTO`:
+  ```json
+  {
+    "id": "dec-550e8400-e29b-41d4-a716-446655440000",
+    "target_milestone_id": "ms-space-chamber-proto",
+    "author": "Chief Architect",
+    "justification": "Approved 90-day chamber re-test to validate multi-spectral sensor durability.",
+    "timestamp": "2026-11-02T12:00:00Z"
+  }
+  ```
+- **Response**: `201 Created` with `DecisionLogEntryDTO`.
+
+#### `GET /api/v1/decision-logs`
+Retrieve decision provenance records from the ledger.
+- **Query Parameter**:
+  - `target_milestone_id` (optional): Filter to decisions logged against a specific milestone.
+- **Response**: `200 OK` with `list[DecisionLogEntryDTO]` ordered chronologically descending.
 
 ---
 
