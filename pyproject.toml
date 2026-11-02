@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bijou"
+version = "0.1.0"
+description = "Bijou Python Application"
+readme = "README.md"
+authors = [
+    { name = "smsiebe" }
+]
+license = { text = "MIT" }
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/smsiebe/bijou"
+Repository = "https://github.com/smsiebe/bijou.git"
+"Bug Tracker" = "https://github.com/smsiebe/bijou/issues"
+
+[project.scripts]
+bijou = "bijou.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
