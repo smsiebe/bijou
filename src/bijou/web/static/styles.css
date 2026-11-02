@@ -1,0 +1,390 @@
+/* ==========================================================================
+   Bijou Decision-Support & 4X Causal Graph Engine Stylesheet
+   Tactical Dark Command Aesthetic | Zero External CDN Dependencies
+   ========================================================================== */
+
+:root {
+  --bg-primary: #0a0e14;
+  --bg-secondary: #131922;
+  --bg-card: #1b222d;
+  --bg-card-hover: #222b3a;
+  --border-subtle: #2d3748;
+  --border-bright: #4a5568;
+  --text-main: #e2e8f0;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+
+  --color-achieved: #10b981;
+  --color-active: #06b6d4;
+  --color-ready: #f59e0b;
+  --color-locked: #64748b;
+  --color-blocked: #ef4444;
+
+  --accent-cyan: #38bdf8;
+  --accent-blue: #3b82f6;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header & Command Navigation Bar */
+header.app-header {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 24px;
+  flex-shrink: 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--accent-cyan);
+}
+
+.badge-pill {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  font-family: var(--font-mono);
+}
+
+nav.lens-bar {
+  display: flex;
+  gap: 8px;
+}
+
+.lens-btn {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.lens-btn:hover {
+  background: var(--bg-card);
+  color: var(--text-main);
+  border-color: var(--border-bright);
+}
+
+.lens-btn.active {
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+}
+
+/* Main Content Workspace */
+main.workspace {
+  flex: 1;
+  position: relative;
+  overflow: auto;
+  padding: 20px;
+}
+
+.lens-view {
+  display: none;
+  height: 100%;
+}
+
+.lens-view.active {
+  display: block;
+}
+
+/* 4X Tech Tree View Styling */
+.tech-tree-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 16px;
+}
+
+.tech-tree-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-secondary);
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+}
+
+.tech-tree-canvas-wrapper {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  background: radial-gradient(circle at 50% 50%, rgba(19, 25, 34, 0.8), var(--bg-primary));
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 30px;
+}
+
+.tech-tree-grid {
+  display: grid;
+  grid-auto-flow: column;
+  gap: 40px;
+  min-width: 100%;
+  position: relative;
+}
+
+.tech-tree-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 280px;
+}
+
+.column-header {
+  font-size: 0.85rem;
+  font-family: var(--font-mono);
+  color: var(--accent-cyan);
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--border-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.node-card {
+  background: var(--bg-card);
+  border: 2px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.node-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+}
+
+.node-card.state-achieved {
+  border-color: var(--color-achieved);
+  box-shadow: inset 0 0 10px rgba(16, 185, 129, 0.15);
+}
+
+.node-card.state-active {
+  border-color: var(--color-active);
+  box-shadow: 0 0 14px rgba(6, 182, 212, 0.3);
+}
+
+.node-card.state-unlocked-ready {
+  border-color: var(--color-ready);
+  border-style: dashed;
+}
+
+.node-card.state-locked {
+  border-color: var(--color-locked);
+  opacity: 0.55;
+}
+
+.node-card.state-blocked {
+  border-color: var(--color-blocked);
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.4);
+}
+
+.node-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+}
+
+.node-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-family: var(--font-mono);
+}
+
+/* What-If Slip Drawer */
+.slip-drawer {
+  position: fixed;
+  right: -420px;
+  top: 60px;
+  bottom: 0;
+  width: 400px;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border-bright);
+  padding: 24px;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.6);
+  transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 100;
+  overflow-y: auto;
+}
+
+.slip-drawer.open {
+  right: 0;
+}
+
+/* Multi-Perspective 1-Slide Printable Briefing */
+.briefing-slide {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.briefing-quadrants {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.quadrant-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 18px;
+}
+
+.quadrant-card h3 {
+  font-size: 1rem;
+  color: var(--accent-cyan);
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 6px;
+}
+
+/* Single-Thing Focal Dashboard & Trade-Off */
+.focal-dashboard-container {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 24px;
+}
+
+/* CRUD Studio Forms & JSON Editor */
+.crud-studio-container {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 20px;
+}
+
+/* Form inputs & buttons */
+input, select, textarea {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent-cyan);
+}
+
+.btn-primary {
+  background: #0284c7;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-primary:hover {
+  background: #0369a1;
+}
+
+/* ==========================================================================
+   @media print Rules for Multi-Perspective 1-Slide Briefing
+   Single Landscape Sheet Export
+   ========================================================================== */
+@page {
+  size: landscape;
+  margin: 10mm;
+}
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  header.app-header,
+  .tech-tree-controls,
+  .slip-drawer,
+  nav.lens-bar,
+  .no-print {
+    display: none !important;
+  }
+
+  main.workspace {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .lens-view {
+    display: none !important;
+  }
+
+  #briefing-one-pager {
+    display: block !important;
+  }
+
+  .briefing-slide {
+    background: #ffffff !important;
+    border: 1px solid #cccccc !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+    max-width: 100% !important;
+  }
+
+  .quadrant-card {
+    background: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #0f172a !important;
+  }
+
+  .quadrant-card h3 {
+    color: #0284c7 !important;
+  }
+}

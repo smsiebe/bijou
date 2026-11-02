@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bijou | Strategic Tech-Tree & Causal Orchestrator</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <!-- Header Bar -->
+  <header class="app-header">
+    <div class="brand">
+      <h1>BIJOU</h1>
+      <span class="badge-pill">4X CAUSAL ENGINE</span>
+    </div>
+    <nav class="lens-bar">
+      <button class="lens-btn active" data-lens="tech-tree-canvas">4X Tech Tree</button>
+      <button class="lens-btn" data-lens="briefing-one-pager">Executive Briefing</button>
+      <button class="lens-btn" data-lens="focal-dashboard">Focal Dashboard</button>
+      <button class="lens-btn" data-lens="crud-studio">Manifest & Admin</button>
+    </nav>
+  </header>
+
+  <!-- Workspace Container -->
+  <main class="workspace">
+    <!-- Lens 1: 4X Tech Tree Canvas -->
+    <section id="tech-tree-canvas" class="lens-view active">
+      <div class="tech-tree-container">
+        <div class="tech-tree-controls">
+          <div style="display: flex; gap: 16px; align-items: center;">
+            <label style="font-size: 0.85rem; font-weight: 600;">Stratification:</label>
+            <select id="stratification-mode-select">
+              <option value="TRL_TIERS">TRL Maturity Tiers</option>
+              <option value="TIME_HORIZONS">Time Horizons (FY Quarter)</option>
+              <option value="ORGANIZATION">Organization Swimlanes</option>
+            </select>
+
+            <label style="font-size: 0.85rem; font-weight: 600; margin-left: 10px;">Filter Org:</label>
+            <select id="tech-tree-org-filter">
+              <option value="">All Organizations</option>
+            </select>
+          </div>
+          <div>
+            <span style="font-size: 0.8rem; color: var(--text-dim); font-family: var(--font-mono);">Click node to simulate slip & cascade</span>
+          </div>
+        </div>
+
+        <div class="tech-tree-canvas-wrapper">
+          <div id="tech-tree-grid-target" class="tech-tree-grid">
+            <!-- Rendered by tech_tree.js -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lens 2: Multi-Perspective 1-Slide Printable Briefing -->
+    <section id="briefing-one-pager" class="lens-view">
+      <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;" class="no-print">
+        <div style="display: flex; gap: 16px; align-items: center;">
+          <label style="font-size: 0.85rem; font-weight: 600;">Subject Org:</label>
+          <select id="briefing-subject-org"></select>
+
+          <label style="font-size: 0.85rem; font-weight: 600;">Observed Via:</label>
+          <select id="briefing-perspective-org"></select>
+
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer;">
+            <input type="checkbox" id="briefing-descendants-toggle" checked />
+            <span>Include Sub-Orgs</span>
+          </label>
+
+          <button id="briefing-refresh-btn" class="btn-primary" style="padding: 6px 12px; font-size: 0.8rem;">Refresh</button>
+        </div>
+        <div>
+          <button id="briefing-print-btn" class="btn-primary" style="background: var(--accent-cyan); color: #0a0e14;">Export PDF (Print)</button>
+        </div>
+      </div>
+
+      <div id="briefing-slide-target">
+        <!-- Rendered by views.js -->
+      </div>
+    </section>
+
+    <!-- Lens 3: Single-Thing Focal Dashboard & Trade-Off Matrix -->
+    <section id="focal-dashboard" class="lens-view">
+      <div class="focal-dashboard-container">
+        <!-- Sidebar Controls -->
+        <div style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 18px; display: flex; flex-direction: column; gap: 20px;">
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 8px;">Select Focus Thing:</label>
+            <select id="focal-thing-select" style="width: 100%;"></select>
+            <button id="focal-refresh-btn" class="btn-primary" style="margin-top: 8px; width: 100%;">Inspect Thing</button>
+          </div>
+
+          <div style="border-top: 1px solid var(--border-subtle); padding-top: 16px;">
+            <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 8px;">Trade-Off Candidates:</label>
+            <div id="tradeoff-candidates-container" style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 4px 0;">
+              <!-- Populated by app.js -->
+            </div>
+            <button id="run-tradeoff-btn" class="btn-primary" style="margin-top: 10px; width: 100%; background: var(--color-ready); color: #0a0e14;">Evaluate Trade-Off</button>
+          </div>
+
+          <div id="tradeoff-results-target">
+            <!-- Results populated by views.js -->
+          </div>
+        </div>
+
+        <!-- Main Focal Detail View -->
+        <div id="focal-dashboard-target">
+          <div style="color: var(--text-muted); padding: 40px; text-align: center;">Select a Thing and click Inspect Thing.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lens 4: Admin CRUD & Manifest Import/Export -->
+    <section id="crud-studio" class="lens-view">
+      <div class="crud-studio-container">
+        <!-- Left: Quick Entity Form -->
+        <div style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 18px;">
+          <h3 style="font-size: 1rem; color: var(--accent-cyan); margin-bottom: 14px;">Quick Organization Create</h3>
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div>
+              <label style="font-size: 0.8rem; color: var(--text-muted);">Organization ID:</label>
+              <input type="text" id="crud-org-id" placeholder="org-tactical-alpha" style="width: 100%; margin-top: 4px;" />
+            </div>
+            <div>
+              <label style="font-size: 0.8rem; color: var(--text-muted);">Organization Name:</label>
+              <input type="text" id="crud-org-name" placeholder="Tactical Strike Command" style="width: 100%; margin-top: 4px;" />
+            </div>
+            <div>
+              <label style="font-size: 0.8rem; color: var(--text-muted);">Echelon:</label>
+              <select id="crud-org-echelon" style="width: 100%; margin-top: 4px;">
+                <option value="STRATEGIC">STRATEGIC</option>
+                <option value="OPERATIONAL">OPERATIONAL</option>
+                <option value="TACTICAL">TACTICAL</option>
+                <option value="EXTERNAL">EXTERNAL</option>
+              </select>
+            </div>
+            <button id="crud-create-org-btn" class="btn-primary" style="margin-top: 8px;">Create Organization</button>
+          </div>
+        </div>
+
+        <!-- Right: JSON Manifest Import / Export -->
+        <div style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 18px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="font-size: 1rem; color: var(--accent-cyan);">Manifest JSON Studio</h3>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
+                <input type="checkbox" id="crud-replace-all-checkbox" />
+                <span>Replace All (Atomic Swap)</span>
+              </label>
+              <button id="crud-export-btn" class="btn-primary" style="background: #334155;">Export Manifest</button>
+              <button id="crud-import-btn" class="btn-primary">Import Manifest</button>
+            </div>
+          </div>
+          <textarea id="crud-manifest-json" style="flex: 1; min-height: 400px; font-family: var(--font-mono); font-size: 0.8rem; padding: 12px; resize: vertical;" placeholder="Paste Bijou manifest JSON here or click Export Manifest..."></textarea>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- What-If Slip Simulator Drawer -->
+  <aside id="slip-drawer" class="slip-drawer">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h3 style="font-size: 1.1rem; color: var(--accent-cyan); font-weight: 700;">What-If Slip Simulator</h3>
+      <button id="close-drawer-btn" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem;">&times;</button>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div>
+        <label style="font-size: 0.8rem; color: var(--text-muted);">Target Milestone:</label>
+        <div id="drawer-milestone-title" style="font-weight: 700; margin-top: 2px;">-</div>
+        <div id="drawer-thing-name" style="font-size: 0.85rem; color: var(--accent-blue);">-</div>
+      </div>
+
+      <div>
+        <label style="font-size: 0.8rem; color: var(--text-muted);">Current State:</label>
+        <div id="drawer-current-state" class="badge-pill" style="display: inline-block; margin-top: 4px;">-</div>
+      </div>
+
+      <div>
+        <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Simulated Slip (Days):</label>
+        <input type="number" id="slip-days-slider" value="60" min="1" max="730" style="width: 100%;" />
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <input type="checkbox" id="simulate-cancellation-checkbox" />
+        <label for="simulate-cancellation-checkbox" style="font-size: 0.85rem; cursor: pointer;">Simulate Full Cancellation</label>
+      </div>
+
+      <button id="apply-slip-btn" class="btn-primary" style="margin-top: 10px;">Compute Cascade Delta</button>
+
+      <div id="slip-simulation-results">
+        <!-- Rendered by tech_tree.js -->
+      </div>
+    </div>
+  </aside>
+
+  <!-- Scripts: Strictly Local & Offline -->
+  <script src="/static/api.js"></script>
+  <script src="/static/tech_tree.js"></script>
+  <script src="/static/views.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

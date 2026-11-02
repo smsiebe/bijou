@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "bijou"
 version = "0.1.0"
-description = "Bijou Python Application"
+description = "Multi-Echelon Impact & Causal Graph Engine"
 readme = "README.md"
 authors = [
     { name = "smsiebe" }
@@ -20,9 +20,28 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Operating System :: OS Independent",
 ]
-dependencies = []
+dependencies = [
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.2.0",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.29.0",
+    "sqlalchemy>=2.0.0",
+    "duckdb>=0.10.0",
+    "networkx>=3.2.0",
+    "httpx>=0.27.0",
+    "pyyaml>=6.0",
+    "click>=8.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.4.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/smsiebe/bijou"
@@ -30,7 +49,7 @@ Repository = "https://github.com/smsiebe/bijou.git"
 "Bug Tracker" = "https://github.com/smsiebe/bijou/issues"
 
 [project.scripts]
-bijou = "bijou.main:main"
+bijou = "bijou.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
