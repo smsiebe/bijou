@@ -15,6 +15,7 @@ from bijou.core.contracts.views import (
     TechTreeViewDTO,
     ThingFocalDashboardDTO,
     TradeoffProposalComparisonDTO,
+    ClusteredSpheresViewDTO,
 )
 
 
@@ -95,4 +96,12 @@ class IGraphProjectionEngine(ABC):
         manifest: BijouManifestDTO | None = None,
     ) -> DiagnosticReportDTO:
         """Perform topological and diagnostic linting on a manifest or current graph."""
+
+    @abstractmethod
+    def build_clustered_spheres_view(
+        self,
+        as_of_date: date,
+        org_filter: str | None = None,
+    ) -> ClusteredSpheresViewDTO:
+        """Construct the compound clustered graph layout partitioned by Organization spheres."""
 

@@ -8,6 +8,8 @@ from typing_extensions import Self
 from bijou.core.contracts.base import BijouBaseModel
 from bijou.core.contracts.enums import (
     CausalMechanismType,
+    LifecycleStatus,
+    RelationshipType,
     TechTreeNodeState,
     TechTreeStratificationMode,
 )
@@ -191,3 +193,63 @@ class DiagnosticReportDTO(BijouBaseModel):
     warnings: list[str] = Field(default_factory=list, alias="warnings", description="Non-fatal warnings and architectural smells")
     cycles_detected: list[list[str]] = Field(default_factory=list, alias="cycles_detected", description="Detected topological dependency cycles")
 
+
+
+class OrganizationClusterDTO(BijouBaseModel):
+    """Cluster boundary representing an Organization and its owned Things."""
+
+    org_id: str = Field(..., alias="org_id", description="Organization ID")
+    org_name: str = Field(..., alias="org_name", description="Organization name")
+    echelon_level: int = Field(default=0, alias="echelon_level", description="Echelon level")
+    mission_statement: str = Field(default="", alias="mission_statement", description="Mission statement")
+    color: str = Field(default="#0284c7", alias="color", description="Visual theme color")
+    total_cost: float = Field(default=0.0, alias="total_cost", ge=0.0, description="Total committed cost")
+    thing_ids: list[str] = Field(default_factory=list, alias="thing_ids", description="Things owned by this organization")
+
+
+class ClusteredThingNodeDTO(BijouBaseModel):
+    """Thing node positioned within an Organization sphere cluster."""
+
+    thing_id: str = Field(..., alias="thing_id", description="Thing ID")
+    name: str = Field(..., alias="name", description="Thing name")
+    description: str = Field(default="", alias="description", description="Thing description")
+    cluster_org_id: str = Field(..., alias="cluster_org_id", description="Owner Organization ID")
+    lifecycle: LifecycleStatus = Field(..., alias="lifecycle", description="Lifecycle status")
+    trl: int = Field(default=1, alias="trl", ge=1, le=9, description="TRL (1-9)")
+    estimated_cost: float = Field(default=0.0, alias="estimated_cost", ge=0.0, description="Estimated cost")
+    risk_factor: float = Field(default=1.0, alias="risk_factor", description="Risk factor")
+    upstream_thing_ids: list[str] = Field(default_factory=list, alias="upstream_thing_ids", description="Upstream supplier Thing IDs")
+    downstream_thing_ids: list[str] = Field(default_factory=list, alias="downstream_thing_ids", description="Downstream consumer Thing IDs")
+    is_cross_cutting: bool = Field(default=False, alias="is_cross_cutting", description="True if has cross-org dependencies")
+    cross_org_partner_ids: list[str] = Field(default_factory=list, alias="cross_org_partner_ids", description="Partner org IDs with cross-boundary ties")
+
+
+class ClusteredDependencyEdgeDTO(BijouBaseModel):
+    """Dependency link between Things with cross-organization flag."""
+
+    edge_id: str = Field(..., alias="edge_id", description="Edge ID")
+    source_thing_id: str = Field(..., alias="source_thing_id", description="Source Thing ID")
+    target_thing_id: str = Field(..., alias="target_thing_id", description="Target Thing ID")
+    relationship: RelationshipType = Field(default=RelationshipType.DEPENDS_ON, alias="relationship", description="Relationship type")
+    is_cross_org: bool = Field(default=False, alias="is_cross_org", description="True if link crosses organization boundaries")
+    source_org_id: str = Field(..., alias="source_org_id", description="Source owner organization ID")
+    target_org_id: str = Field(..., alias="target_org_id", description="Target owner organization ID")
+
+
+class MacroOrgDependencyEdgeDTO(BijouBaseModel):
+    """Aggregated inter-organization dependency vector."""
+
+    source_org_id: str = Field(..., alias="source_org_id", description="Source Organization ID")
+    target_org_id: str = Field(..., alias="target_org_id", description="Target Organization ID")
+    dependency_count: int = Field(default=1, alias="dependency_count", ge=1, description="Number of underlying dependencies")
+    involved_thing_ids: list[str] = Field(default_factory=list, alias="involved_thing_ids", description="Involved Thing IDs")
+
+
+class ClusteredSpheresViewDTO(BijouBaseModel):
+    """Compound clustered graph layout partitioned by Organization spheres."""
+
+    as_of_date: date = Field(..., alias="as_of_date", description="Evaluation date")
+    clusters: list[OrganizationClusterDTO] = Field(default_factory=list, alias="clusters", description="Organization cluster boundaries")
+    nodes: list[ClusteredThingNodeDTO] = Field(default_factory=list, alias="nodes", description="Thing nodes within spheres")
+    edges: list[ClusteredDependencyEdgeDTO] = Field(default_factory=list, alias="edges", description="Thing-to-Thing dependency links")
+    macro_org_edges: list[MacroOrgDependencyEdgeDTO] = Field(default_factory=list, alias="macro_org_edges", description="Macro org-to-org dependency bridges")

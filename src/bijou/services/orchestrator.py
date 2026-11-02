@@ -31,7 +31,9 @@ from bijou.core.contracts.views import (
     TechTreeViewDTO,
     ThingFocalDashboardDTO,
     TradeoffProposalComparisonDTO,
+    ClusteredSpheresViewDTO,
 )
+from bijou.core.contracts.tools import ToolDescriptorDTO
 from bijou.core.ports.exceptions import ServiceUnavailableError
 from bijou.core.ports.federation import IFederationConnector
 from bijou.core.ports.graph_engine import IGraphProjectionEngine
@@ -411,3 +413,59 @@ class BijouOrchestrationService:
     ) -> list[DecisionLogEntryDTO]:
         return self._repository.list_decision_logs(target_milestone_id)
 
+
+    def list_tools(self) -> list[ToolDescriptorDTO]:
+        """Return registry of analytical tools available across Bijou views."""
+        return [
+            ToolDescriptorDTO(
+                tool_id="what_if_slip",
+                title="What-If Slip Simulator",
+                icon="zap",
+                category="simulation",
+                target_entity="thing",
+                description="Slack-aware Critical Path Method (CPM) milestone slip simulation and blast radius evaluation.",
+                endpoint="/api/v1/simulation/milestone-slip",
+                ui_component="SlipDrawerTool",
+            ),
+            ToolDescriptorDTO(
+                tool_id="spheres_of_ownership",
+                title="Spheres of Ownership",
+                icon="globe",
+                category="graph_projection",
+                target_entity="thing",
+                description="Clustered compound graph partitioning Things inside Organization custody spheres with cross-cutting dependency vectors.",
+                endpoint="/api/v1/views/clustered-spheres",
+                ui_component="SpheresClusterTool",
+            ),
+            ToolDescriptorDTO(
+                tool_id="focal_dashboard",
+                title="Focal Ego-Network",
+                icon="target",
+                category="graph_projection",
+                target_entity="thing",
+                description="2-hop concentric radial ego-network with embedded DuckDB telemetry sparklines and SLA bands.",
+                endpoint="/api/v1/views/focal-dashboard",
+                ui_component="FocalEgoTool",
+            ),
+            ToolDescriptorDTO(
+                tool_id="decision_provenance",
+                title="Decision Provenance Ledger",
+                icon="history",
+                category="audit",
+                target_entity="thing",
+                description="Thread-safe WAL audit trail of milestone shifts, authors, timestamps, and strategic justifications.",
+                endpoint="/api/v1/decision-log",
+                ui_component="DecisionLogTool",
+            ),
+        ]
+
+    def get_clustered_spheres_view(
+        self,
+        as_of_date: date | None = None,
+        org_filter: str | None = None,
+    ) -> ClusteredSpheresViewDTO:
+        effective_date = as_of_date or date.today()
+        return self._projection_engine.build_clustered_spheres_view(
+            as_of_date=effective_date,
+            org_filter=org_filter,
+        )

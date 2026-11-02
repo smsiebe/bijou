@@ -27,7 +27,9 @@ from bijou.core.contracts.views import (
     TechTreeViewDTO,
     ThingFocalDashboardDTO,
     TradeoffProposalComparisonDTO,
+    ClusteredSpheresViewDTO,
 )
+from bijou.core.contracts.tools import ToolDescriptorDTO
 
 v1_router = APIRouter(prefix="/api/v1")
 
@@ -530,3 +532,36 @@ def list_decision_logs(
 ) -> list[DecisionLogEntryDTO]:
     return orchestrator.list_decision_logs(target_milestone_id)
 
+
+
+# --- Tool Registry & Clustered Spheres Routes ---
+@v1_router.get(
+    "/tools",
+    response_model=list[ToolDescriptorDTO],
+    status_code=status.HTTP_200_OK,
+    summary="List available analytical tools",
+    operation_id="list_analytical_tools",
+)
+def list_analytical_tools(
+    orchestrator: OrchestratorDep,
+) -> list[ToolDescriptorDTO]:
+    return orchestrator.list_tools()
+
+
+@v1_router.get(
+    "/views/clustered-spheres",
+    response_model=ClusteredSpheresViewDTO,
+    status_code=status.HTTP_200_OK,
+    summary="Get compound clustered graph layout partitioned by Organization spheres",
+    operation_id="get_clustered_spheres_view",
+)
+def get_clustered_spheres_view(
+    orchestrator: OrchestratorDep,
+    as_of_date: Annotated[date | None, Query()] = None,
+    org_filter: Annotated[str | None, Query()] = None,
+) -> ClusteredSpheresViewDTO:
+    effective_date = as_of_date or date.today()
+    return orchestrator.get_clustered_spheres_view(
+        as_of_date=effective_date,
+        org_filter=org_filter,
+    )

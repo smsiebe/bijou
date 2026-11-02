@@ -18,6 +18,7 @@
       <button class="lens-btn" data-lens="briefing-one-pager">Executive Briefing</button>
       <button class="lens-btn" data-lens="focal-dashboard">Focal Dashboard</button>
       <button class="lens-btn" data-lens="crud-studio">Manifest & Admin</button>
+      <button class="lens-btn" data-lens="spheres-canvas-view">Spheres of Ownership</button>
     </nav>
   </header>
 
@@ -190,6 +191,38 @@
         </div>
       </div>
     </section>
+      <!-- Lens 5: Clustered Spheres of Ownership & Cross-Cutting Graph -->
+    <section id="spheres-canvas-view" class="lens-view">
+      <div class="spheres-view-container">
+        <div class="spheres-controls-bar">
+          <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+            <label style="font-size: 0.85rem; font-weight: 600;">Filter Sphere:</label>
+            <select id="spheres-org-filter">
+              <option value="">All Organization Spheres</option>
+            </select>
+
+            <label style="font-size: 0.85rem; font-weight: 600; margin-left: 10px;">Projection Mode:</label>
+            <select id="spheres-view-mode-toggle">
+              <option value="things">Thing-to-Thing with Org Spheres</option>
+              <option value="macro_orgs">Org-to-Org Macro Rollup</option>
+            </select>
+
+            <button id="spheres-reset-pan-zoom" class="btn-primary" style="padding: 4px 10px; font-size: 0.75rem; background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-muted);">Reset Pan/Zoom</button>
+          </div>
+          <div>
+            <span style="font-size: 0.8rem; color: var(--text-dim); font-family: var(--font-mono);">
+              Drag to Pan | Wheel to Zoom | Click Thing for Puck HUD | Golden Arcs = Cross-Cutting
+            </span>
+          </div>
+        </div>
+
+        <div id="spheres-canvas-wrapper" class="spheres-canvas-wrapper">
+          <div id="spheres-graph-target" class="spheres-graph-canvas">
+            <!-- Rendered by spheres.js -->
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <!-- What-If Slip Simulator Drawer -->
@@ -255,8 +288,58 @@
     </div>
   </dialog>
 
+  <!-- Floating Contextual Thing Detail Puck (HUD) -->
+  <aside id="thing-detail-puck" class="thing-puck">
+    <div class="thing-puck-header">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span class="puck-drag-indicator">⋮⋮</span>
+        <div>
+          <div id="puck-thing-title" class="puck-header-title">-</div>
+          <div id="puck-thing-subtitle" class="puck-header-subtitle">-</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span id="puck-lifecycle-badge" class="badge-pill">-</span>
+        <button id="puck-pin-btn" class="puck-icon-btn" title="Pin HUD in place">📌</button>
+        <button id="puck-close-btn" class="puck-icon-btn" title="Close HUD">&times;</button>
+      </div>
+    </div>
+
+    <div class="puck-tabs-bar">
+      <button class="puck-tab-btn active" data-puck-tab="tactical">Tactical (A)</button>
+      <button class="puck-tab-btn" data-puck-tab="relational">Relational (B)</button>
+      <button class="puck-tab-btn" data-puck-tab="telemetry">Telemetry (C)</button>
+      <button class="puck-tab-btn" data-puck-tab="tools">Tools Hub</button>
+    </div>
+
+    <div class="puck-body">
+      <div id="puck-panel-tactical" class="puck-tab-panel active" data-puck-tab="tactical"></div>
+      <div id="puck-panel-relational" class="puck-tab-panel" data-puck-tab="relational"></div>
+      <div id="puck-panel-telemetry" class="puck-tab-panel" data-puck-tab="telemetry"></div>
+      <div id="puck-panel-tools" class="puck-tab-panel" data-puck-tab="tools"></div>
+    </div>
+  </aside>
+
+  <!-- In-Canvas Clustered Spheres Modal Overlay (A/B Test View) -->
+  <dialog id="spheres-modal" class="spheres-modal-dialog">
+    <div class="spheres-modal-wrapper">
+      <div class="spheres-modal-header">
+        <div>
+          <h3 style="font-size: 1.1rem; color: var(--accent-cyan); font-weight: 700; margin: 0;">Clustered Spheres of Ownership</h3>
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Cross-Cutting Organizational Graph Overlay</div>
+        </div>
+        <button id="spheres-modal-close-btn" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.4rem;">&times;</button>
+      </div>
+      <div id="spheres-modal-canvas-wrapper" class="spheres-canvas-wrapper" style="height: 580px;">
+        <div id="spheres-modal-graph-target" class="spheres-graph-canvas"></div>
+      </div>
+    </div>
+  </dialog>
+
   <!-- Scripts: Strictly Local & Offline -->
   <script src="/static/api.js"></script>
+  <script src="/static/thing_puck.js"></script>
+  <script src="/static/spheres.js"></script>
   <script src="/static/tech_tree.js"></script>
   <script src="/static/views.js"></script>
   <script src="/static/app.js"></script>

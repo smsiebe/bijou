@@ -31,6 +31,11 @@ from bijou.core.contracts.views import (
     TechTreeViewDTO,
     ThingFocalDashboardDTO,
     TradeoffProposalComparisonDTO,
+    ClusteredSpheresViewDTO,
+    OrganizationClusterDTO,
+    ClusteredThingNodeDTO,
+    ClusteredDependencyEdgeDTO,
+    MacroOrgDependencyEdgeDTO,
 )
 from bijou.core.engine.causal import evaluate_causal_gate_yield
 from bijou.core.engine.tech_tree import build_tech_tree_graph, simulate_slip_propagation
@@ -574,3 +579,138 @@ class InMemoryGraphProjectionEngine(IGraphProjectionEngine):
                 cycles_detected=cycles_detected,
             )
 
+
+    def build_clustered_spheres_view(
+        self,
+        as_of_date: date,
+        org_filter: str | None = None,
+    ) -> ClusteredSpheresViewDTO:
+        with self._lock:
+            palette = [
+                "#06b6d4",
+                "#3b82f6",
+                "#8b5cf6",
+                "#ec4899",
+                "#10b981",
+                "#f59e0b",
+                "#6366f1",
+                "#14b8a6",
+            ]
+
+            org_map = {org.id: org for org in self._manifest.organizations}
+            org_colors = {}
+            for i, org in enumerate(self._manifest.organizations):
+                org_colors[org.id] = palette[i % len(palette)]
+
+            active_things = list(self._manifest.things)
+            if org_filter:
+                active_things = [t for t in active_things if t.owner_org_id == org_filter]
+
+            active_thing_ids = {t.id for t in active_things}
+
+            upstream_map = {t.id: [] for t in active_things}
+            downstream_map = {t.id: [] for t in active_things}
+            edges_list = []
+            macro_counts = {}
+
+            for edge in self._manifest.edges:
+                if not _is_edge_active(edge, as_of_date):
+                    continue
+
+                src_id = edge.source_id
+                tgt_id = edge.target_id
+
+                if src_id in active_thing_ids and tgt_id in active_thing_ids:
+                    downstream_map[src_id].append(tgt_id)
+                    upstream_map[tgt_id].append(src_id)
+
+                    src_thing = next((t for t in active_things if t.id == src_id), None)
+                    tgt_thing = next((t for t in active_things if t.id == tgt_id), None)
+                    src_org = src_thing.owner_org_id if src_thing else ""
+                    tgt_org = tgt_thing.owner_org_id if tgt_thing else ""
+                    is_cross = bool(src_org and tgt_org and src_org != tgt_org)
+
+                    edges_list.append(
+                        ClusteredDependencyEdgeDTO(
+                            edge_id=edge.id,
+                            source_thing_id=src_id,
+                            target_thing_id=tgt_id,
+                            relationship=edge.relationship,
+                            is_cross_org=is_cross,
+                            source_org_id=src_org,
+                            target_org_id=tgt_org,
+                        )
+                    )
+
+                    if is_cross:
+                        pair = (src_org, tgt_org)
+                        if pair not in macro_counts:
+                            macro_counts[pair] = []
+                        if src_id not in macro_counts[pair]:
+                            macro_counts[pair].append(src_id)
+                        if tgt_id not in macro_counts[pair]:
+                            macro_counts[pair].append(tgt_id)
+
+            nodes_list = []
+            for t in active_things:
+                max_trl = max([m.trl for m in t.milestones], default=1) if t.milestones else 1
+                cross_partners = set()
+                for edge in edges_list:
+                    if edge.source_thing_id == t.id and edge.is_cross_org:
+                        cross_partners.add(edge.target_org_id)
+                    elif edge.target_thing_id == t.id and edge.is_cross_org:
+                        cross_partners.add(edge.source_org_id)
+
+                nodes_list.append(
+                    ClusteredThingNodeDTO(
+                        thing_id=t.id,
+                        name=t.name,
+                        description=t.description,
+                        cluster_org_id=t.owner_org_id,
+                        lifecycle=t.lifecycle,
+                        trl=max_trl,
+                        estimated_cost=t.estimated_cost,
+                        risk_factor=t.risk_factor,
+                        upstream_thing_ids=upstream_map.get(t.id, []),
+                        downstream_thing_ids=downstream_map.get(t.id, []),
+                        is_cross_cutting=len(cross_partners) > 0,
+                        cross_org_partner_ids=sorted(list(cross_partners)),
+                    )
+                )
+
+            clusters_list = []
+            for org in self._manifest.organizations:
+                if org_filter and org.id != org_filter:
+                    continue
+                owned = [t for t in active_things if t.owner_org_id == org.id]
+                tot_cost = sum(t.estimated_cost for t in owned)
+                clusters_list.append(
+                    OrganizationClusterDTO(
+                        org_id=org.id,
+                        org_name=org.name,
+                        echelon_level=org.echelon_level,
+                        mission_statement=org.mission_statement,
+                        color=org_colors.get(org.id, "#0284c7"),
+                        total_cost=tot_cost,
+                        thing_ids=[t.id for t in owned],
+                    )
+                )
+
+            macro_edges_list = []
+            for (src_org, tgt_org), things_inv in macro_counts.items():
+                macro_edges_list.append(
+                    MacroOrgDependencyEdgeDTO(
+                        source_org_id=src_org,
+                        target_org_id=tgt_org,
+                        dependency_count=len(things_inv),
+                        involved_thing_ids=sorted(things_inv),
+                    )
+                )
+
+            return ClusteredSpheresViewDTO(
+                as_of_date=as_of_date,
+                clusters=clusters_list,
+                nodes=nodes_list,
+                edges=edges_list,
+                macro_org_edges=macro_edges_list,
+            )

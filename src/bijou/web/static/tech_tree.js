@@ -227,7 +227,19 @@ const TechTreeManager = {
             </div>
           `;
 
-          card.addEventListener("click", () => this.openSlipDrawer(node));
+          card.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (window.ThingPuck) {
+              window.ThingPuck.open(node, e);
+            } else {
+              this.openSlipDrawer(node);
+            }
+          });
+          card.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.showContextMenu(node, e);
+          });
           card.addEventListener("mouseenter", () => this.highlightSpine(node.node_id));
           card.addEventListener("mouseleave", () => this.clearSpineHighlight());
 
@@ -460,5 +472,93 @@ const TechTreeManager = {
       p.style.stroke = p.dataset.defaultStroke || "#475569";
       p.style.strokeWidth = p.dataset.defaultWidth || "2px";
     });
+  }
+
+  showContextMenu(node, e) {
+    let menu = document.getElementById("node-context-menu");
+    if (!menu) {
+      menu = document.createElement("div");
+      menu.id = "node-context-menu";
+      menu.className = "context-menu";
+      document.body.appendChild(menu);
+
+      document.addEventListener("click", () => {
+        menu.classList.remove("open");
+      });
+    }
+
+    menu.innerHTML = `
+      <div class="context-menu-header">${node.thing_name || node.title}</div>
+      <button class="context-menu-item" id="ctx-open-puck">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>
+        Inspect Detail Puck (HUD)
+      </button>
+      <button class="context-menu-item" id="ctx-open-slip">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        What-If Slip Simulator
+      </button>
+      <button class="context-menu-item" id="ctx-open-spheres">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        Spheres of Ownership Lens
+      </button>
+      <button class="context-menu-item" id="ctx-open-spheres-modal">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="5"/></svg>
+        Spheres In-Canvas Modal
+      </button>
+      <button class="context-menu-item" id="ctx-open-focal">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg>
+        Focal Ego Dashboard
+      </button>
+    `;
+
+    menu.style.left = `${Math.min(e.clientX, window.innerWidth - 220)}px`;
+    menu.style.top = `${Math.min(e.clientY, window.innerHeight - 200)}px`;
+    menu.classList.add("open");
+
+    const btnPuck = menu.querySelector("#ctx-open-puck");
+    if (btnPuck) {
+      btnPuck.addEventListener("click", () => {
+        menu.classList.remove("open");
+        if (window.ThingPuck) window.ThingPuck.open(node, e);
+      });
+    }
+
+    const btnSlip = menu.querySelector("#ctx-open-slip");
+    if (btnSlip) {
+      btnSlip.addEventListener("click", () => {
+        menu.classList.remove("open");
+        this.openSlipDrawer(node);
+      });
+    }
+
+    const btnSpheres = menu.querySelector("#ctx-open-spheres");
+    if (btnSpheres) {
+      btnSpheres.addEventListener("click", () => {
+        menu.classList.remove("open");
+        if (window.SpheresManager) window.SpheresManager.show({ focusThingId: node.thing_id });
+      });
+    }
+
+    const btnModal = menu.querySelector("#ctx-open-spheres-modal");
+    if (btnModal) {
+      btnModal.addEventListener("click", () => {
+        menu.classList.remove("open");
+        if (window.SpheresManager) window.SpheresManager.show({ focusThingId: node.thing_id, asModal: true });
+      });
+    }
+
+    const btnFocal = menu.querySelector("#ctx-open-focal");
+    if (btnFocal) {
+      btnFocal.addEventListener("click", () => {
+        menu.classList.remove("open");
+        const lensBtn = document.querySelector('.lens-btn[data-lens="focal-dashboard"]');
+        if (lensBtn) lensBtn.click();
+        const focalSelect = document.getElementById("focal-thing-select");
+        if (focalSelect && node.thing_id) {
+          focalSelect.value = node.thing_id;
+          if (window.ViewsManager) window.ViewsManager.refreshFocal();
+        }
+      });
+    }
   }
 };

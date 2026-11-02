@@ -131,5 +131,16 @@ const BijouAPI = {
 
   createDecisionLog(entry) {
     return this.post("/api/v1/decision-logs", entry);
+  },
+
+  getTools() {
+    return this.get("/api/v1/tools");
+  },
+
+  getClusteredSpheres(asOfDate = null, orgFilter = null) {
+    return this.get("/api/v1/views/clustered-spheres", {
+      as_of_date: asOfDate,
+      org_filter: orgFilter
+    });
   }
 };

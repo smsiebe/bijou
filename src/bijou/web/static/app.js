@@ -31,6 +31,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       ViewsManager.refreshFocal();
     } else if (targetId === "tech-tree-canvas") {
       TechTreeManager.refresh();
+    } else if (targetId === "spheres-canvas-view") {
+      if (window.SpheresManager) SpheresManager.refresh();
     }
   }
 
@@ -88,6 +90,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   await ViewsManager.initBriefing();
   await ViewsManager.initFocal();
   await ViewsManager.initCrud();
+  if (window.ThingPuck) await ThingPuck.init();
+  if (window.SpheresManager) await SpheresManager.init();
 
   // 4. Omnibar Command Palette (Ctrl+K) (REC-018)
   const omnibarDialog = document.getElementById("omnibar-dialog");
@@ -110,6 +114,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         { type: "lens", id: "briefing-one-pager", title: "Lens 2: Executive Perspective Briefing", category: "View" },
         { type: "lens", id: "focal-dashboard", title: "Lens 3: Thing Focal Dashboard & Trade-Offs", category: "View" },
         { type: "lens", id: "crud-studio", title: "Lens 4: Manifest Studio & Admin CRUD", category: "View" },
+        { type: "lens", id: "spheres-canvas-view", title: "Lens 5: Spheres of Ownership & Cross-Cutting Graph", category: "View" },
         // Things
         ...things.map(t => ({
           type: "thing",

@@ -12,6 +12,7 @@ from bijou.core.contracts.enums import (
     TechTreeStratificationMode,
 )
 from bijou.core.contracts.manifest import BijouManifestDTO
+from bijou.core.contracts.tools import ToolDescriptorDTO
 from bijou.core.contracts.models import (
     CausalContributorDTO,
     CausalGateDTO,
@@ -41,6 +42,11 @@ from bijou.core.contracts.views import (
     TechTreeViewDTO,
     ThingFocalDashboardDTO,
     TradeoffProposalComparisonDTO,
+    OrganizationClusterDTO,
+    ClusteredThingNodeDTO,
+    ClusteredDependencyEdgeDTO,
+    MacroOrgDependencyEdgeDTO,
+    ClusteredSpheresViewDTO,
 )
 
 __all__ = [
@@ -78,4 +84,10 @@ __all__ = [
     "ThingDTO",
     "ThingFocalDashboardDTO",
     "TradeoffProposalComparisonDTO",
+    "ToolDescriptorDTO",
+    "OrganizationClusterDTO",
+    "ClusteredThingNodeDTO",
+    "ClusteredDependencyEdgeDTO",
+    "MacroOrgDependencyEdgeDTO",
+    "ClusteredSpheresViewDTO",
 ]
