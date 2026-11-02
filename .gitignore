@@ -83,3 +83,5 @@ dmypy.json
 # Custom project ignores
 prompts/
 /prompts/
+*_bundle.txt
+*.bundle

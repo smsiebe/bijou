@@ -31,6 +31,10 @@ class ITelemetryStore(ABC):
         """Execute an analytical aggregation rollup over an event time window."""
 
     @abstractmethod
+    def list_metrics_for_thing(self, thing_id: str) -> list[str]:
+        """List distinct metric names recorded for a specific thing."""
+
+    @abstractmethod
     def trace_event_provenance(
         self,
         event_id: str,

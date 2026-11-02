@@ -15,6 +15,7 @@ from bijou.core.contracts.manifest import BijouManifestDTO
 from bijou.core.contracts.models import (
     ConcernDTO,
     EffectDTO,
+    GraphEdgeDTO,
     ThingDTO,
 )
 from bijou.core.contracts.telemetry import TelemetryRollupDTO
@@ -31,6 +32,13 @@ from bijou.core.engine.causal import evaluate_causal_gate_yield
 from bijou.core.engine.tech_tree import build_tech_tree_graph, simulate_slip_propagation
 from bijou.core.ports.exceptions import GraphCycleError
 from bijou.core.ports.graph_engine import IGraphProjectionEngine
+
+
+def _is_edge_active(edge: GraphEdgeDTO, as_of_date: date) -> bool:
+    """Return False if edge is outside its effective_start or effective_end window relative to as_of_date."""
+    if edge.effective_start and as_of_date < edge.effective_start:
+        return False
+    return not (edge.effective_end and as_of_date > edge.effective_end)
 
 
 class InMemoryGraphProjectionEngine(IGraphProjectionEngine):
@@ -123,12 +131,13 @@ class InMemoryGraphProjectionEngine(IGraphProjectionEngine):
             gate_yields = {
                 g.id: evaluate_causal_gate_yield(g, ms_states) for g in self._manifest.causal_gates
             }
-            return self._calculate_thing_roi_with_states(thing, gate_yields)
+            return self._calculate_thing_roi_with_states(thing, gate_yields, as_of_date=as_of_date)
 
     def _calculate_thing_roi_with_states(
         self,
         thing: ThingDTO,
         gate_yields: dict[str, float],
+        as_of_date: date | None = None,
     ) -> float:
         """Helper to compute ROI given pre-evaluated gate yields."""
         effects_numerator = 0.0
@@ -148,8 +157,10 @@ class InMemoryGraphProjectionEngine(IGraphProjectionEngine):
                         )
                         effects_numerator += eff_yield * concern_sum
 
-        # 2. Direct impacts from Thing to Concerns via edges
+        # 2. Direct impacts from Thing to Concerns via edges (filtered by temporal validity)
         for edge in self._manifest.edges:
+            if as_of_date and not _is_edge_active(edge, as_of_date):
+                continue
             if (
                 edge.source_id == thing.id
                 and edge.relationship in (RelationshipType.IMPACTS, RelationshipType.SUPPORTS)
@@ -176,8 +187,11 @@ class InMemoryGraphProjectionEngine(IGraphProjectionEngine):
             subject_org_ids = {subject_org_id}
             if include_descendants:
                 org_dag = nx.DiGraph()
+                for org in self._manifest.organizations:
+                    if org.parent_org_id:
+                        org_dag.add_edge(org.parent_org_id, org.id)
                 for edge in self._manifest.edges:
-                    if edge.relationship == RelationshipType.PARENT_OF:
+                    if _is_edge_active(edge, as_of_date) and edge.relationship == RelationshipType.PARENT_OF:
                         org_dag.add_edge(edge.source_id, edge.target_id)
                 if subject_org_id in org_dag:
                     subject_org_ids.update(nx.descendants(org_dag, subject_org_id))
@@ -224,9 +238,11 @@ class InMemoryGraphProjectionEngine(IGraphProjectionEngine):
                                     y = gate_yields.get(gate.id, 0.0)
                                     total_coverage += link.weight * y
 
-                # Check direct edges from subject things
+                # Check direct edges from subject things (filtered by temporal validity)
                 for t in owned_things:
                     for edge in self._manifest.edges:
+                        if not _is_edge_active(edge, as_of_date):
+                            continue
                         if edge.source_id == t.id and edge.target_id == con.id:
                             contributing_things.add(t.id)
                             total_coverage += edge.weight
@@ -244,16 +260,18 @@ class InMemoryGraphProjectionEngine(IGraphProjectionEngine):
                     )
                 )
 
-            # 6. Cross-org dependencies
+            # 6. Cross-org dependencies (filtered by temporal validity)
             cross_org_edges: list[Any] = []
             owned_thing_ids = {t.id for t in owned_things}
             for edge in self._manifest.edges:
+                if not _is_edge_active(edge, as_of_date):
+                    continue
                 if edge.source_id in owned_thing_ids and edge.target_id not in owned_thing_ids or edge.target_id in owned_thing_ids and edge.source_id not in owned_thing_ids:
                     cross_org_edges.append(edge)
 
             # 7. Portfolio ROI
             portfolio_roi = sum(
-                self._calculate_thing_roi_with_states(t, gate_yields) for t in owned_things
+                self._calculate_thing_roi_with_states(t, gate_yields, as_of_date) for t in owned_things
             )
 
             return PerspectiveBriefingDTO(
@@ -303,13 +321,13 @@ class InMemoryGraphProjectionEngine(IGraphProjectionEngine):
                 for g in self._manifest.causal_gates
             }
             base_roi = sum(
-                self._calculate_thing_roi_with_states(t, base_gate_yields)
+                self._calculate_thing_roi_with_states(t, base_gate_yields, as_of_date)
                 for t in self._manifest.things
             )
 
             def calc_roi_helper(ms_states: dict[str, TechTreeNodeState], g_yields: dict[str, float]) -> float:
                 return sum(
-                    self._calculate_thing_roi_with_states(t, g_yields)
+                    self._calculate_thing_roi_with_states(t, g_yields, as_of_date)
                     for t in self._manifest.things
                 )
 
@@ -341,7 +359,7 @@ class InMemoryGraphProjectionEngine(IGraphProjectionEngine):
             }
 
             agg_roi = sum(
-                self._calculate_thing_roi_with_states(t, gate_yields) for t in selected_things
+                self._calculate_thing_roi_with_states(t, gate_yields, as_of_date) for t in selected_things
             )
 
             coverage_deltas: dict[str, float] = {}
@@ -349,6 +367,8 @@ class InMemoryGraphProjectionEngine(IGraphProjectionEngine):
                 delta = 0.0
                 for t in selected_things:
                     for edge in self._manifest.edges:
+                        if not _is_edge_active(edge, as_of_date):
+                            continue
                         if edge.source_id == t.id and edge.target_id == c.id:
                             delta += edge.weight
                 coverage_deltas[c.id] = round(min(1.0, delta), 4)
@@ -401,6 +421,8 @@ class InMemoryGraphProjectionEngine(IGraphProjectionEngine):
             upstream_ids: set[str] = set()
             downstream_ids: set[str] = set()
             for edge in self._manifest.edges:
+                if not _is_edge_active(edge, as_of_date):
+                    continue
                 if edge.source_id == thing_id:
                     downstream_ids.add(edge.target_id)
                 elif edge.target_id == thing_id:
@@ -420,6 +442,8 @@ class InMemoryGraphProjectionEngine(IGraphProjectionEngine):
 
             impacted_concerns: list[ConcernCoverageItemDTO] = []
             for edge in self._manifest.edges:
+                if not _is_edge_active(edge, as_of_date):
+                    continue
                 if edge.source_id == thing_id and edge.relationship in (RelationshipType.IMPACTS, RelationshipType.SUPPORTS):
                     con = next((c for c in self._manifest.concerns if c.id == edge.target_id), None)
                     if con:

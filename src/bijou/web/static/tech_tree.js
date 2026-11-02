@@ -17,6 +17,11 @@ const TechTreeManager = {
       modeSelect.addEventListener("change", () => this.refresh());
     }
 
+    const orgFilterSelect = document.getElementById("tech-tree-org-filter");
+    if (orgFilterSelect) {
+      orgFilterSelect.addEventListener("change", () => this.refresh());
+    }
+
     const applySlipBtn = document.getElementById("apply-slip-btn");
     if (applySlipBtn) {
       applySlipBtn.addEventListener("click", () => this.executeSlipSimulation());
@@ -33,8 +38,11 @@ const TechTreeManager = {
   async refresh() {
     const modeSelect = document.getElementById("stratification-mode-select");
     const mode = modeSelect ? modeSelect.value : "TRL_TIERS";
+    const orgFilterSelect = document.getElementById("tech-tree-org-filter");
+    const orgFilter = orgFilterSelect && orgFilterSelect.value ? orgFilterSelect.value : null;
+
     try {
-      this.currentViewData = await BijouAPI.getTechTree(mode);
+      this.currentViewData = await BijouAPI.getTechTree(mode, null, orgFilter);
       this.render();
     } catch (err) {
       console.error("Error loading tech tree:", err);
@@ -93,6 +101,57 @@ const TechTreeManager = {
 
       canvas.appendChild(col);
     });
+
+    // Render SVG overlay connecting dependency edges
+    this.renderEdges(canvas, edges || []);
+  },
+
+  renderEdges(canvas, edges) {
+    const existingSvg = canvas.querySelector(".tech-tree-svg-overlay");
+    if (existingSvg) existingSvg.remove();
+
+    if (!edges || edges.length === 0) return;
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const pathsHtml = [];
+
+    edges.forEach(edge => {
+      const sEl = canvas.querySelector(`[data-node-id="${edge.source_node_id}"]`);
+      const tEl = canvas.querySelector(`[data-node-id="${edge.target_node_id}"]`);
+      if (!sEl || !tEl) return;
+
+      const sRect = sEl.getBoundingClientRect();
+      const tRect = tEl.getBoundingClientRect();
+
+      const x1 = sRect.right - canvasRect.left;
+      const y1 = sRect.top + sRect.height / 2 - canvasRect.top;
+      const x2 = tRect.left - canvasRect.left;
+      const y2 = tRect.top + tRect.height / 2 - canvasRect.top;
+
+      const midX = (x1 + x2) / 2;
+      const d = `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;
+      const strokeColor = edge.is_satisfied ? "#10b981" : "#475569";
+      const strokeWidth = edge.is_critical_path ? "3px" : "2px";
+
+      pathsHtml.push(
+        `<path d="${d}" class="tech-tree-edge-path" ` +
+        `data-source-node-id="${edge.source_node_id}" ` +
+        `data-target-node-id="${edge.target_node_id}" ` +
+        `data-edge-id="${edge.edge_id}" ` +
+        `data-default-stroke="${strokeColor}" ` +
+        `data-default-width="${strokeWidth}" ` +
+        `stroke="${strokeColor}" ` +
+        `stroke-width="${strokeWidth}" ` +
+        `fill="none" opacity="0.6"></path>`
+      );
+    });
+
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = `<svg class="tech-tree-svg-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1;">${pathsHtml.join("")}</svg>`;
+    const svgEl = wrapper.firstElementChild;
+    if (svgEl) {
+      canvas.appendChild(svgEl);
+    }
   },
 
   openSlipDrawer(node) {
@@ -147,16 +206,64 @@ const TechTreeManager = {
   },
 
   highlightSpine(nodeId) {
-    if (!this.currentViewData) return;
-    const cards = document.querySelectorAll(".node-card");
-    cards.forEach(c => c.style.opacity = "0.3");
+    if (!this.currentViewData || !this.currentViewData.edges) return;
 
-    const targetCard = document.querySelector(`[data-node-id="${nodeId}"]`);
-    if (targetCard) targetCard.style.opacity = "1.0";
+    // Collect all upstream ancestor nodes recursively
+    const ancestorIds = new Set([nodeId]);
+    const queue = [nodeId];
+
+    while (queue.length > 0) {
+      const currentId = queue.shift();
+      for (const edge of this.currentViewData.edges) {
+        if (edge.target_node_id === currentId) {
+          if (!ancestorIds.has(edge.source_node_id)) {
+            ancestorIds.add(edge.source_node_id);
+            queue.push(edge.source_node_id);
+          }
+        }
+      }
+    }
+
+    // Highlight ancestor nodes and dim non-ancestors
+    const cards = document.querySelectorAll(".node-card");
+    cards.forEach(card => {
+      const cardNodeId = card.dataset.nodeId;
+      if (ancestorIds.has(cardNodeId)) {
+        card.style.opacity = "1.0";
+        card.style.filter = "drop-shadow(0 0 8px rgba(56, 189, 248, 0.6))";
+      } else {
+        card.style.opacity = "0.2";
+        card.style.filter = "none";
+      }
+    });
+
+    // Highlight connecting SVG paths
+    const paths = document.querySelectorAll(".tech-tree-edge-path");
+    paths.forEach(p => {
+      const sId = p.dataset.sourceNodeId;
+      const tId = p.dataset.targetNodeId;
+      if (ancestorIds.has(sId) && ancestorIds.has(tId)) {
+        p.style.opacity = "1.0";
+        p.style.stroke = "var(--accent-cyan)";
+        p.style.strokeWidth = "3px";
+      } else {
+        p.style.opacity = "0.1";
+      }
+    });
   },
 
   clearSpineHighlight() {
     const cards = document.querySelectorAll(".node-card");
-    cards.forEach(c => c.style.opacity = "1.0");
+    cards.forEach(card => {
+      card.style.opacity = "1.0";
+      card.style.filter = "none";
+    });
+
+    const paths = document.querySelectorAll(".tech-tree-edge-path");
+    paths.forEach(p => {
+      p.style.opacity = "0.6";
+      p.style.stroke = p.dataset.defaultStroke || "#475569";
+      p.style.strokeWidth = p.dataset.defaultWidth || "2px";
+    });
   }
 };

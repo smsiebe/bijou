@@ -14,6 +14,7 @@ from bijou.core.contracts.enums import (
 )
 from bijou.core.contracts.manifest import BijouManifestDTO
 from bijou.core.contracts.models import (
+    GraphEdgeDTO,
     MilestoneDTO,
     ThingDTO,
 )
@@ -25,6 +26,13 @@ from bijou.core.contracts.views import (
     TechTreeViewDTO,
 )
 from bijou.core.engine.causal import evaluate_causal_gate_yield, resolve_milestone_state
+
+
+def _is_edge_active(edge: GraphEdgeDTO, as_of_date: date) -> bool:
+    """Return False if edge is outside its effective_start or effective_end window relative to as_of_date."""
+    if edge.effective_start and as_of_date < edge.effective_start:
+        return False
+    return not (edge.effective_end and as_of_date > edge.effective_end)
 
 
 def build_tech_tree_graph(
@@ -47,6 +55,19 @@ def build_tech_tree_graph(
         for ms in t.milestones:
             milestones_by_id[ms.id] = (t, ms)
 
+    # Pre-calculate effective dates with simulated slips
+    eff_target_dates: dict[str, date] = {}
+    eff_dates: dict[str, date] = {}
+    for ms_id, (thing, ms) in milestones_by_id.items():
+        slip = simulated_slips.get(ms_id, 0)
+        eff_target = ms.target_date + timedelta(days=slip)
+        eff_target_dates[ms_id] = eff_target
+        if ms.actual_date:
+            eff_act = ms.actual_date + timedelta(days=slip) if slip > 0 else ms.actual_date
+        else:
+            eff_act = None
+        eff_dates[ms_id] = eff_act or eff_target
+
     # Build DAG of milestone dependencies
     ms_dag = nx.DiGraph()
     for ms_id in milestones_by_id:
@@ -58,8 +79,10 @@ def build_tech_tree_graph(
         for i in range(len(sorted_ms) - 1):
             ms_dag.add_edge(sorted_ms[i].id, sorted_ms[i + 1].id)
 
-    # Explicit cross-thing milestone edges
+    # Explicit cross-thing milestone edges (filtered by active date window)
     for edge in manifest.edges:
+        if not _is_edge_active(edge, as_of_date):
+            continue
         if (
             edge.relationship == RelationshipType.DEPENDS_ON
             and edge.source_milestone_id
@@ -81,13 +104,28 @@ def build_tech_tree_graph(
             continue
         thing, ms = milestones_by_id[ms_id]
         is_cancelled = ms_id in cancelled_milestone_ids
+        slip = simulated_slips.get(ms_id, 0)
+        is_slipped = slip > 0
+
         upstream_preds = list(ms_dag.predecessors(ms_id))
         upstream_states = [milestone_states[p] for p in upstream_preds if p in milestone_states]
+
+        # Check if an upstream prerequisite's slipped target date exceeds this milestone's target date
+        has_schedule_violation = False
+        for p in upstream_preds:
+            if p in eff_target_dates and eff_target_dates[p] > ms.target_date:
+                has_schedule_violation = True
+                break
+
         state = resolve_milestone_state(
             milestone=ms,
             as_of_date=as_of_date,
             upstream_prerequisite_states=upstream_states,
             is_cancelled=is_cancelled,
+            effective_date=eff_dates[ms_id],
+            effective_target_date=eff_target_dates[ms_id],
+            is_slipped=is_slipped,
+            has_schedule_violation=has_schedule_violation,
         )
         milestone_states[ms_id] = state
 
@@ -258,6 +296,8 @@ def simulate_slip_propagation(
         for i in range(len(sorted_ms) - 1):
             ms_dag.add_edge(sorted_ms[i].id, sorted_ms[i + 1].id)
     for edge in manifest.edges:
+        if not _is_edge_active(edge, as_of_date):
+            continue
         if edge.relationship == RelationshipType.DEPENDS_ON and edge.source_milestone_id and edge.target_milestone_id:
             ms_dag.add_edge(edge.target_milestone_id, edge.source_milestone_id)
 

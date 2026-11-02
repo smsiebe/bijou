@@ -61,9 +61,14 @@ const ViewsManager = {
     const container = document.getElementById("briefing-slide-target");
     if (!container) return;
 
-    const subjectOrg = briefing.subject_org_name || briefing.subject_org_id;
-    const perspectiveOrg = briefing.perspective_org_name || "Self (Direct Sovereign)";
+    const subjectOrg = briefing.subject_org_id;
+    const perspectiveOrg = briefing.perspective_org_id || "Self (Direct Sovereign)";
     const asOf = briefing.as_of_date || new Date().toISOString().split("T")[0];
+
+    const supportedConcerns = briefing.supported_concerns || [];
+    const ownedThings = briefing.owned_things || [];
+    const crossOrgDeps = briefing.cross_org_dependencies || [];
+    const gaps = briefing.strategic_gaps || [];
 
     // Build 4 quadrants HTML
     container.innerHTML = `
@@ -77,30 +82,30 @@ const ViewsManager = {
           </div>
           <div style="text-align: right;">
             <div style="font-size: 0.8rem; color: var(--text-muted); font-family: var(--font-mono);">Portfolio ROI Score</div>
-            <div style="font-size: 1.5rem; font-weight: 800; color: var(--color-achieved);">${briefing.roi_breakdown.portfolio_roi_score}</div>
+            <div style="font-size: 1.5rem; font-weight: 800; color: var(--color-achieved);">${briefing.portfolio_roi_score}</div>
           </div>
         </div>
 
         <div class="briefing-quadrants">
-          <!-- Quadrant 1: Strategic Alignment -->
+          <!-- Quadrant 1: Supported Concerns -->
           <div class="quadrant-card">
-            <h3>1. Strategic Alignment (${briefing.strategic_alignment.length} Concerns)</h3>
+            <h3>1. Supported Concerns (${supportedConcerns.length} Concerns)</h3>
             <div style="max-height: 220px; overflow-y: auto;">
-              ${briefing.strategic_alignment.length === 0 ? '<div style="color: var(--text-dim); font-size: 0.85rem;">No strategic concerns aligned.</div>' : `
+              ${supportedConcerns.length === 0 ? '<div style="color: var(--text-dim); font-size: 0.85rem;">No supported concerns aligned.</div>' : `
                 <table style="width: 100%; font-size: 0.8rem; border-collapse: collapse;">
                   <thead>
                     <tr style="text-align: left; color: var(--text-muted); border-bottom: 1px solid var(--border-subtle);">
                       <th style="padding: 4px 0;">Concern</th>
                       <th>Priority</th>
-                      <th>Status</th>
+                      <th>Coverage</th>
                     </tr>
                   </thead>
                   <tbody>
-                    ${briefing.strategic_alignment.map(c => `
+                    ${supportedConcerns.map(c => `
                       <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                        <td style="padding: 6px 0; font-weight: 600;">${c.title}</td>
-                        <td><span style="font-size: 0.75rem; color: ${c.priority === 'CRITICAL' ? 'var(--color-blocked)' : 'var(--color-ready)'}">${c.priority}</span></td>
-                        <td><span class="badge-pill" style="font-size: 0.7rem;">${c.status}</span></td>
+                        <td style="padding: 6px 0; font-weight: 600;">${c.concern_name}</td>
+                        <td><span style="font-size: 0.75rem; color: ${c.priority >= 0.8 ? 'var(--color-blocked)' : 'var(--color-ready)'}">${c.priority}</span></td>
+                        <td><span class="badge-pill" style="font-size: 0.7rem;">${(c.coverage_score * 100).toFixed(0)}%</span></td>
                       </tr>
                     `).join('')}
                   </tbody>
@@ -109,27 +114,25 @@ const ViewsManager = {
             </div>
           </div>
 
-          <!-- Quadrant 2: Funded Things -->
+          <!-- Quadrant 2: Owned Things -->
           <div class="quadrant-card">
-            <h3>2. Funded Things (${briefing.funded_things.length} Assets)</h3>
+            <h3>2. Owned Things (${ownedThings.length} Assets)</h3>
             <div style="max-height: 220px; overflow-y: auto;">
-              ${briefing.funded_things.length === 0 ? '<div style="color: var(--text-dim); font-size: 0.85rem;">No things funded under this lens.</div>' : `
+              ${ownedThings.length === 0 ? '<div style="color: var(--text-dim); font-size: 0.85rem;">No things owned under this lens.</div>' : `
                 <table style="width: 100%; font-size: 0.8rem; border-collapse: collapse;">
                   <thead>
                     <tr style="text-align: left; color: var(--text-muted); border-bottom: 1px solid var(--border-subtle);">
                       <th style="padding: 4px 0;">Thing</th>
-                      <th>Tier</th>
+                      <th>Lifecycle</th>
                       <th>Cost</th>
-                      <th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    ${briefing.funded_things.map(t => `
+                    ${ownedThings.map(t => `
                       <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                        <td style="padding: 6px 0; font-weight: 600;">${t.title}</td>
-                        <td style="font-family: var(--font-mono);">${t.tier}</td>
-                        <td style="font-family: var(--font-mono);">$${(t.cost_estimate / 1000).toFixed(0)}k</td>
-                        <td><span class="badge-pill" style="font-size: 0.7rem;">${t.lifecycle_status}</span></td>
+                        <td style="padding: 6px 0; font-weight: 600;">${t.name}</td>
+                        <td><span class="badge-pill" style="font-size: 0.7rem;">${t.lifecycle}</span></td>
+                        <td style="font-family: var(--font-mono);">$${(t.estimated_cost / 1000).toFixed(0)}k</td>
                       </tr>
                     `).join('')}
                   </tbody>
@@ -140,25 +143,25 @@ const ViewsManager = {
 
           <!-- Quadrant 3: Cross-Org Dependencies -->
           <div class="quadrant-card">
-            <h3>3. Cross-Org Dependencies (${briefing.cross_org_dependencies.length})</h3>
+            <h3>3. Cross-Org Dependencies (${crossOrgDeps.length})</h3>
             <div style="max-height: 220px; overflow-y: auto;">
-              ${briefing.cross_org_dependencies.length === 0 ? '<div style="color: var(--text-dim); font-size: 0.85rem;">Zero cross-organization dependencies detected.</div>' : `
+              ${crossOrgDeps.length === 0 ? '<div style="color: var(--text-dim); font-size: 0.85rem;">Zero cross-organization dependencies detected.</div>' : `
                 <table style="width: 100%; font-size: 0.8rem; border-collapse: collapse;">
                   <thead>
                     <tr style="text-align: left; color: var(--text-muted); border-bottom: 1px solid var(--border-subtle);">
                       <th style="padding: 4px 0;">Source</th>
                       <th>Target</th>
-                      <th>Type</th>
-                      <th>Criticality</th>
+                      <th>Relationship</th>
+                      <th>Weight</th>
                     </tr>
                   </thead>
                   <tbody>
-                    ${briefing.cross_org_dependencies.map(d => `
+                    ${crossOrgDeps.map(d => `
                       <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                        <td style="padding: 6px 0;">${d.source_name}</td>
-                        <td>${d.target_name}</td>
-                        <td style="font-family: var(--font-mono); font-size: 0.7rem;">${d.dependency_type}</td>
-                        <td><span style="font-size: 0.75rem; color: ${d.is_critical ? 'var(--color-blocked)' : 'var(--text-muted)'}">${d.is_critical ? 'CRITICAL' : 'Standard'}</span></td>
+                        <td style="padding: 6px 0;">${d.source_id}</td>
+                        <td>${d.target_id}</td>
+                        <td style="font-family: var(--font-mono); font-size: 0.7rem;">${d.relationship}</td>
+                        <td style="font-family: var(--font-mono); font-size: 0.75rem;">${d.weight}</td>
                       </tr>
                     `).join('')}
                   </tbody>
@@ -167,23 +170,24 @@ const ViewsManager = {
             </div>
           </div>
 
-          <!-- Quadrant 4: ROI Breakdown & Executive Takeaway -->
+          <!-- Quadrant 4: Total Committed Cost & Narrative -->
           <div class="quadrant-card">
-            <h3>4. Financial ROI & Narrative</h3>
+            <h3>4. Committed Cost & Executive Narrative</h3>
             <div style="display: flex; flex-direction: column; gap: 10px;">
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-family: var(--font-mono); font-size: 0.85rem;">
+              <div style="font-family: var(--font-mono); font-size: 0.85rem;">
                 <div style="background: var(--bg-primary); padding: 8px; border-radius: 4px;">
-                  <span style="color: var(--text-muted);">Total Spend:</span><br/>
-                  <strong>$${(briefing.roi_breakdown.total_spend / 1000).toFixed(0)}k</strong>
-                </div>
-                <div style="background: var(--bg-primary); padding: 8px; border-radius: 4px;">
-                  <span style="color: var(--text-muted);">Realized Value:</span><br/>
-                  <strong>$${(briefing.roi_breakdown.total_realized_value / 1000).toFixed(0)}k</strong>
+                  <span style="color: var(--text-muted);">Total Committed Cost:</span><br/>
+                  <strong style="font-size: 1.1rem; color: var(--accent-cyan);">$${(briefing.total_committed_cost / 1000).toFixed(0)}k</strong>
                 </div>
               </div>
               <div style="background: var(--bg-secondary); border-left: 3px solid var(--accent-cyan); padding: 10px; font-size: 0.82rem; line-height: 1.4; color: var(--text-main); font-style: italic;">
-                "${briefing.executive_takeaway || 'Autonomous reasoning engine has synthesized portfolio status without unmitigated critical bottlenecks.'}"
+                "${briefing.executive_summary_narrative || 'Autonomous reasoning engine has synthesized portfolio status without unmitigated critical bottlenecks.'}"
               </div>
+              ${gaps.length > 0 ? `
+                <div style="font-size: 0.78rem; color: var(--color-blocked);">
+                  <strong>Strategic Gaps:</strong> ${gaps.join("; ")}
+                </div>
+              ` : ''}
             </div>
           </div>
         </div>
@@ -230,20 +234,27 @@ const ViewsManager = {
     const target = document.getElementById("focal-dashboard-target");
     if (!target) return;
 
+    const thing = focal.thing || {};
+    const milestones = thing.milestones || [];
+    const upstream = focal.upstream_dependencies || [];
+    const downstream = focal.downstream_dependents || [];
+    const producedEffects = focal.produced_effects || [];
+    const telemetryRollups = focal.telemetry_rollups || [];
+
     target.innerHTML = `
       <div style="display: flex; flex-direction: column; gap: 20px;">
         <div style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 20px;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <div>
-              <h2 style="font-size: 1.3rem; color: var(--accent-cyan); font-weight: 700;">${focal.thing.title}</h2>
+              <h2 style="font-size: 1.3rem; color: var(--accent-cyan); font-weight: 700;">${thing.name}</h2>
               <div style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px;">
-                ${focal.thing.description || 'No description provided.'}
+                ${thing.description || 'No description provided.'}
               </div>
             </div>
             <div style="text-align: right; font-family: var(--font-mono);">
-              <span class="badge-pill">${focal.thing.lifecycle_status}</span>
+              <span class="badge-pill">${thing.lifecycle}</span>
               <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 6px;">
-                Tier: ${focal.thing.tier} | Cost: $${(focal.thing.cost_estimate / 1000).toFixed(0)}k
+                Cost: $${((thing.estimated_cost || 0) / 1000).toFixed(0)}k | ROI: ${focal.direct_roi}
               </div>
             </div>
           </div>
@@ -251,18 +262,18 @@ const ViewsManager = {
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
           <div class="quadrant-card">
-            <h3>Milestone Progression (${focal.milestones.length})</h3>
+            <h3>Milestone Progression (${milestones.length})</h3>
             <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
-              ${focal.milestones.map(m => `
-                <div style="background: var(--bg-primary); padding: 10px; border-radius: 4px; border-left: 3px solid ${m.state === 'ACHIEVED' ? 'var(--color-achieved)' : m.state === 'ACTIVE' ? 'var(--color-active)' : 'var(--color-locked)'}">
+              ${milestones.map(m => `
+                <div style="background: var(--bg-primary); padding: 10px; border-radius: 4px; border-left: 3px solid ${m.status === 'ACHIEVED' ? 'var(--color-achieved)' : m.status === 'IN_PROGRESS' ? 'var(--color-active)' : 'var(--color-locked)'}">
                   <div style="display: flex; justify-content: space-between;">
-                    <strong>${m.title}</strong>
+                    <strong>${m.name}</strong>
                     <span style="font-family: var(--font-mono); font-size: 0.75rem;">TRL ${m.trl}</span>
                   </div>
                   <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; display: flex; justify-content: space-between;">
                     <span>Target: ${m.target_date || 'TBD'}</span>
-                    <span>$${(m.cost_estimate / 1000).toFixed(0)}k</span>
-                    <span>${m.state}</span>
+                    <span>Cost Delta: $${((m.cost_delta || 0) / 1000).toFixed(0)}k</span>
+                    <span>${m.status}</span>
                   </div>
                 </div>
               `).join('')}
@@ -273,15 +284,27 @@ const ViewsManager = {
             <h3>Direct Causal Linkages</h3>
             <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px;">
               <div>
-                <strong style="font-size: 0.85rem; color: var(--accent-blue);">Upstream Predecessors (${focal.upstream_dependencies.length})</strong>
+                <strong style="font-size: 0.85rem; color: var(--accent-blue);">Upstream Predecessors (${upstream.length})</strong>
                 <ul style="font-size: 0.8rem; margin-top: 4px; padding-left: 20px;">
-                  ${focal.upstream_dependencies.length === 0 ? '<li style="color: var(--text-dim);">No upstream dependencies.</li>' : focal.upstream_dependencies.map(u => `<li>${u.title} (${u.thing_name})</li>`).join('')}
+                  ${upstream.length === 0 ? '<li style="color: var(--text-dim);">No upstream dependencies.</li>' : upstream.map(u => `<li>${u.name} (${u.id})</li>`).join('')}
                 </ul>
               </div>
               <div style="border-top: 1px solid var(--border-subtle); padding-top: 8px;">
-                <strong style="font-size: 0.85rem; color: var(--color-ready);">Downstream Unlocks (${focal.downstream_unlocks.length})</strong>
+                <strong style="font-size: 0.85rem; color: var(--color-ready);">Downstream Dependents (${downstream.length})</strong>
                 <ul style="font-size: 0.8rem; margin-top: 4px; padding-left: 20px;">
-                  ${focal.downstream_unlocks.length === 0 ? '<li style="color: var(--text-dim);">No downstream dependencies.</li>' : focal.downstream_unlocks.map(d => `<li>${d.title} (${d.thing_name})</li>`).join('')}
+                  ${downstream.length === 0 ? '<li style="color: var(--text-dim);">No downstream dependents.</li>' : downstream.map(d => `<li>${d.name} (${d.id})</li>`).join('')}
+                </ul>
+              </div>
+              <div style="border-top: 1px solid var(--border-subtle); padding-top: 8px;">
+                <strong style="font-size: 0.85rem; color: var(--accent-cyan);">Produced Effects (${producedEffects.length})</strong>
+                <ul style="font-size: 0.8rem; margin-top: 4px; padding-left: 20px;">
+                  ${producedEffects.length === 0 ? '<li style="color: var(--text-dim);">No produced effects.</li>' : producedEffects.map(e => `<li>${e.name} (${e.id}) [Observed: ${e.observed_value !== null ? e.observed_value : 'N/A'}]</li>`).join('')}
+                </ul>
+              </div>
+              <div style="border-top: 1px solid var(--border-subtle); padding-top: 8px;">
+                <strong style="font-size: 0.85rem; color: var(--text-main);">Telemetry Rollups (${telemetryRollups.length})</strong>
+                <ul style="font-size: 0.8rem; margin-top: 4px; padding-left: 20px;">
+                  ${telemetryRollups.length === 0 ? '<li style="color: var(--text-dim);">No operational telemetry events.</li>' : telemetryRollups.map(r => `<li>${r.metric_name}: ${r.aggregated_value} (${r.event_count} events)</li>`).join('')}
                 </ul>
               </div>
             </div>
@@ -304,31 +327,34 @@ const ViewsManager = {
 
     try {
       const resp = await BijouAPI.evaluateTradeoff(thingIds);
+      const deltas = resp.concern_coverage_deltas || {};
+      const deltaEntries = Object.entries(deltas);
+      const unlocked = resp.unlocked_effect_ids || [];
+
       target.innerHTML = `
         <div style="margin-top: 16px; background: var(--bg-card); border-radius: 6px; padding: 14px;">
           <h4 style="color: var(--accent-cyan); margin-bottom: 8px;">Trade-Off Evaluation Results</h4>
-          <table style="width: 100%; font-size: 0.8rem; border-collapse: collapse;">
-            <thead>
-              <tr style="text-align: left; color: var(--text-muted); border-bottom: 1px solid var(--border-subtle);">
-                <th style="padding: 6px 0;">Rank</th>
-                <th>Thing ID</th>
-                <th>Cost</th>
-                <th>Value</th>
-                <th>Portfolio ROI Score</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${resp.evaluated_candidates.map((c, i) => `
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                  <td style="padding: 6px 0; font-weight: 700; color: var(--accent-cyan); font-family: var(--font-mono);">#${i + 1}</td>
-                  <td>${c.thing_id}</td>
-                  <td style="font-family: var(--font-mono);">$${(c.total_cost / 1000).toFixed(0)}k</td>
-                  <td style="font-family: var(--font-mono);">$${(c.total_value / 1000).toFixed(0)}k</td>
-                  <td style="font-family: var(--font-mono); font-weight: 700; color: var(--color-achieved);">${c.portfolio_roi_score}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
+          <div style="font-family: var(--font-mono); font-size: 0.85rem; display: flex; flex-direction: column; gap: 6px;">
+            <div><strong>Proposed Things:</strong> ${resp.proposed_thing_ids.join(', ')}</div>
+            <div><strong>Total Cost:</strong> $${((resp.total_cost || 0) / 1000).toFixed(0)}k</div>
+            <div><strong>Aggregate ROI:</strong> <span style="color: var(--color-achieved); font-weight: 700;">${resp.aggregate_roi}</span></div>
+            <div><strong>Unlocked Effects:</strong> ${unlocked.length > 0 ? unlocked.join(', ') : 'None'}</div>
+          </div>
+          ${deltaEntries.length > 0 ? `
+            <div style="margin-top: 10px;">
+              <strong style="font-size: 0.8rem; color: var(--text-muted);">Concern Coverage Deltas:</strong>
+              <table style="width: 100%; font-size: 0.8rem; border-collapse: collapse; margin-top: 4px;">
+                <tbody>
+                  ${deltaEntries.map(([cId, val]) => `
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                      <td style="padding: 4px 0;">${cId}</td>
+                      <td style="text-align: right; font-family: var(--font-mono); color: var(--color-ready);">+${(val * 100).toFixed(0)}%</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : ''}
         </div>
       `;
     } catch (err) {
@@ -363,7 +389,9 @@ const ViewsManager = {
         try {
           const manifestData = JSON.parse(jsonArea.value);
           const res = await BijouAPI.importManifest(manifestData, replaceAll);
-          alert(`Manifest imported successfully! (Imported: ${res.total_entities_imported || 'OK'})`);
+          const thingsCount = res.things || 0;
+          const orgsCount = res.organizations || 0;
+          alert(`Manifest imported successfully! (Imported: ${thingsCount} things, ${orgsCount} organizations)`);
           window.location.reload();
         } catch (err) {
           alert("Import failed: " + err.message);
@@ -377,7 +405,8 @@ const ViewsManager = {
       createOrgBtn.addEventListener("click", async () => {
         const id = document.getElementById("crud-org-id")?.value;
         const name = document.getElementById("crud-org-name")?.value;
-        const echelon = document.getElementById("crud-org-echelon")?.value || "TACTICAL";
+        const echelonInput = document.getElementById("crud-org-echelon")?.value || "1";
+        const mission = document.getElementById("crud-org-mission")?.value || "";
         if (!id || !name) {
           alert("Organization ID and Name are required.");
           return;
@@ -386,8 +415,8 @@ const ViewsManager = {
           await BijouAPI.post("/api/v1/organizations", {
             id,
             name,
-            echelon,
-            sovereignty_domain: "CROSS_DOMAIN"
+            echelon_level: parseInt(echelonInput, 10),
+            mission_statement: mission
           });
           alert(`Organization ${name} created!`);
           window.location.reload();

@@ -52,11 +52,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const techTreeOrgFilter = document.getElementById("tech-tree-org-filter");
 
     if (subjectSelect) {
-      subjectSelect.innerHTML = orgs.map(o => `<option value="${o.id}">${o.name} (${o.echelon})</option>`).join("");
+      subjectSelect.innerHTML = orgs.map(o => `<option value="${o.id}">${o.name} (Echelon ${o.echelon_level})</option>`).join("");
     }
     if (perspSelect) {
       perspSelect.innerHTML = `<option value="">Self (Unfiltered Sovereign)</option>` +
-        orgs.map(o => `<option value="${o.id}">${o.name} (${o.echelon})</option>`).join("");
+        orgs.map(o => `<option value="${o.id}">${o.name} (Echelon ${o.echelon_level})</option>`).join("");
     }
     if (techTreeOrgFilter) {
       techTreeOrgFilter.innerHTML = `<option value="">All Organizations</option>` +
@@ -68,14 +68,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const tradeoffContainer = document.getElementById("tradeoff-candidates-container");
 
     if (focalThingSelect) {
-      focalThingSelect.innerHTML = things.map(t => `<option value="${t.id}">${t.title} (${t.tier})</option>`).join("");
+      focalThingSelect.innerHTML = things.map(t => `<option value="${t.id}">${t.name} (${t.lifecycle})</option>`).join("");
     }
 
     if (tradeoffContainer) {
       tradeoffContainer.innerHTML = things.map(t => `
         <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; cursor: pointer;">
           <input type="checkbox" class="tradeoff-candidate-checkbox" value="${t.id}" />
-          <span>${t.title} ($${(t.cost_estimate / 1000).toFixed(0)}k)</span>
+          <span>${t.name} ($${(t.estimated_cost / 1000).toFixed(0)}k)</span>
         </label>
       `).join("");
     }

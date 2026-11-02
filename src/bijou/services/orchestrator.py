@@ -235,28 +235,69 @@ class BijouOrchestrationService:
         manifest = self._repository.export_manifest()
         window_start = datetime(2020, 1, 1, tzinfo=timezone.utc)
         window_end = datetime.now(timezone.utc)
+        updated_any = False
+
+        gates_by_id = {g.id: g for g in manifest.causal_gates}
 
         for effect in manifest.effects:
+            new_observed: float | None = None
+
+            # 1. Federated Virtual Tier
             if effect.tier == EffectTier.FEDERATED_VIRTUAL and effect.federation_spec:
                 try:
                     rollup = self._federation_connector.execute_federated_rollup(
                         effect.federation_spec, window_start, window_end
                     )
-                    effect_updated = EffectDTO(
-                        id=effect.id,
-                        name=effect.name,
-                        description=effect.description,
-                        tier=effect.tier,
-                        causal_gate_id=effect.causal_gate_id,
-                        accumulator=effect.accumulator,
-                        observed_value=rollup.aggregated_value,
-                        target_threshold=effect.target_threshold,
-                        satisfies_concerns=effect.satisfies_concerns,
-                        federation_spec=effect.federation_spec,
-                    )
-                    self._repository.upsert_effect(effect_updated)
+                    new_observed = rollup.aggregated_value
                 except (httpx.HTTPError, OSError, ValueError):
                     pass
+
+            # 2. Tier-2 Operational Telemetry Rollup
+            elif effect.tier == EffectTier.TIER_2_OPERATIONAL:
+                contributing_thing_ids: list[str] = []
+                if effect.causal_gate_id and effect.causal_gate_id in gates_by_id:
+                    gate = gates_by_id[effect.causal_gate_id]
+                    contributing_thing_ids = [c.thing_id for c in gate.contributors]
+
+                if not contributing_thing_ids:
+                    contributing_thing_ids = [t.id for t in manifest.things]
+
+                for t_id in contributing_thing_ids:
+                    metrics = self._telemetry_store.list_metrics_for_thing(t_id)
+                    target_metrics = [m for m in metrics if m in (effect.id, effect.name)] or metrics
+                    for metric in target_metrics:
+                        rollup = self._telemetry_store.compute_rollup(
+                            thing_id=t_id,
+                            metric_name=metric,
+                            accumulator=effect.accumulator,
+                            window_start=window_start,
+                            window_end=window_end,
+                            sla_target=effect.target_threshold,
+                        )
+                        if rollup.event_count > 0:
+                            new_observed = rollup.aggregated_value
+                            break
+                    if new_observed is not None:
+                        break
+
+            if new_observed is not None and new_observed != effect.observed_value:
+                effect_updated = EffectDTO(
+                    id=effect.id,
+                    name=effect.name,
+                    description=effect.description,
+                    tier=effect.tier,
+                    causal_gate_id=effect.causal_gate_id,
+                    accumulator=effect.accumulator,
+                    observed_value=new_observed,
+                    target_threshold=effect.target_threshold,
+                    satisfies_concerns=effect.satisfies_concerns,
+                    federation_spec=effect.federation_spec,
+                )
+                self._repository.upsert_effect(effect_updated)
+                updated_any = True
+
+        if updated_any:
+            self._projection_engine.rebuild_projection(self._repository.export_manifest())
 
     def get_tech_tree_view(
         self,
@@ -280,18 +321,27 @@ class BijouOrchestrationService:
         window_start = datetime(2020, 1, 1, tzinfo=timezone.utc)
         window_end = datetime.now(timezone.utc)
 
-        # Get telemetry rollup for focal thing
-        rollup = self._telemetry_store.compute_rollup(
-            thing_id=thing_id,
-            metric_name="default",
-            accumulator=AccumulatorPattern.SUM,
-            window_start=window_start,
-            window_end=window_end,
-        )
+        # Query distinct metrics recorded for this thing
+        metrics = self._telemetry_store.list_metrics_for_thing(thing_id)
+        if not metrics:
+            metrics = ["default"]
+
+        rollups = []
+        for metric in metrics:
+            rollup = self._telemetry_store.compute_rollup(
+                thing_id=thing_id,
+                metric_name=metric,
+                accumulator=AccumulatorPattern.SUM,
+                window_start=window_start,
+                window_end=window_end,
+            )
+            if rollup.event_count > 0:
+                rollups.append(rollup)
+
         return self._projection_engine.build_thing_focal_dashboard(
             thing_id=thing_id,
             as_of_date=effective_date,
-            telemetry_rollups=[rollup] if rollup.event_count > 0 else [],
+            telemetry_rollups=rollups,
         )
 
     def simulate_milestone_slip(

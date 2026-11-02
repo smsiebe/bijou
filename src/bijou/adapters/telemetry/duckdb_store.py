@@ -207,6 +207,15 @@ class DuckDbTelemetryStore(ITelemetryStore):
                 window_end=window_end,
             )
 
+    def list_metrics_for_thing(self, thing_id: str) -> list[str]:
+        """Return distinct metric names for a specific thing."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT DISTINCT metric_name FROM effect_events WHERE thing_id = ? ORDER BY metric_name;",
+                [thing_id],
+            ).fetchall()
+            return [str(r[0]) for r in rows]
+
     def trace_event_provenance(
         self,
         event_id: str,
