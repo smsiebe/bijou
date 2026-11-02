@@ -1,0 +1,16 @@
+{
+  "name": "bijou",
+  "display_name": "Bijou - Multi-Echelon Causal Graph Engine",
+  "version": "0.1.0",
+  "description": "Multi-Echelon Impact & Causal Graph Engine with 4X Stratified Tech Tree and Decision Provenance Ledger",
+  "entrypoint_command": "bijou --mode standalone --port {port}",
+  "default_port": 8000,
+  "default_dest": "~/.auraseed/apps/bijou",
+  "subprojects": [
+    "projects/bijou-pysdk",
+    "projects/bijou-doc-ingest"
+  ],
+  "create_desktop_shortcut": true,
+  "create_launchers": true
+}
+
