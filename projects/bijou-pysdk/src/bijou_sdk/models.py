@@ -203,6 +203,9 @@ class TechTreeNode(BijouSdkBaseModel):
     cost_estimate: float
     trl: int
     unlocked_effect_ids: list[str] = Field(default_factory=list)
+    slack_days: int = 0
+    centrality_score: float = 0.0
+    is_spof: bool = False
 
 
 class TechTreeEdge(BijouSdkBaseModel):
@@ -224,8 +227,10 @@ class TechTreeView(BijouSdkBaseModel):
 
 
 class SlipSimulationRequest(BijouSdkBaseModel):
-    milestone_id: str
-    slip_days: int
+    simulated_slips: dict[str, int] = Field(default_factory=dict)
+    cancelled_milestone_ids: list[str] = Field(default_factory=list)
+    milestone_id: str | None = None
+    slip_days: int | None = None
     simulate_cancellation: bool = False
 
 

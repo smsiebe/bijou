@@ -76,8 +76,12 @@ const BijouAPI = {
     });
   },
 
-  simulateSlip(milestoneId, slipDays, simulateCancellation = false) {
+  simulateSlip(milestoneId, slipDays, simulateCancellation = false, simulatedSlips = null, cancelledMilestoneIds = null) {
+    const slips = simulatedSlips || (milestoneId ? { [milestoneId]: slipDays } : {});
+    const cancellations = cancelledMilestoneIds || (simulateCancellation && milestoneId ? [milestoneId] : []);
     return this.post("/api/v1/analysis/simulate-slip", {
+      simulated_slips: slips,
+      cancelled_milestone_ids: cancellations,
       milestone_id: milestoneId,
       slip_days: slipDays,
       simulate_cancellation: simulateCancellation

@@ -1,13 +1,25 @@
 /**
  * 4X Game-Style Tech Tree Canvas & What-If Slip Simulator.
+ * Features:
+ * - 2D Matrix Grid (X: Tiers, Y: Swimlanes)
+ * - Infinite Canvas Pan & Zoom
+ * - SPOF & CPM Slack Topological Badges & Outlines
+ * - Upstream Critical Path Spine Highlighting
  */
 
 const TechTreeManager = {
   currentViewData: null,
   selectedMilestoneId: null,
+  panX: 0,
+  panY: 0,
+  scale: 1.0,
+  isPanning: false,
+  panStartX: 0,
+  panStartY: 0,
 
   async init() {
     this.bindControls();
+    this.initCanvasInteractions();
     await this.refresh();
   },
 
@@ -33,6 +45,61 @@ const TechTreeManager = {
         document.getElementById("slip-drawer").classList.remove("open");
       });
     }
+
+    const resetCanvasBtn = document.getElementById("reset-canvas-btn");
+    if (resetCanvasBtn) {
+      resetCanvasBtn.addEventListener("click", () => {
+        this.panX = 0;
+        this.panY = 0;
+        this.scale = 1.0;
+        this.applyTransform();
+      });
+    }
+  },
+
+  initCanvasInteractions() {
+    const wrapper = document.querySelector(".tech-tree-canvas-wrapper");
+    if (!wrapper || wrapper.dataset.panZoomBound) return;
+    wrapper.dataset.panZoomBound = "true";
+
+    wrapper.addEventListener("mousedown", (e) => {
+      // Don't pan if clicking an interactive node card or control
+      if (e.target.closest(".node-card") || e.target.closest("button") || e.target.closest("select")) {
+        return;
+      }
+      this.isPanning = true;
+      this.panStartX = e.clientX - this.panX;
+      this.panStartY = e.clientY - this.panY;
+      wrapper.style.cursor = "grabbing";
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (!this.isPanning) return;
+      this.panX = e.clientX - this.panStartX;
+      this.panY = e.clientY - this.panStartY;
+      this.applyTransform();
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (this.isPanning) {
+        this.isPanning = false;
+        wrapper.style.cursor = "grab";
+      }
+    });
+
+    wrapper.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const zoomDelta = e.deltaY < 0 ? 1.08 : 0.92;
+      this.scale = Math.min(Math.max(this.scale * zoomDelta, 0.4), 2.5);
+      this.applyTransform();
+    }, { passive: false });
+  },
+
+  applyTransform() {
+    const grid = document.getElementById("tech-tree-grid-target");
+    if (grid) {
+      grid.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.scale})`;
+    }
   },
 
   async refresh() {
@@ -54,56 +121,124 @@ const TechTreeManager = {
     if (!canvas || !this.currentViewData) return;
     canvas.innerHTML = "";
 
-    const { tiers, nodes, edges } = this.currentViewData;
+    const { tiers, nodes, edges, lanes } = this.currentViewData;
 
-    // Group nodes by tier_order
-    const nodesByTier = {};
-    tiers.forEach(t => { nodesByTier[t.order] = []; });
-    nodes.forEach(n => {
-      if (!nodesByTier[n.tier_order]) nodesByTier[n.tier_order] = [];
-      nodesByTier[n.tier_order].push(n);
+    // Collect swimlanes
+    const laneList = (lanes && lanes.length > 0)
+      ? lanes
+      : Array.from(new Set(nodes.map(n => n.lane_id))).sort().map(l => ({ lane_id: l, lane_name: l }));
+
+    // Container for 2D Matrix (X: Tiers, Y: Lanes)
+    const gridEl = document.createElement("div");
+    gridEl.className = "matrix-2d-canvas";
+    gridEl.style.display = "flex";
+    gridEl.style.flexDirection = "column";
+    gridEl.style.gap = "18px";
+    gridEl.style.position = "relative";
+    gridEl.style.minWidth = "max-content";
+
+    // Header Row: Lane placeholder + Tier Columns
+    const headerRow = document.createElement("div");
+    headerRow.className = "matrix-header-row";
+    headerRow.style.gridTemplateColumns = `160px repeat(${tiers.length}, minmax(260px, 1fr))`;
+
+    const cornerCell = document.createElement("div");
+    cornerCell.className = "lane-header-cell";
+    cornerCell.style.background = "transparent";
+    cornerCell.style.border = "none";
+    cornerCell.innerHTML = `<span style="color: var(--text-dim); font-size: 0.75rem;">SWIMLANE \\ TIER</span>`;
+    headerRow.appendChild(cornerCell);
+
+    tiers.forEach(tier => {
+      const tierH = document.createElement("div");
+      tierH.className = "column-header";
+      tierH.textContent = tier.tier_name || `Tier ${tier.order}`;
+      headerRow.appendChild(tierH);
+    });
+    gridEl.appendChild(headerRow);
+
+    // Group nodes by (lane_id, tier_order)
+    const nodeMatrix = {};
+    laneList.forEach(l => {
+      nodeMatrix[l.lane_id] = {};
+      tiers.forEach(t => {
+        nodeMatrix[l.lane_id][t.order] = [];
+      });
     });
 
-    // Render columns
-    tiers.forEach(tier => {
-      const col = document.createElement("div");
-      col.className = "tech-tree-column";
+    nodes.forEach(n => {
+      const laneKey = n.lane_id || "Default";
+      if (!nodeMatrix[laneKey]) {
+        nodeMatrix[laneKey] = {};
+        tiers.forEach(t => { nodeMatrix[laneKey][t.order] = []; });
+      }
+      if (nodeMatrix[laneKey][n.tier_order]) {
+        nodeMatrix[laneKey][n.tier_order].push(n);
+      }
+    });
 
-      const header = document.createElement("div");
-      header.className = "column-header";
-      header.textContent = tier.tier_name || `Tier ${tier.order}`;
-      col.appendChild(header);
+    // Render each swimlane as a 2D matrix row
+    laneList.forEach(lane => {
+      const row = document.createElement("div");
+      row.className = "matrix-lane-row";
+      row.style.gridTemplateColumns = `160px repeat(${tiers.length}, minmax(260px, 1fr))`;
 
-      const colNodes = nodesByTier[tier.order] || [];
-      colNodes.forEach(node => {
-        const card = document.createElement("div");
-        const stateClass = `state-${node.state.toLowerCase().replace('_', '-')}`;
-        card.className = `node-card ${stateClass}`;
-        card.dataset.nodeId = node.node_id;
-        card.dataset.milestoneId = node.milestone_id;
+      const laneLabel = document.createElement("div");
+      laneLabel.className = "lane-header-cell";
+      laneLabel.innerHTML = `<span>${lane.lane_name || lane.lane_id}</span>`;
+      row.appendChild(laneLabel);
 
-        card.innerHTML = `
-          <div class="node-title">${node.title}</div>
-          <div style="font-size: 0.8rem; color: var(--text-muted);">${node.thing_name}</div>
-          <div class="node-meta">
-            <span>TRL ${node.trl}</span>
-            <span>$${(node.cost_estimate / 1000).toFixed(0)}k</span>
-            <span>${node.state}</span>
-          </div>
-        `;
+      tiers.forEach(tier => {
+        const cell = document.createElement("div");
+        cell.className = "matrix-cell";
+        cell.dataset.laneId = lane.lane_id;
+        cell.dataset.tierOrder = tier.order;
 
-        card.addEventListener("click", () => this.openSlipDrawer(node));
-        card.addEventListener("mouseenter", () => this.highlightSpine(node.node_id));
-        card.addEventListener("mouseleave", () => this.clearSpineHighlight());
+        const cellNodes = (nodeMatrix[lane.lane_id] && nodeMatrix[lane.lane_id][tier.order]) || [];
+        cellNodes.forEach(node => {
+          const card = document.createElement("div");
+          const stateClass = `state-${node.state.toLowerCase().replace('_', '-')}`;
+          const spofClass = node.is_spof ? "node-spof" : "";
+          const slackClass = node.slack_days === 0 ? "slack-zero" : "";
+          card.className = `node-card ${stateClass} ${spofClass} ${slackClass}`.trim();
+          card.dataset.nodeId = node.node_id;
+          card.dataset.milestoneId = node.milestone_id;
 
-        col.appendChild(card);
+          const spofBadge = node.is_spof ? `<span class="spof-badge">[SPOF]</span>` : "";
+          const slackStyle = node.slack_days === 0 ? "slack-critical" : "slack-safe";
+          const slackBadge = `<span class="slack-badge ${slackStyle}">Slack: ${node.slack_days}d</span>`;
+
+          card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+              <div class="node-title">${node.title}</div>
+              ${spofBadge}
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">${node.thing_name}</div>
+            <div class="node-meta" style="margin-top: 8px;">
+              <span>TRL ${node.trl}</span>
+              <span>$${(node.cost_estimate / 1000).toFixed(0)}k</span>
+              ${slackBadge}
+              <span>${node.state}</span>
+            </div>
+          `;
+
+          card.addEventListener("click", () => this.openSlipDrawer(node));
+          card.addEventListener("mouseenter", () => this.highlightSpine(node.node_id));
+          card.addEventListener("mouseleave", () => this.clearSpineHighlight());
+
+          cell.appendChild(card);
+        });
+
+        row.appendChild(cell);
       });
 
-      canvas.appendChild(col);
+      gridEl.appendChild(row);
     });
 
+    canvas.appendChild(gridEl);
+
     // Render SVG overlay connecting dependency edges
-    this.renderEdges(canvas, edges || []);
+    this.renderEdges(gridEl, edges || []);
   },
 
   renderEdges(canvas, edges) {
@@ -126,10 +261,11 @@ const TechTreeManager = {
       const sRect = sEl.getBoundingClientRect();
       const tRect = tEl.getBoundingClientRect();
 
-      const x1 = sRect.right - canvasRect.left;
-      const y1 = sRect.top + sRect.height / 2 - canvasRect.top;
-      const x2 = tRect.left - canvasRect.left;
-      const y2 = tRect.top + tRect.height / 2 - canvasRect.top;
+      const scale = this.scale || 1.0;
+      const x1 = (sRect.right - canvasRect.left) / scale;
+      const y1 = (sRect.top + sRect.height / 2 - canvasRect.top) / scale;
+      const x2 = (tRect.left - canvasRect.left) / scale;
+      const y2 = (tRect.top + tRect.height / 2 - canvasRect.top) / scale;
 
       const midX = (x1 + x2) / 2;
       const d = `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;

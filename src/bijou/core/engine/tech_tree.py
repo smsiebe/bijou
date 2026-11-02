@@ -170,6 +170,28 @@ def build_tech_tree_graph(
             if contrib.milestone_id:
                 milestone_unlocked_effects[contrib.milestone_id].extend(matching_effects)
 
+    # T17.1: NetworkX Betweenness Centrality & Articulation Points (SPOF)
+    centrality_scores: dict[str, float] = {}
+    articulation_points: set[str] = set()
+    if len(ms_dag) > 0:
+        centrality_scores = nx.betweenness_centrality(ms_dag)
+        if len(ms_dag) >= 3:
+            articulation_points = set(nx.articulation_points(ms_dag.to_undirected()))
+
+    # T17.2: CPM Slack Math (Early Start / Late Start float against immediate successors)
+    cpm_slack: dict[str, int] = {}
+    for ms_id in milestones_by_id:
+        succs = list(ms_dag.successors(ms_id))
+        if succs:
+            min_slack = min(
+                (eff_target_dates[s] - eff_target_dates[ms_id]).days
+                for s in succs
+                if s in eff_target_dates and ms_id in eff_target_dates
+            )
+            cpm_slack[ms_id] = max(0, min_slack)
+        else:
+            cpm_slack[ms_id] = 0
+
     nodes: list[TechTreeNodeDTO] = []
     for ms_id in sorted(milestones_by_id.keys()):
         thing, ms = milestones_by_id[ms_id]
@@ -191,6 +213,10 @@ def build_tech_tree_graph(
             t_order = topo_depths.get(ms.id, 0)
             t_id = f"depth-{t_order}"
 
+        c_score = centrality_scores.get(ms.id, 0.0)
+        is_spof = bool(c_score > 0.5 or ms.id in articulation_points)
+        slack = cpm_slack.get(ms.id, 0)
+
         nodes.append(
             TechTreeNodeDTO(
                 node_id=f"{thing.id}:{ms.id}",
@@ -208,6 +234,9 @@ def build_tech_tree_graph(
                 cost_estimate=thing.estimated_cost + ms.cost_delta,
                 trl=ms.trl,
                 unlocked_effect_ids=sorted(set(milestone_unlocked_effects.get(ms.id, []))),
+                slack_days=slack,
+                centrality_score=c_score,
+                is_spof=is_spof,
             )
         )
 
@@ -251,24 +280,20 @@ def simulate_slip_propagation(
     base_roi: float,
     calculate_roi_fn: Callable[[dict[str, TechTreeNodeState], dict[str, float]], float],
 ) -> SlipSimulationResponseDTO:
-    """Propagate a milestone slip or cancellation downstream and compute blast radius."""
-    simulated_slips: dict[str, int] = {request.milestone_id: request.slip_days}
-    cancelled_ids: set[str] = {request.milestone_id} if request.simulate_cancellation else set()
+    """Propagate milestone slips or cancellations downstream and compute blast radius."""
+    simulated_slips: dict[str, int] = dict(request.simulated_slips)
+    if request.milestone_id and request.slip_days and request.milestone_id not in simulated_slips:
+        simulated_slips[request.milestone_id] = request.slip_days
 
-    # Find the target milestone
-    target_ms: MilestoneDTO | None = None
-    for t in manifest.things:
-        for ms in t.milestones:
-            if ms.id == request.milestone_id:
-                target_ms = ms
-                break
-        if target_ms:
-            break
+    cancelled_ids: set[str] = set(request.cancelled_milestone_ids)
+    if request.simulate_cancellation and request.milestone_id:
+        cancelled_ids.add(request.milestone_id)
 
-    if target_ms is None:
+    # If no slips and no cancellations requested, return empty response
+    if not simulated_slips and not cancelled_ids:
         return SlipSimulationResponseDTO(
-            slipped_milestone_id=request.milestone_id,
-            slip_days=request.slip_days,
+            slipped_milestone_id=request.milestone_id or "",
+            slip_days=request.slip_days or 0,
             cancelled=request.simulate_cancellation,
             impacted_node_states={},
             degraded_effect_ids=[],
@@ -300,11 +325,11 @@ def simulate_slip_propagation(
         if edge.relationship == RelationshipType.DEPENDS_ON and edge.source_milestone_id and edge.target_milestone_id:
             ms_dag.add_edge(edge.target_milestone_id, edge.source_milestone_id)
 
-    # Collect all downstream descendants for cancellation propagation if requested
-    if request.simulate_cancellation and request.milestone_id in ms_dag:
-        downstream = nx.descendants(ms_dag, request.milestone_id)
-        for dep_ms_id in downstream:
-            cancelled_ids.add(dep_ms_id)
+    # Collect all downstream descendants for cancellation propagation
+    for c_id in list(cancelled_ids):
+        if c_id in ms_dag:
+            for dep_ms_id in nx.descendants(ms_dag, c_id):
+                cancelled_ids.add(dep_ms_id)
 
     # Re-build tree with slips applied
     _, post_slip_states = build_tech_tree_graph(
@@ -365,10 +390,18 @@ def simulate_slip_propagation(
     post_roi = calculate_roi_fn(post_slip_states, post_gate_yields)
     roi_delta = post_roi - base_roi
 
+    first_ms_id = request.milestone_id or (next(iter(simulated_slips)) if simulated_slips else "")
+    first_slip = (
+        request.slip_days
+        if request.slip_days is not None
+        else (max(simulated_slips.values()) if simulated_slips else 0)
+    )
+    is_cancelled = request.simulate_cancellation or bool(cancelled_ids)
+
     return SlipSimulationResponseDTO(
-        slipped_milestone_id=request.milestone_id,
-        slip_days=request.slip_days,
-        cancelled=request.simulate_cancellation,
+        slipped_milestone_id=first_ms_id,
+        slip_days=first_slip,
+        cancelled=is_cancelled,
         impacted_node_states=impacted_states,
         degraded_effect_ids=sorted(degraded_effect_ids),
         broken_concern_ids=sorted(broken_concern_ids),

@@ -286,7 +286,10 @@ Compute and return the 4X Stratified Tech Tree layout.
   - `stratification_mode` (default: `TRL_TIERS`): Options: `TRL_TIERS`, `FISCAL_ERAS`, `TOPOLOGICAL_DEPTH`.
   - `as_of_date` (optional): Reference evaluation date (`YYYY-MM-DD`).
   - `org_filter` (optional): Filter to milestones owned by a specific organization.
-- **Response**: `200 OK` with `TechTreeViewDTO` containing nodes, tiers, and dependency edges.
+- **Response**: `200 OK` with `TechTreeViewDTO` containing nodes, tiers, lanes, and dependency edges. Each `TechTreeNodeDTO` includes topological metrics:
+  - `slack_days` (int): Total Critical Path Method (CPM) float / slack days to successors.
+  - `centrality_score` (float): NetworkX betweenness centrality score within the milestone DAG.
+  - `is_spof` (bool): True if the node is a single point of failure (centrality > 0.5 or graph articulation point).
 
 #### `GET /api/v1/views/perspectives/{org_id}`
 Compute the 1-Slide Executive Briefing from the perspective of `{org_id}`.
@@ -294,7 +297,7 @@ Compute the 1-Slide Executive Briefing from the perspective of `{org_id}`.
   - `perspective_org_id` (optional): Viewpoint organization. Defaults to `{org_id}`.
   - `include_descendants` (default: `true`): Whether to aggregate sub-organizations.
   - `as_of_date` (optional): Reference date (`YYYY-MM-DD`).
-- **Response**: `200 OK` with `PerspectiveBriefingDTO` (Supported Concerns, Owned Things, Cross-Org Dependencies, Committed Cost, Strategic Narrative).
+- **Response**: `200 OK` with `PerspectiveBriefingDTO` (Supported Concerns with contributing Things, Owned Things, Cross-Org Dependencies, Committed Cost, Strategic Narrative).
 
 #### `GET /api/v1/views/things/{thing_id}/focal`
 Compute the 2-Hop Ego-Network focal dashboard for a single Thing.
@@ -307,10 +310,15 @@ Compute the 2-Hop Ego-Network focal dashboard for a single Thing.
 ### Analysis & Simulation
 
 #### `POST /api/v1/analysis/simulate-slip`
-Simulate a what-if milestone date slip or full cancellation.
+Simulate what-if milestone date slips or cancellations across multiple milestones simultaneously.
 - **Request Body**:
   ```json
   {
+    "simulated_slips": {
+      "ms-space-chamber-proto": 90,
+      "ms-optics-payload": 45
+    },
+    "cancelled_milestone_ids": [],
     "milestone_id": "ms-space-chamber-proto",
     "slip_days": 90,
     "simulate_cancellation": false

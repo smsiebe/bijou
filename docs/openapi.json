@@ -999,28 +999,54 @@
         "additionalProperties": false,
         "description": "Request payload to simulate milestone slip or cancellation.",
         "properties": {
+          "cancelled_milestone_ids": {
+            "description": "List of milestone IDs cancelled",
+            "items": {
+              "type": "string"
+            },
+            "title": "Cancelled Milestone Ids",
+            "type": "array"
+          },
           "milestone_id": {
-            "description": "Milestone ID to slip",
-            "title": "Milestone Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Legacy single milestone ID to slip",
+            "title": "Milestone Id"
           },
           "simulate_cancellation": {
             "default": false,
-            "description": "Simulate cancellation",
+            "description": "Legacy simulate cancellation flag",
             "title": "Simulate Cancellation",
             "type": "boolean"
           },
+          "simulated_slips": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Mapping of milestone IDs to slip days",
+            "title": "Simulated Slips",
+            "type": "object"
+          },
           "slip_days": {
-            "description": "Number of days to slip (minimum 1)",
-            "minimum": 1.0,
-            "title": "Slip Days",
-            "type": "integer"
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Legacy days to slip (minimum 1)",
+            "title": "Slip Days"
           }
         },
-        "required": [
-          "milestone_id",
-          "slip_days"
-        ],
         "title": "SlipSimulationRequestDTO",
         "type": "object"
       },
@@ -1144,12 +1170,24 @@
             "description": "Actual completion date",
             "title": "Actual Date"
           },
+          "centrality_score": {
+            "default": 0.0,
+            "description": "Betweenness centrality score",
+            "title": "Centrality Score",
+            "type": "number"
+          },
           "cost_estimate": {
             "default": 0.0,
             "description": "Cost estimate",
             "minimum": 0.0,
             "title": "Cost Estimate",
             "type": "number"
+          },
+          "is_spof": {
+            "default": false,
+            "description": "Whether node is a Single Point of Failure choke point",
+            "title": "Is Spof",
+            "type": "boolean"
           },
           "lane_id": {
             "description": "Swimlane identifier",
@@ -1170,6 +1208,12 @@
             "description": "Owner organization ID",
             "title": "Owner Org Id",
             "type": "string"
+          },
+          "slack_days": {
+            "default": 0,
+            "description": "CPM schedule float/slack in days",
+            "title": "Slack Days",
+            "type": "integer"
           },
           "state": {
             "$ref": "#/components/schemas/TechTreeNodeState",

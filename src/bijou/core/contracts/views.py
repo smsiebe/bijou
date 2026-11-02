@@ -2,7 +2,8 @@
 
 from datetime import date
 
-from pydantic import Field
+from pydantic import Field, model_validator
+from typing_extensions import Self
 
 from bijou.core.contracts.base import BijouBaseModel
 from bijou.core.contracts.enums import (
@@ -60,6 +61,9 @@ class TechTreeNodeDTO(BijouBaseModel):
     cost_estimate: float = Field(default=0.0, alias="cost_estimate", ge=0.0, description="Cost estimate")
     trl: int = Field(..., alias="trl", ge=1, le=9, description="Technology Readiness Level (1-9)")
     unlocked_effect_ids: list[str] = Field(default_factory=list, alias="unlocked_effect_ids", description="Unlocked Effect IDs")
+    slack_days: int = Field(default=0, alias="slack_days", description="CPM schedule float/slack in days")
+    centrality_score: float = Field(default=0.0, alias="centrality_score", description="Betweenness centrality score")
+    is_spof: bool = Field(default=False, alias="is_spof", description="Whether node is a Single Point of Failure choke point")
 
 
 class TechTreeEdgeDTO(BijouBaseModel):
@@ -87,9 +91,51 @@ class TechTreeViewDTO(BijouBaseModel):
 class SlipSimulationRequestDTO(BijouBaseModel):
     """Request payload to simulate milestone slip or cancellation."""
 
-    milestone_id: str = Field(..., alias="milestone_id", description="Milestone ID to slip")
-    slip_days: int = Field(..., alias="slip_days", ge=1, description="Number of days to slip (minimum 1)")
-    simulate_cancellation: bool = Field(default=False, alias="simulate_cancellation", description="Simulate cancellation")
+    simulated_slips: dict[str, int] = Field(
+        default_factory=dict,
+        alias="simulated_slips",
+        description="Mapping of milestone IDs to slip days",
+    )
+    cancelled_milestone_ids: list[str] = Field(
+        default_factory=list,
+        alias="cancelled_milestone_ids",
+        description="List of milestone IDs cancelled",
+    )
+    milestone_id: str | None = Field(
+        default=None,
+        alias="milestone_id",
+        description="Legacy single milestone ID to slip",
+    )
+    slip_days: int | None = Field(
+        default=None,
+        alias="slip_days",
+        ge=1,
+        description="Legacy days to slip (minimum 1)",
+    )
+    simulate_cancellation: bool = Field(
+        default=False,
+        alias="simulate_cancellation",
+        description="Legacy simulate cancellation flag",
+    )
+
+    @model_validator(mode="after")
+    def _validate_and_sync_slips(self) -> Self:
+        for ms_id, days in self.simulated_slips.items():
+            if days < 1:
+                raise ValueError(f"Slip days for {ms_id} must be at least 1, got {days}")
+        if (
+            self.milestone_id is not None
+            and self.slip_days is not None
+            and self.milestone_id not in self.simulated_slips
+        ):
+            self.simulated_slips[self.milestone_id] = self.slip_days
+        if (
+            self.milestone_id is not None
+            and self.simulate_cancellation
+            and self.milestone_id not in self.cancelled_milestone_ids
+        ):
+            self.cancelled_milestone_ids.append(self.milestone_id)
+        return self
 
 
 class SlipSimulationResponseDTO(BijouBaseModel):

@@ -3,12 +3,13 @@
 import json
 from pathlib import Path
 
-from bijou.api.app import app
+from bijou.api.app import create_app
 
 
 def export_openapi() -> None:
     """Generate and write the deterministic OpenAPI 3.1 specification."""
-    openapi_schema = app.openapi()
+    app_instance = create_app()
+    openapi_schema = app_instance.openapi()
     docs_dir = Path("docs")
     docs_dir.mkdir(parents=True, exist_ok=True)
     out_path = docs_dir / "openapi.json"

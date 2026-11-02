@@ -87,57 +87,45 @@ const ViewsManager = {
         </div>
 
         <div class="briefing-quadrants">
-          <!-- Quadrant 1: Supported Concerns -->
-          <div class="quadrant-card">
-            <h3>1. Supported Concerns (${supportedConcerns.length} Concerns)</h3>
-            <div style="max-height: 220px; overflow-y: auto;">
-              ${supportedConcerns.length === 0 ? '<div style="color: var(--text-dim); font-size: 0.85rem;">No supported concerns aligned.</div>' : `
-                <table style="width: 100%; font-size: 0.8rem; border-collapse: collapse;">
-                  <thead>
-                    <tr style="text-align: left; color: var(--text-muted); border-bottom: 1px solid var(--border-subtle);">
-                      <th style="padding: 4px 0;">Concern</th>
-                      <th>Priority</th>
-                      <th>Coverage</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${supportedConcerns.map(c => `
-                      <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                        <td style="padding: 6px 0; font-weight: 600;">${c.concern_name}</td>
-                        <td><span style="font-size: 0.75rem; color: ${c.priority >= 0.8 ? 'var(--color-blocked)' : 'var(--color-ready)'}">${c.priority}</span></td>
-                        <td><span class="badge-pill" style="font-size: 0.7rem;">${(c.coverage_score * 100).toFixed(0)}%</span></td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
-              `}
+          <!-- Quadrants 1 & 2: Sankey Value Stream (Owned Things -> Supported Concerns) -->
+          <div class="sankey-stream-container">
+            <!-- Left: Owned Things -->
+            <div class="sankey-column quadrant-card" style="text-align: left;">
+              <h3>1. Owned Things (${ownedThings.length} Assets)</h3>
+              <div style="max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+                ${ownedThings.length === 0 ? '<div style="color: var(--text-dim); font-size: 0.85rem;">No things owned under this lens.</div>' : `
+                  ${ownedThings.map(t => `
+                    <div class="sankey-node-item sankey-thing-card" data-thing-id="${t.id}">
+                      <div style="font-weight: 700; font-size: 0.85rem;">${t.name}</div>
+                      <div style="display: flex; gap: 8px; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                        <span class="badge-pill" style="font-size: 0.65rem;">${t.lifecycle}</span>
+                        <span style="font-family: var(--font-mono);">$${(t.estimated_cost / 1000).toFixed(0)}k</span>
+                      </div>
+                    </div>
+                  `).join('')}
+                `}
+              </div>
             </div>
-          </div>
 
-          <!-- Quadrant 2: Owned Things -->
-          <div class="quadrant-card">
-            <h3>2. Owned Things (${ownedThings.length} Assets)</h3>
-            <div style="max-height: 220px; overflow-y: auto;">
-              ${ownedThings.length === 0 ? '<div style="color: var(--text-dim); font-size: 0.85rem;">No things owned under this lens.</div>' : `
-                <table style="width: 100%; font-size: 0.8rem; border-collapse: collapse;">
-                  <thead>
-                    <tr style="text-align: left; color: var(--text-muted); border-bottom: 1px solid var(--border-subtle);">
-                      <th style="padding: 4px 0;">Thing</th>
-                      <th>Lifecycle</th>
-                      <th>Cost</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${ownedThings.map(t => `
-                      <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                        <td style="padding: 6px 0; font-weight: 600;">${t.name}</td>
-                        <td><span class="badge-pill" style="font-size: 0.7rem;">${t.lifecycle}</span></td>
-                        <td style="font-family: var(--font-mono);">$${(t.estimated_cost / 1000).toFixed(0)}k</td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
-              `}
+            <!-- SVG layer for Bezier curves -->
+            <svg class="sankey-svg-layer" id="sankey-connections-svg"></svg>
+
+            <!-- Right: Supported Concerns -->
+            <div class="sankey-column quadrant-card" style="text-align: right;">
+              <h3>2. Supported Concerns (${supportedConcerns.length} Objectives)</h3>
+              <div style="max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+                ${supportedConcerns.length === 0 ? '<div style="color: var(--text-dim); font-size: 0.85rem;">No supported concerns aligned.</div>' : `
+                  ${supportedConcerns.map(c => `
+                    <div class="sankey-node-item sankey-concern-card" data-concern-id="${c.concern_id}" data-contributors="${(c.contributing_thing_ids || []).join(',')}">
+                      <div style="font-weight: 700; font-size: 0.85rem;">${c.concern_name}</div>
+                      <div style="display: flex; justify-content: flex-end; gap: 8px; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                        <span style="font-size: 0.75rem; color: ${c.priority >= 0.8 ? 'var(--color-blocked)' : 'var(--color-ready)'}">P: ${c.priority}</span>
+                        <span class="badge-pill" style="font-size: 0.65rem;">${(c.coverage_score * 100).toFixed(0)}%</span>
+                      </div>
+                    </div>
+                  `).join('')}
+                `}
+              </div>
             </div>
           </div>
 
@@ -193,6 +181,152 @@ const ViewsManager = {
         </div>
       </div>
     `;
+
+    // Render Sankey Bezier value streams and bind coordinated brushing (REC-009, REC-011)
+    requestAnimationFrame(() => {
+      this.drawSankeyPaths(container, briefing);
+      this.bindSankeyBrushing(container);
+    });
+  },
+
+  drawSankeyPaths(container, briefing) {
+    const svg = container.querySelector("#sankey-connections-svg");
+    const streamContainer = container.querySelector(".sankey-stream-container");
+    if (!svg || !streamContainer) return;
+
+    const streamRect = streamContainer.getBoundingClientRect();
+    if (streamRect.width === 0 || streamRect.height === 0) return;
+
+    svg.setAttribute("width", streamRect.width);
+    svg.setAttribute("height", streamRect.height);
+    svg.setAttribute("viewBox", `0 0 ${streamRect.width} ${streamRect.height}`);
+
+    const thingCards = streamContainer.querySelectorAll(".sankey-thing-card");
+    const concernCards = streamContainer.querySelectorAll(".sankey-concern-card");
+
+    const thingCoords = new Map();
+    thingCards.forEach(card => {
+      const id = card.dataset.thingId;
+      if (id) {
+        const r = card.getBoundingClientRect();
+        thingCoords.set(id, {
+          x: r.right - streamRect.left,
+          y: r.top + r.height / 2 - streamRect.top,
+        });
+      }
+    });
+
+    let pathsHtml = "";
+    concernCards.forEach(card => {
+      const concernId = card.dataset.concernId;
+      const contributors = (card.dataset.contributors || "").split(",").filter(Boolean);
+      const r = card.getBoundingClientRect();
+      const x2 = r.left - streamRect.left;
+      const y2 = r.top + r.height / 2 - streamRect.top;
+
+      contributors.forEach(thingId => {
+        const pt1 = thingCoords.get(thingId);
+        if (pt1) {
+          const x1 = pt1.x;
+          const y1 = pt1.y;
+          const dx = Math.max(30, (x2 - x1) * 0.5);
+          const d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+          pathsHtml += `<path class="sankey-stream-path" d="${d}" data-thing-id="${thingId}" data-concern-id="${concernId}"></path>`;
+        }
+      });
+    });
+
+    svg.innerHTML = pathsHtml;
+  },
+
+  bindSankeyBrushing(container) {
+    const streamContainer = container.querySelector(".sankey-stream-container");
+    if (!streamContainer) return;
+
+    const thingCards = streamContainer.querySelectorAll(".sankey-thing-card");
+    const concernCards = streamContainer.querySelectorAll(".sankey-concern-card");
+    const paths = streamContainer.querySelectorAll(".sankey-stream-path");
+
+    // Coordinated Brushing on Concerns
+    concernCards.forEach(card => {
+      const concernId = card.dataset.concernId;
+      const contributors = (card.dataset.contributors || "").split(",").filter(Boolean);
+
+      card.addEventListener("mouseenter", () => {
+        paths.forEach(p => {
+          if (p.dataset.concernId === concernId) {
+            p.style.opacity = "1";
+            p.style.stroke = "var(--accent-cyan)";
+            p.style.strokeWidth = "3.5px";
+          } else {
+            p.style.opacity = "0.15";
+          }
+        });
+        thingCards.forEach(tc => {
+          if (contributors.includes(tc.dataset.thingId)) {
+            tc.style.borderColor = "var(--accent-cyan)";
+            tc.style.boxShadow = "0 0 10px rgba(56, 189, 248, 0.4)";
+            tc.style.opacity = "1";
+          } else {
+            tc.style.opacity = "0.35";
+          }
+        });
+      });
+
+      card.addEventListener("mouseleave", () => {
+        paths.forEach(p => {
+          p.style.opacity = "";
+          p.style.stroke = "";
+          p.style.strokeWidth = "";
+        });
+        thingCards.forEach(tc => {
+          tc.style.borderColor = "";
+          tc.style.boxShadow = "";
+          tc.style.opacity = "";
+        });
+      });
+    });
+
+    // Coordinated Brushing on Things
+    thingCards.forEach(card => {
+      const thingId = card.dataset.thingId;
+
+      card.addEventListener("mouseenter", () => {
+        const activeConcerns = new Set();
+        paths.forEach(p => {
+          if (p.dataset.thingId === thingId) {
+            p.style.opacity = "1";
+            p.style.stroke = "var(--color-achieved)";
+            p.style.strokeWidth = "3.5px";
+            activeConcerns.add(p.dataset.concernId);
+          } else {
+            p.style.opacity = "0.15";
+          }
+        });
+        concernCards.forEach(cc => {
+          if (activeConcerns.has(cc.dataset.concernId)) {
+            cc.style.borderColor = "var(--color-achieved)";
+            cc.style.boxShadow = "0 0 10px rgba(16, 185, 129, 0.4)";
+            cc.style.opacity = "1";
+          } else {
+            cc.style.opacity = "0.35";
+          }
+        });
+      });
+
+      card.addEventListener("mouseleave", () => {
+        paths.forEach(p => {
+          p.style.opacity = "";
+          p.style.stroke = "";
+          p.style.strokeWidth = "";
+        });
+        concernCards.forEach(cc => {
+          cc.style.borderColor = "";
+          cc.style.boxShadow = "";
+          cc.style.opacity = "";
+        });
+      });
+    });
   },
 
   // --- 2. Single-Thing Focal Dashboard & Trade-Off ---
