@@ -55,19 +55,6 @@ def build_tech_tree_graph(
         for ms in t.milestones:
             milestones_by_id[ms.id] = (t, ms)
 
-    # Pre-calculate effective dates with simulated slips
-    eff_target_dates: dict[str, date] = {}
-    eff_dates: dict[str, date] = {}
-    for ms_id, (thing, ms) in milestones_by_id.items():
-        slip = simulated_slips.get(ms_id, 0)
-        eff_target = ms.target_date + timedelta(days=slip)
-        eff_target_dates[ms_id] = eff_target
-        if ms.actual_date:
-            eff_act = ms.actual_date + timedelta(days=slip) if slip > 0 else ms.actual_date
-        else:
-            eff_act = None
-        eff_dates[ms_id] = eff_act or eff_target
-
     # Build DAG of milestone dependencies
     ms_dag = nx.DiGraph()
     for ms_id in milestones_by_id:
@@ -92,8 +79,11 @@ def build_tech_tree_graph(
         ):
             ms_dag.add_edge(edge.target_milestone_id, edge.source_milestone_id)
 
-    # Topologically evaluate milestone states
+    # Topologically evaluate milestone states and propagate effective target dates
+    eff_target_dates: dict[str, date] = {}
+    eff_dates: dict[str, date] = {}
     milestone_states: dict[str, TechTreeNodeState] = {}
+
     if nx.is_directed_acyclic_graph(ms_dag):
         topo_order = list(nx.topological_sort(ms_dag))
     else:
@@ -110,12 +100,21 @@ def build_tech_tree_graph(
         upstream_preds = list(ms_dag.predecessors(ms_id))
         upstream_states = [milestone_states[p] for p in upstream_preds if p in milestone_states]
 
-        # Check if an upstream prerequisite's slipped target date exceeds this milestone's target date
+        base_target = ms.target_date + timedelta(days=slip)
         has_schedule_violation = False
+        max_pred_target = base_target
         for p in upstream_preds:
-            if p in eff_target_dates and eff_target_dates[p] > ms.target_date:
+            if p in eff_target_dates and eff_target_dates[p] > base_target:
                 has_schedule_violation = True
-                break
+                max_pred_target = max(max_pred_target, eff_target_dates[p])
+
+        eff_target_dates[ms_id] = max_pred_target
+
+        if ms.actual_date:
+            eff_act = ms.actual_date + timedelta(days=slip) if slip > 0 else ms.actual_date
+        else:
+            eff_act = None
+        eff_dates[ms_id] = eff_act or eff_target_dates[ms_id]
 
         state = resolve_milestone_state(
             milestone=ms,
@@ -142,8 +141,8 @@ def build_tech_tree_graph(
     # Pre-calculate fiscal eras
     fiscal_eras: list[tuple[int, int]] = sorted({
         (
-            (ms.target_date + timedelta(days=simulated_slips.get(ms.id, 0))).year,
-            ((ms.target_date + timedelta(days=simulated_slips.get(ms.id, 0))).month - 1) // 6 + 1,
+            eff_target_dates[ms.id].year,
+            (eff_target_dates[ms.id].month - 1) // 6 + 1,
         )
         for _, ms in milestones_by_id.values()
     })
@@ -301,13 +300,11 @@ def simulate_slip_propagation(
         if edge.relationship == RelationshipType.DEPENDS_ON and edge.source_milestone_id and edge.target_milestone_id:
             ms_dag.add_edge(edge.target_milestone_id, edge.source_milestone_id)
 
-    # Collect all downstream dependents
-    if request.milestone_id in ms_dag:
+    # Collect all downstream descendants for cancellation propagation if requested
+    if request.simulate_cancellation and request.milestone_id in ms_dag:
         downstream = nx.descendants(ms_dag, request.milestone_id)
         for dep_ms_id in downstream:
-            simulated_slips[dep_ms_id] = max(simulated_slips.get(dep_ms_id, 0), request.slip_days)
-            if request.simulate_cancellation:
-                cancelled_ids.add(dep_ms_id)
+            cancelled_ids.add(dep_ms_id)
 
     # Re-build tree with slips applied
     _, post_slip_states = build_tech_tree_graph(
@@ -375,5 +372,5 @@ def simulate_slip_propagation(
         impacted_node_states=impacted_states,
         degraded_effect_ids=sorted(degraded_effect_ids),
         broken_concern_ids=sorted(broken_concern_ids),
-        roi_delta=round(roi_delta, 4),
+        roi_delta=round(roi_delta, 6),
     )

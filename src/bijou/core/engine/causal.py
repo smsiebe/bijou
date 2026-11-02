@@ -45,19 +45,21 @@ def resolve_milestone_state(
     if any(s == TechTreeNodeState.BLOCKED for s in upstream_prerequisite_states):
         return TechTreeNodeState.BLOCKED
 
+    all_upstream_achieved = all(s == TechTreeNodeState.ACHIEVED for s in upstream_prerequisite_states)
+    if not all_upstream_achieved:
+        return TechTreeNodeState.LOCKED
+
     # Slipped milestone whose effective target or actual date exceeds as_of_date
     if is_slipped and (eff_target > as_of_date or eff_date > as_of_date):
-        if milestone.status == MilestoneStatus.ACHIEVED:
-            return TechTreeNodeState.BLOCKED
+        if milestone.status in (
+            MilestoneStatus.ACHIEVED,
+            MilestoneStatus.IN_PROGRESS,
+        ):
+            return TechTreeNodeState.ACTIVE
         return TechTreeNodeState.LOCKED
 
     if milestone.status == MilestoneStatus.ACHIEVED and eff_date <= as_of_date:
         return TechTreeNodeState.ACHIEVED
-
-    # Check if all upstream prerequisites are ACHIEVED
-    all_upstream_achieved = all(s == TechTreeNodeState.ACHIEVED for s in upstream_prerequisite_states)
-    if not all_upstream_achieved:
-        return TechTreeNodeState.LOCKED
 
     if milestone.status == MilestoneStatus.IN_PROGRESS:
         return TechTreeNodeState.ACTIVE
@@ -65,7 +67,6 @@ def resolve_milestone_state(
     if milestone.status in (MilestoneStatus.ESTIMATED, MilestoneStatus.COMMITTED):
         return TechTreeNodeState.UNLOCKED_READY
 
-    # If some upstream prerequisites are not ACHIEVED (e.g. LOCKED or ACTIVE)
     return TechTreeNodeState.LOCKED
 
 

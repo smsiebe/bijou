@@ -113,7 +113,10 @@ const TechTreeManager = {
     if (!edges || edges.length === 0) return;
 
     const canvasRect = canvas.getBoundingClientRect();
-    const pathsHtml = [];
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svgEl = document.createElementNS(svgNS, "svg");
+    svgEl.setAttribute("class", "tech-tree-svg-overlay");
+    svgEl.setAttribute("style", "position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1;");
 
     edges.forEach(edge => {
       const sEl = canvas.querySelector(`[data-node-id="${edge.source_node_id}"]`);
@@ -133,25 +136,23 @@ const TechTreeManager = {
       const strokeColor = edge.is_satisfied ? "#10b981" : "#475569";
       const strokeWidth = edge.is_critical_path ? "3px" : "2px";
 
-      pathsHtml.push(
-        `<path d="${d}" class="tech-tree-edge-path" ` +
-        `data-source-node-id="${edge.source_node_id}" ` +
-        `data-target-node-id="${edge.target_node_id}" ` +
-        `data-edge-id="${edge.edge_id}" ` +
-        `data-default-stroke="${strokeColor}" ` +
-        `data-default-width="${strokeWidth}" ` +
-        `stroke="${strokeColor}" ` +
-        `stroke-width="${strokeWidth}" ` +
-        `fill="none" opacity="0.6"></path>`
-      );
+      const pathEl = document.createElementNS(svgNS, "path");
+      pathEl.setAttribute("d", d);
+      pathEl.setAttribute("class", "tech-tree-edge-path");
+      pathEl.setAttribute("data-source-node-id", edge.source_node_id);
+      pathEl.setAttribute("data-target-node-id", edge.target_node_id);
+      pathEl.setAttribute("data-edge-id", edge.edge_id);
+      pathEl.setAttribute("data-default-stroke", strokeColor);
+      pathEl.setAttribute("data-default-width", strokeWidth);
+      pathEl.setAttribute("stroke", strokeColor);
+      pathEl.setAttribute("stroke-width", strokeWidth);
+      pathEl.setAttribute("fill", "none");
+      pathEl.setAttribute("opacity", "0.6");
+
+      svgEl.appendChild(pathEl);
     });
 
-    const wrapper = document.createElement("div");
-    wrapper.innerHTML = `<svg class="tech-tree-svg-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1;">${pathsHtml.join("")}</svg>`;
-    const svgEl = wrapper.firstElementChild;
-    if (svgEl) {
-      canvas.appendChild(svgEl);
-    }
+    canvas.appendChild(svgEl);
   },
 
   openSlipDrawer(node) {

@@ -29,6 +29,7 @@ from bijou.core.contracts.views import (
     ThingFocalDashboardDTO,
     TradeoffProposalComparisonDTO,
 )
+from bijou.core.ports.exceptions import ServiceUnavailableError
 from bijou.core.ports.federation import IFederationConnector
 from bijou.core.ports.graph_engine import IGraphProjectionEngine
 from bijou.core.ports.reasoning import IReasoningBroker
@@ -249,7 +250,7 @@ class BijouOrchestrationService:
                         effect.federation_spec, window_start, window_end
                     )
                     new_observed = rollup.aggregated_value
-                except (httpx.HTTPError, OSError, ValueError):
+                except (ServiceUnavailableError, httpx.HTTPError, OSError, ValueError):
                     pass
 
             # 2. Tier-2 Operational Telemetry Rollup
@@ -264,7 +265,12 @@ class BijouOrchestrationService:
 
                 for t_id in contributing_thing_ids:
                     metrics = self._telemetry_store.list_metrics_for_thing(t_id)
-                    target_metrics = [m for m in metrics if m in (effect.id, effect.name)] or metrics
+                    target_metrics = [
+                        m
+                        for m in metrics
+                        if m in (effect.id, effect.name)
+                        or (effect.federation_spec and m == effect.federation_spec.params.get("metric_name"))
+                    ]
                     for metric in target_metrics:
                         rollup = self._telemetry_store.compute_rollup(
                             thing_id=t_id,

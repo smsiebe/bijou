@@ -14,7 +14,7 @@ def test_zero_external_cdn_links_in_static_bundle():
     static_files = list(static_dir.glob("*.html")) + list(static_dir.glob("*.css")) + list(static_dir.glob("*.js"))
     assert len(static_files) >= 4, f"Expected at least 4 static asset files, found {len(static_files)}"
 
-    url_pattern = re.compile(r"https?://[^\s\"'>]+")
+    url_pattern = re.compile(r"https?://(?!www\.w3\.org/)[^\s\"'>]+")
 
     violations = []
     for file_path in static_files:
