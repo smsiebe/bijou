@@ -15,6 +15,7 @@ from bijou.core.contracts.manifest import BijouManifestDTO
 from bijou.core.contracts.models import (
     CausalGateDTO,
     ConcernDTO,
+    DecisionLogEntryDTO,
     EffectDTO,
     GraphEdgeDTO,
     OrganizationDTO,
@@ -22,6 +23,8 @@ from bijou.core.contracts.models import (
 )
 from bijou.core.contracts.telemetry import EffectEventDTO
 from bijou.core.contracts.views import (
+    DiagnosticReportDTO,
+    ParetoFrontierDTO,
     PerspectiveBriefingDTO,
     SlipSimulationRequestDTO,
     SlipSimulationResponseDTO,
@@ -381,3 +384,30 @@ class BijouOrchestrationService:
             except (httpx.HTTPError, OSError, ValueError):
                 pass
         return comparison
+
+    def evaluate_pareto_frontier(
+        self,
+        budget_ceiling: float,
+        as_of_date: date | None = None,
+    ) -> ParetoFrontierDTO:
+        effective_date = as_of_date or date.today()
+        return self._projection_engine.evaluate_pareto_frontier(budget_ceiling, effective_date)
+
+    def validate_manifest_diagnostics(
+        self,
+        manifest: BijouManifestDTO | None = None,
+    ) -> DiagnosticReportDTO:
+        return self._projection_engine.validate_manifest_diagnostics(manifest)
+
+    def upsert_decision_log(
+        self,
+        entry: DecisionLogEntryDTO,
+    ) -> DecisionLogEntryDTO:
+        return self._repository.upsert_decision_log(entry)
+
+    def list_decision_logs(
+        self,
+        target_milestone_id: str | None = None,
+    ) -> list[DecisionLogEntryDTO]:
+        return self._repository.list_decision_logs(target_milestone_id)
+

@@ -10,6 +10,7 @@ from bijou.adapters.db.tables import (
     Base,
     CausalGateRecord,
     ConcernRecord,
+    DecisionLogRecord,
     EdgeRecord,
     EffectRecord,
     MilestoneRecord,
@@ -30,6 +31,7 @@ from bijou.core.contracts.models import (
     CausalGateDTO,
     ConcernDTO,
     ConcernSatisfactionLinkDTO,
+    DecisionLogEntryDTO,
     EffectDTO,
     FederationSpecDTO,
     GraphEdgeDTO,
@@ -469,6 +471,44 @@ class SqlAlchemyGraphRepository(IGraphRepository):
             except Exception:
                 session.rollback()
                 raise
+
+    def upsert_decision_log(self, entry: DecisionLogEntryDTO) -> DecisionLogEntryDTO:
+        with self._write_lock, self._session_scope() as session:
+            record = session.get(DecisionLogRecord, entry.id)
+            if record:
+                record.target_milestone_id = entry.target_milestone_id
+                record.author = entry.author
+                record.justification = entry.justification
+                record.timestamp = entry.timestamp
+            else:
+                record = DecisionLogRecord(
+                    id=entry.id,
+                    target_milestone_id=entry.target_milestone_id,
+                    author=entry.author,
+                    justification=entry.justification,
+                    timestamp=entry.timestamp,
+                )
+                session.add(record)
+            session.commit()
+            return entry
+
+    def list_decision_logs(self, target_milestone_id: str | None = None) -> list[DecisionLogEntryDTO]:
+        with self._session_scope() as session:
+            stmt = select(DecisionLogRecord)
+            if target_milestone_id:
+                stmt = stmt.where(DecisionLogRecord.target_milestone_id == target_milestone_id)
+            stmt = stmt.order_by(DecisionLogRecord.timestamp.desc())
+            records = session.scalars(stmt).all()
+            return [
+                DecisionLogEntryDTO(
+                    id=r.id,
+                    target_milestone_id=r.target_milestone_id,
+                    author=r.author,
+                    justification=r.justification,
+                    timestamp=r.timestamp,
+                )
+                for r in records
+            ]
 
     # --- DTO Conversion Helpers ---
     @staticmethod

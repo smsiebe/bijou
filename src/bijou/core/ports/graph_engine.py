@@ -7,6 +7,8 @@ from bijou.core.contracts.enums import TechTreeStratificationMode
 from bijou.core.contracts.manifest import BijouManifestDTO
 from bijou.core.contracts.telemetry import TelemetryRollupDTO
 from bijou.core.contracts.views import (
+    DiagnosticReportDTO,
+    ParetoFrontierDTO,
     PerspectiveBriefingDTO,
     SlipSimulationRequestDTO,
     SlipSimulationResponseDTO,
@@ -78,3 +80,19 @@ class IGraphProjectionEngine(ABC):
         telemetry_rollups: list[TelemetryRollupDTO],
     ) -> ThingFocalDashboardDTO:
         """Generate a 2-hop focal dashboard centered on a single Thing."""
+
+    @abstractmethod
+    def evaluate_pareto_frontier(
+        self,
+        budget_ceiling: float,
+        as_of_date: date | None = None,
+    ) -> ParetoFrontierDTO:
+        """Compute the Pareto-optimal frontier of candidate Things under a budget ceiling."""
+
+    @abstractmethod
+    def validate_manifest_diagnostics(
+        self,
+        manifest: BijouManifestDTO | None = None,
+    ) -> DiagnosticReportDTO:
+        """Perform topological and diagnostic linting on a manifest or current graph."""
+

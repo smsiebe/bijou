@@ -275,3 +275,23 @@ class TradeoffProposalComparison(BijouSdkBaseModel):
     concern_coverage_deltas: dict[str, float] = Field(default_factory=dict)
     unlocked_effect_ids: list[str] = Field(default_factory=list)
     reasoning_recommendation: str | None = None
+
+
+class DecisionLogEntry(BijouSdkBaseModel):
+    id: str
+    target_milestone_id: str
+    author: str
+    justification: str
+    timestamp: datetime
+
+
+class ParetoFrontier(BijouSdkBaseModel):
+    budget_ceiling: float
+    optimal_portfolios: list[TradeoffProposalComparison] = Field(default_factory=list)
+
+
+class DiagnosticReport(BijouSdkBaseModel):
+    blockers: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    cycles_detected: list[list[str]] = Field(default_factory=list)
+

@@ -1,5 +1,6 @@
 """In-memory deterministic graph projection and analytical calculation engine."""
 
+import itertools
 import threading
 from datetime import date
 from typing import Any
@@ -7,6 +8,7 @@ from typing import Any
 import networkx as nx
 
 from bijou.core.contracts.enums import (
+    LifecycleStatus,
     RelationshipType,
     TechTreeNodeState,
     TechTreeStratificationMode,
@@ -21,6 +23,8 @@ from bijou.core.contracts.models import (
 from bijou.core.contracts.telemetry import TelemetryRollupDTO
 from bijou.core.contracts.views import (
     ConcernCoverageItemDTO,
+    DiagnosticReportDTO,
+    ParetoFrontierDTO,
     PerspectiveBriefingDTO,
     SlipSimulationRequestDTO,
     SlipSimulationResponseDTO,
@@ -172,7 +176,7 @@ class InMemoryGraphProjectionEngine(IGraphProjectionEngine):
         # Cost & Risk floor
         cost_floor = max(thing.estimated_cost, 1.0)
         risk = max(thing.risk_factor, 1.0)
-        return round(effects_numerator / (cost_floor * risk), 6)
+        return round(effects_numerator / (cost_floor * risk), 10)
 
     def build_perspective_briefing(
         self,
@@ -383,7 +387,7 @@ class InMemoryGraphProjectionEngine(IGraphProjectionEngine):
             return TradeoffProposalComparisonDTO(
                 proposed_thing_ids=proposed_thing_ids,
                 total_cost=total_cost,
-                aggregate_roi=round(agg_roi, 6),
+                aggregate_roi=round(agg_roi, 10),
                 concern_coverage_deltas=coverage_deltas,
                 unlocked_effect_ids=sorted(set(unlocked_effects)),
                 reasoning_recommendation=None,
@@ -468,3 +472,105 @@ class InMemoryGraphProjectionEngine(IGraphProjectionEngine):
                 impacted_concerns=impacted_concerns,
                 direct_roi=direct_roi,
             )
+
+    def evaluate_pareto_frontier(
+        self,
+        budget_ceiling: float,
+        as_of_date: date | None = None,
+    ) -> ParetoFrontierDTO:
+        """Evaluate Pareto-optimal frontier of candidate Things under a budget ceiling."""
+        eff_date = as_of_date or date.today()
+        with self._lock:
+            candidates = [t for t in self._manifest.things if t.lifecycle == LifecycleStatus.PROPOSED]
+            if not candidates:
+                candidates = list(self._manifest.things)
+
+            if not candidates:
+                return ParetoFrontierDTO(budget_ceiling=budget_ceiling, optimal_portfolios=[])
+
+            max_k = min(len(candidates), 10)
+            valid_portfolios: list[TradeoffProposalComparisonDTO] = []
+
+            for k in range(1, max_k + 1):
+                for combo in itertools.combinations(candidates, k):
+                    cost = sum(t.estimated_cost for t in combo)
+                    if cost <= budget_ceiling:
+                        thing_ids = [t.id for t in combo]
+                        tradeoff = self.evaluate_tradeoff_matrix(thing_ids, eff_date)
+                        valid_portfolios.append(tradeoff)
+
+            optimal: list[TradeoffProposalComparisonDTO] = []
+            for p1 in valid_portfolios:
+                is_dominated = False
+                for p2 in valid_portfolios:
+                    if p1 is p2:
+                        continue
+                    if (
+                        p2.total_cost <= p1.total_cost
+                        and p2.aggregate_roi >= p1.aggregate_roi
+                        and (p2.total_cost < p1.total_cost or p2.aggregate_roi > p1.aggregate_roi)
+                    ):
+                        is_dominated = True
+                        break
+                if not is_dominated and not any(
+                    opt.total_cost == p1.total_cost and opt.aggregate_roi == p1.aggregate_roi
+                    for opt in optimal
+                ):
+                    optimal.append(p1)
+
+            optimal.sort(key=lambda p: (p.total_cost, p.aggregate_roi))
+
+            return ParetoFrontierDTO(
+                budget_ceiling=budget_ceiling,
+                optimal_portfolios=optimal,
+            )
+
+    def validate_manifest_diagnostics(
+        self,
+        manifest: BijouManifestDTO | None = None,
+    ) -> DiagnosticReportDTO:
+        """Perform topological and diagnostic linting on a manifest or current graph."""
+        with self._lock:
+            m = manifest or self._manifest
+            diag_graph = nx.DiGraph()
+
+            for t in m.things:
+                diag_graph.add_node(t.id)
+            for c in m.concerns:
+                diag_graph.add_node(c.id)
+            for e in m.effects:
+                diag_graph.add_node(e.id)
+            for g in m.causal_gates:
+                diag_graph.add_node(g.id)
+                for contrib in g.contributors:
+                    diag_graph.add_edge(contrib.thing_id, g.id)
+            for org in m.organizations:
+                diag_graph.add_node(org.id)
+
+            for edge in m.edges:
+                diag_graph.add_edge(edge.source_id, edge.target_id)
+                if edge.source_milestone_id and edge.target_milestone_id:
+                    diag_graph.add_edge(edge.source_milestone_id, edge.target_milestone_id)
+
+            blockers: list[str] = []
+            warnings: list[str] = []
+            cycles_detected: list[list[str]] = []
+
+            try:
+                raw_cycles = list(nx.simple_cycles(diag_graph))
+                for cycle in raw_cycles:
+                    cycles_detected.append(cycle)
+                    blockers.append(f"Cycle detected: {' -> '.join(cycle)}")
+            except nx.NetworkXError:
+                pass
+
+            orphans = [node for node in diag_graph.nodes if diag_graph.degree(node) == 0]
+            for orphan in orphans:
+                warnings.append(f"Orphan node detected: {orphan}")
+
+            return DiagnosticReportDTO(
+                blockers=blockers,
+                warnings=warnings,
+                cycles_detected=cycles_detected,
+            )
+

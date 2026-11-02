@@ -17,6 +17,7 @@ from bijou.core.contracts.models import (
     CausalGateDTO,
     ConcernDTO,
     ConcernSatisfactionLinkDTO,
+    DecisionLogEntryDTO,
     EffectDTO,
     FederationSpecDTO,
     GraphEdgeDTO,
@@ -30,6 +31,8 @@ from bijou.core.contracts.telemetry import (
 )
 from bijou.core.contracts.views import (
     ConcernCoverageItemDTO,
+    DiagnosticReportDTO,
+    ParetoFrontierDTO,
     PerspectiveBriefingDTO,
     SlipSimulationRequestDTO,
     SlipSimulationResponseDTO,
@@ -50,6 +53,8 @@ __all__ = [
     "ConcernCoverageItemDTO",
     "ConcernDTO",
     "ConcernSatisfactionLinkDTO",
+    "DecisionLogEntryDTO",
+    "DiagnosticReportDTO",
     "EffectDTO",
     "EffectEventDTO",
     "EffectTier",
@@ -59,6 +64,7 @@ __all__ = [
     "MilestoneDTO",
     "MilestoneStatus",
     "OrganizationDTO",
+    "ParetoFrontierDTO",
     "PerspectiveBriefingDTO",
     "RelationshipType",
     "SlipSimulationRequestDTO",

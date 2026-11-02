@@ -6,6 +6,7 @@ from bijou.core.contracts.manifest import BijouManifestDTO
 from bijou.core.contracts.models import (
     CausalGateDTO,
     ConcernDTO,
+    DecisionLogEntryDTO,
     EffectDTO,
     GraphEdgeDTO,
     OrganizationDTO,
@@ -103,3 +104,12 @@ class IGraphRepository(ABC):
     @abstractmethod
     def import_manifest(self, manifest: BijouManifestDTO, replace_all: bool = False) -> dict[str, int]:
         """Import manifest entities, atomically replacing all existing entities if requested."""
+
+    @abstractmethod
+    def upsert_decision_log(self, entry: DecisionLogEntryDTO) -> DecisionLogEntryDTO:
+        """Upsert a decision log entry into the ledger."""
+
+    @abstractmethod
+    def list_decision_logs(self, target_milestone_id: str | None = None) -> list[DecisionLogEntryDTO]:
+        """List decision log entries, optionally filtered by target milestone ID."""
+

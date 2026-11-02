@@ -11,6 +11,7 @@ from bijou.core.contracts.manifest import BijouManifestDTO
 from bijou.core.contracts.models import (
     CausalGateDTO,
     ConcernDTO,
+    DecisionLogEntryDTO,
     EffectDTO,
     GraphEdgeDTO,
     OrganizationDTO,
@@ -18,6 +19,8 @@ from bijou.core.contracts.models import (
 )
 from bijou.core.contracts.telemetry import EffectEventDTO
 from bijou.core.contracts.views import (
+    DiagnosticReportDTO,
+    ParetoFrontierDTO,
     PerspectiveBriefingDTO,
     SlipSimulationRequestDTO,
     SlipSimulationResponseDTO,
@@ -375,6 +378,20 @@ def export_manifest(
     return orchestrator.export_manifest()
 
 
+@v1_router.post(
+    "/manifest/validate",
+    response_model=DiagnosticReportDTO,
+    status_code=status.HTTP_200_OK,
+    summary="Validate manifest topology and diagnostic linting",
+    operation_id="validate_manifest_diagnostics",
+)
+def validate_manifest_diagnostics(
+    manifest: BijouManifestDTO,
+    orchestrator: OrchestratorDep,
+) -> DiagnosticReportDTO:
+    return orchestrator.validate_manifest_diagnostics(manifest)
+
+
 # --- View & Analytical Projection Routes ---
 @v1_router.get(
     "/views/perspectives/{org_id}",
@@ -468,3 +485,48 @@ def evaluate_tradeoff(
 ) -> TradeoffProposalComparisonDTO:
     effective_date = as_of_date or date.today()
     return orchestrator.evaluate_tradeoff(proposed_thing_ids, effective_date)
+
+
+@v1_router.get(
+    "/analysis/pareto-frontier",
+    response_model=ParetoFrontierDTO,
+    status_code=status.HTTP_200_OK,
+    summary="Evaluate Pareto-optimal funding frontier under a budget ceiling",
+    operation_id="evaluate_pareto_frontier",
+)
+def evaluate_pareto_frontier(
+    orchestrator: OrchestratorDep,
+    budget_ceiling: Annotated[float, Query(ge=0.0)] = 100000000.0,
+    as_of_date: Annotated[date | None, Query()] = None,
+) -> ParetoFrontierDTO:
+    return orchestrator.evaluate_pareto_frontier(budget_ceiling, as_of_date)
+
+
+# --- Decision Provenance Ledger Routes ---
+@v1_router.post(
+    "/decision-logs",
+    response_model=DecisionLogEntryDTO,
+    status_code=status.HTTP_201_CREATED,
+    summary="Append a decision audit record to the ledger",
+    operation_id="create_decision_log_entry",
+)
+def create_decision_log(
+    entry: DecisionLogEntryDTO,
+    orchestrator: OrchestratorDep,
+) -> DecisionLogEntryDTO:
+    return orchestrator.upsert_decision_log(entry)
+
+
+@v1_router.get(
+    "/decision-logs",
+    response_model=list[DecisionLogEntryDTO],
+    status_code=status.HTTP_200_OK,
+    summary="List decision ledger records",
+    operation_id="list_decision_logs",
+)
+def list_decision_logs(
+    orchestrator: OrchestratorDep,
+    target_milestone_id: Annotated[str | None, Query()] = None,
+) -> list[DecisionLogEntryDTO]:
+    return orchestrator.list_decision_logs(target_milestone_id)
+

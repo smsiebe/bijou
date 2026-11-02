@@ -171,3 +171,23 @@ class ThingFocalDashboardDTO(BijouBaseModel):
     telemetry_rollups: list[TelemetryRollupDTO] = Field(default_factory=list, alias="telemetry_rollups", description="Telemetry rollups")
     impacted_concerns: list[ConcernCoverageItemDTO] = Field(default_factory=list, alias="impacted_concerns", description="Impacted concerns")
     direct_roi: float = Field(default=0.0, alias="direct_roi", description="Direct ROI score")
+
+
+class ParetoFrontierDTO(BijouBaseModel):
+    """Pareto-optimal frontier of funding candidate portfolios subject to a budget ceiling."""
+
+    budget_ceiling: float = Field(..., alias="budget_ceiling", ge=0.0, description="Maximum budget ceiling")
+    optimal_portfolios: list[TradeoffProposalComparisonDTO] = Field(
+        default_factory=list,
+        alias="optimal_portfolios",
+        description="Non-dominated optimal candidate portfolios",
+    )
+
+
+class DiagnosticReportDTO(BijouBaseModel):
+    """Pre-flight diagnostic linting report for manifests and graph integrity."""
+
+    blockers: list[str] = Field(default_factory=list, alias="blockers", description="Critical blockers preventing execution or import")
+    warnings: list[str] = Field(default_factory=list, alias="warnings", description="Non-fatal warnings and architectural smells")
+    cycles_detected: list[list[str]] = Field(default_factory=list, alias="cycles_detected", description="Detected topological dependency cycles")
+

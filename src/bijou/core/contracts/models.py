@@ -1,6 +1,7 @@
 """Core graph entity and causal gate DTOs for Bijou."""
 
-from datetime import date
+import uuid
+from datetime import date, datetime, timezone
 from typing import Self
 
 from pydantic import Field, model_validator
@@ -140,3 +141,18 @@ class GraphEdgeDTO(BijouBaseModel):
     target_milestone_id: str | None = Field(default=None, alias="target_milestone_id", description="Target milestone anchor ID")
     effective_start: date | None = Field(default=None, alias="effective_start", description="Effective start date")
     effective_end: date | None = Field(default=None, alias="effective_end", description="Effective end date")
+
+
+class DecisionLogEntryDTO(BijouBaseModel):
+    """Audit ledger entry tracking decision provenance, milestone shifts, and rationale."""
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), alias="id", description="Unique decision entry ID")
+    target_milestone_id: str = Field(..., alias="target_milestone_id", description="Target milestone ID")
+    author: str = Field(..., alias="author", description="Author or decision maker identifier")
+    justification: str = Field(..., alias="justification", description="Strategic justification or rationale")
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        alias="timestamp",
+        description="Timestamp when decision was logged",
+    )
+

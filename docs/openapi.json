@@ -333,6 +333,80 @@
         "title": "ConcernSatisfactionLinkDTO",
         "type": "object"
       },
+      "DecisionLogEntryDTO": {
+        "additionalProperties": false,
+        "description": "Audit ledger entry tracking decision provenance, milestone shifts, and rationale.",
+        "properties": {
+          "author": {
+            "description": "Author or decision maker identifier",
+            "title": "Author",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique decision entry ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "justification": {
+            "description": "Strategic justification or rationale",
+            "title": "Justification",
+            "type": "string"
+          },
+          "target_milestone_id": {
+            "description": "Target milestone ID",
+            "title": "Target Milestone Id",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "Timestamp when decision was logged",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_milestone_id",
+          "author",
+          "justification"
+        ],
+        "title": "DecisionLogEntryDTO",
+        "type": "object"
+      },
+      "DiagnosticReportDTO": {
+        "additionalProperties": false,
+        "description": "Pre-flight diagnostic linting report for manifests and graph integrity.",
+        "properties": {
+          "blockers": {
+            "description": "Critical blockers preventing execution or import",
+            "items": {
+              "type": "string"
+            },
+            "title": "Blockers",
+            "type": "array"
+          },
+          "cycles_detected": {
+            "description": "Detected topological dependency cycles",
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Cycles Detected",
+            "type": "array"
+          },
+          "warnings": {
+            "description": "Non-fatal warnings and architectural smells",
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "title": "DiagnosticReportDTO",
+        "type": "object"
+      },
       "EffectDTO": {
         "additionalProperties": false,
         "description": "Observable outcome evaluated against target strategic Concerns.",
@@ -877,6 +951,31 @@
           "mission_statement"
         ],
         "title": "OrganizationDTO",
+        "type": "object"
+      },
+      "ParetoFrontierDTO": {
+        "additionalProperties": false,
+        "description": "Pareto-optimal frontier of funding candidate portfolios subject to a budget ceiling.",
+        "properties": {
+          "budget_ceiling": {
+            "description": "Maximum budget ceiling",
+            "minimum": 0.0,
+            "title": "Budget Ceiling",
+            "type": "number"
+          },
+          "optimal_portfolios": {
+            "description": "Non-dominated optimal candidate portfolios",
+            "items": {
+              "$ref": "#/components/schemas/TradeoffProposalComparisonDTO"
+            },
+            "title": "Optimal Portfolios",
+            "type": "array"
+          }
+        },
+        "required": [
+          "budget_ceiling"
+        ],
+        "title": "ParetoFrontierDTO",
         "type": "object"
       },
       "PerspectiveBriefingDTO": {
@@ -1666,6 +1765,64 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/analysis/pareto-frontier": {
+      "get": {
+        "operationId": "evaluate_pareto_frontier",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "budget_ceiling",
+            "required": false,
+            "schema": {
+              "default": 100000000.0,
+              "minimum": 0.0,
+              "title": "Budget Ceiling",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "as_of_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "As Of Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParetoFrontierDTO"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evaluate Pareto-optimal funding frontier under a budget ceiling"
+      }
+    },
     "/api/v1/analysis/simulate-slip": {
       "post": {
         "operationId": "simulate_milestone_slip",
@@ -1958,6 +2115,92 @@
         "summary": "Get concern by ID"
       }
     },
+    "/api/v1/decision-logs": {
+      "get": {
+        "operationId": "list_decision_logs",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "target_milestone_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Milestone Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DecisionLogEntryDTO"
+                  },
+                  "title": "Response List Decision Logs",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List decision ledger records"
+      },
+      "post": {
+        "operationId": "create_decision_log_entry",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionLogEntryDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionLogEntryDTO"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Append a decision audit record to the ledger"
+      }
+    },
     "/api/v1/edges": {
       "get": {
         "operationId": "list_edges",
@@ -2226,6 +2469,44 @@
           }
         },
         "summary": "Import manifest interchange document"
+      }
+    },
+    "/api/v1/manifest/validate": {
+      "post": {
+        "operationId": "validate_manifest_diagnostics",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BijouManifestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiagnosticReportDTO"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Validate manifest topology and diagnostic linting"
       }
     },
     "/api/v1/organizations": {

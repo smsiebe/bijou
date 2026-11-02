@@ -1,6 +1,6 @@
 """SQLAlchemy 2.0 ORM table models for Bijou relational storage."""
 
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import (
@@ -139,3 +139,20 @@ class EdgeRecord(Base):
         Index("idx_edge_source_rel", "source_id", "relationship"),
         Index("idx_edge_target_rel", "target_id", "relationship"),
     )
+
+
+class DecisionLogRecord(Base):
+    """Table mapping for Decision Provenance Ledger."""
+
+    __tablename__ = "decision_logs"
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    target_milestone_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    author: Mapped[str] = mapped_column(String(256), nullable=False)
+    justification: Mapped[str] = mapped_column(String(4096), nullable=False)
+    timestamp: Mapped[datetime] = mapped_column(nullable=False)
+
+    __table_args__ = (
+        Index("idx_decision_target_ms", "target_milestone_id"),
+    )
+
