@@ -1,0 +1,671 @@
+{
+  "schema_version": "1.0.0",
+  "exported_at": "2026-11-01T12:00:00Z",
+  "organizations": [
+    {
+      "id": "org-strat-space",
+      "name": "Strategic Space Command",
+      "echelon_level": 0,
+      "mission_statement": "Global space superiority and resilient orbital infrastructure",
+      "parent_org_id": null,
+      "peer_org_ids": [],
+      "tags": [
+        "strategic",
+        "space",
+        "orbital"
+      ]
+    },
+    {
+      "id": "org-c2-joint",
+      "name": "Joint C2 Directorate",
+      "echelon_level": 1,
+      "mission_statement": "Orchestration of multi-domain command and control",
+      "parent_org_id": "org-strat-space",
+      "peer_org_ids": [
+        "org-allied-partner"
+      ],
+      "tags": [
+        "operational",
+        "c2",
+        "joint"
+      ]
+    },
+    {
+      "id": "org-tac-isr",
+      "name": "Tactical Airborne ISR Wing",
+      "echelon_level": 2,
+      "mission_statement": "High-altitude tactical sensor surveillance",
+      "parent_org_id": "org-c2-joint",
+      "peer_org_ids": [
+        "org-tac-strike"
+      ],
+      "tags": [
+        "tactical",
+        "isr",
+        "airborne"
+      ]
+    },
+    {
+      "id": "org-tac-strike",
+      "name": "Tactical Strike Group",
+      "echelon_level": 2,
+      "mission_statement": "Precision strike and electronic warfare operations",
+      "parent_org_id": "org-c2-joint",
+      "peer_org_ids": [
+        "org-tac-isr"
+      ],
+      "tags": [
+        "tactical",
+        "strike",
+        "kinetic"
+      ]
+    },
+    {
+      "id": "org-allied-partner",
+      "name": "Allied Coalition Defense Command",
+      "echelon_level": 1,
+      "mission_statement": "Coalition sensor data exchange and shared defense",
+      "parent_org_id": null,
+      "peer_org_ids": [
+        "org-c2-joint"
+      ],
+      "tags": [
+        "allied",
+        "coalition",
+        "external"
+      ]
+    }
+  ],
+  "concerns": [
+    {
+      "id": "concern-deep-sensing",
+      "name": "Persistent Deep Sensing",
+      "description": "Unbroken wide-area sensing across contested domains",
+      "owner_org_id": "org-strat-space",
+      "parent_concern_id": null,
+      "priority": 0.95,
+      "target_metric_sla": 99.5
+    },
+    {
+      "id": "concern-sub-hypersonic",
+      "name": "Hypersonic Threat Tracking",
+      "description": "Continuous trajectory acquisition for high-velocity glide vehicles",
+      "owner_org_id": "org-strat-space",
+      "parent_concern_id": "concern-deep-sensing",
+      "priority": 0.9,
+      "target_metric_sla": 95.0
+    },
+    {
+      "id": "concern-c2-interop",
+      "name": "Cross-Coalition C2 Interoperability",
+      "description": "Low-latency message federation across sovereign boundary gateways",
+      "owner_org_id": "org-c2-joint",
+      "parent_concern_id": null,
+      "priority": 0.85,
+      "target_metric_sla": 90.0
+    },
+    {
+      "id": "concern-low-latency-kill-web",
+      "name": "Sub-Second Sensor-to-Shooter Mesh",
+      "description": "Automated track correlation directly into strike orchestration",
+      "owner_org_id": "org-tac-strike",
+      "parent_concern_id": null,
+      "priority": 0.95,
+      "target_metric_sla": 98.0
+    },
+    {
+      "id": "concern-sub-resilient-comms",
+      "name": "Jam-Resistant Tactical Downlink",
+      "description": "Anti-jam optical and phased-array communication uplinks",
+      "owner_org_id": "org-tac-strike",
+      "parent_concern_id": "concern-low-latency-kill-web",
+      "priority": 0.8,
+      "target_metric_sla": 92.0
+    }
+  ],
+  "things": [
+    {
+      "id": "thing-hypersonic-sensor-constellation",
+      "name": "Hypersonic Tracking Space Constellation",
+      "description": "Low-Earth Orbit infrared and optical tracking sensor bus",
+      "lifecycle": "ACTIVE",
+      "owner_org_id": "org-strat-space",
+      "estimated_cost": 450000.0,
+      "risk_factor": 4.2,
+      "milestones": [
+        {
+          "id": "ms-space-lab-sensor",
+          "thing_id": "thing-hypersonic-sensor-constellation",
+          "sequence_index": 0,
+          "name": "Optical Bench Lab Prototype",
+          "description": "Cryo-cooled infrared detector bench test",
+          "target_date": "2026-03-15",
+          "actual_date": "2026-03-10",
+          "status": "ACHIEVED",
+          "cost_delta": 50000.0,
+          "lane": "SPACE_TIER",
+          "trl": 3
+        },
+        {
+          "id": "ms-space-chamber-proto",
+          "thing_id": "thing-hypersonic-sensor-constellation",
+          "sequence_index": 1,
+          "name": "Thermal Vacuum Chamber Test",
+          "description": "Simulated orbit space environmental qualification",
+          "target_date": "2026-09-20",
+          "actual_date": "2026-09-18",
+          "status": "ACHIEVED",
+          "cost_delta": 120000.0,
+          "lane": "SPACE_TIER",
+          "trl": 5
+        },
+        {
+          "id": "ms-space-flight-qual",
+          "thing_id": "thing-hypersonic-sensor-constellation",
+          "sequence_index": 2,
+          "name": "Orbital Demonstration Flight",
+          "description": "First-article launch and in-orbit target track test",
+          "target_date": "2027-04-10",
+          "actual_date": null,
+          "status": "COMMITTED",
+          "cost_delta": 280000.0,
+          "lane": "SPACE_TIER",
+          "trl": 7
+        }
+      ]
+    },
+    {
+      "id": "thing-mesh-relay-bus",
+      "name": "Crosslink Optical Relay Bus",
+      "description": "Space-to-air optical laser communication crosslinks",
+      "lifecycle": "ACTIVE",
+      "owner_org_id": "org-strat-space",
+      "estimated_cost": 200000.0,
+      "risk_factor": 2.8,
+      "milestones": [
+        {
+          "id": "ms-relay-lab-transceiver",
+          "thing_id": "thing-mesh-relay-bus",
+          "sequence_index": 0,
+          "name": "Laser Transceiver Breadboard",
+          "description": "High-data-rate transceiver lab testing",
+          "target_date": "2026-06-01",
+          "actual_date": "2026-05-25",
+          "status": "ACHIEVED",
+          "cost_delta": 60000.0,
+          "lane": "SPACE_TIER",
+          "trl": 4
+        },
+        {
+          "id": "ms-relay-fielded",
+          "thing_id": "thing-mesh-relay-bus",
+          "sequence_index": 1,
+          "name": "Air-to-Space Optical Link Fielded",
+          "description": "Live optical link demonstration with high-altitude airborne node",
+          "target_date": "2027-02-15",
+          "actual_date": null,
+          "status": "COMMITTED",
+          "cost_delta": 140000.0,
+          "lane": "SPACE_TIER",
+          "trl": 7
+        }
+      ]
+    },
+    {
+      "id": "thing-edge-ai-correlator",
+      "name": "Tactical Edge AI Correlator",
+      "description": "Autonomous multi-sensor track fusion and kinematics prediction engine",
+      "lifecycle": "ACTIVE",
+      "owner_org_id": "org-c2-joint",
+      "estimated_cost": 180000.0,
+      "risk_factor": 3.5,
+      "milestones": [
+        {
+          "id": "ms-edge-algo-design",
+          "thing_id": "thing-edge-ai-correlator",
+          "sequence_index": 0,
+          "name": "Kinematic Kalman Filter Benchmark",
+          "description": "Algorithmic validation on synthetic track telemetry",
+          "target_date": "2026-04-01",
+          "actual_date": "2026-03-28",
+          "status": "ACHIEVED",
+          "cost_delta": 30000.0,
+          "lane": "C2_TIER",
+          "trl": 3
+        },
+        {
+          "id": "ms-edge-hw-integrated",
+          "thing_id": "thing-edge-ai-correlator",
+          "sequence_index": 1,
+          "name": "Ruggedized Airborne Compute Integration",
+          "description": "Payload integration on tactical testbed airframe",
+          "target_date": "2026-11-15",
+          "actual_date": null,
+          "status": "IN_PROGRESS",
+          "cost_delta": 70000.0,
+          "lane": "C2_TIER",
+          "trl": 6
+        },
+        {
+          "id": "ms-edge-eval-live",
+          "thing_id": "thing-edge-ai-correlator",
+          "sequence_index": 2,
+          "name": "Operational Multi-Node Field Exercise",
+          "description": "Real-time track correlation across live flights",
+          "target_date": "2027-06-30",
+          "actual_date": null,
+          "status": "COMMITTED",
+          "cost_delta": 80000.0,
+          "lane": "C2_TIER",
+          "trl": 8
+        }
+      ]
+    },
+    {
+      "id": "thing-allied-federation-gateway",
+      "name": "Allied Sovereign Gateway Interface",
+      "description": "Cross-domain cryptographic boundary filter for coalition telemetry",
+      "lifecycle": "ACTIVE",
+      "owner_org_id": "org-allied-partner",
+      "estimated_cost": 150000.0,
+      "risk_factor": 2.1,
+      "milestones": [
+        {
+          "id": "ms-gateway-sim",
+          "thing_id": "thing-allied-federation-gateway",
+          "sequence_index": 0,
+          "name": "Cryptographic Guard Simulation",
+          "description": "Zero-trust protocol validation in simulated WAN",
+          "target_date": "2026-07-01",
+          "actual_date": "2026-06-25",
+          "status": "ACHIEVED",
+          "cost_delta": 40000.0,
+          "lane": "ALLIED_TIER",
+          "trl": 5
+        },
+        {
+          "id": "ms-gateway-live-peering",
+          "thing_id": "thing-allied-federation-gateway",
+          "sequence_index": 1,
+          "name": "Operational Coalition Peering",
+          "description": "Live TLS connection between joint command centres",
+          "target_date": "2027-01-15",
+          "actual_date": null,
+          "status": "COMMITTED",
+          "cost_delta": 110000.0,
+          "lane": "ALLIED_TIER",
+          "trl": 7
+        }
+      ]
+    },
+    {
+      "id": "thing-tactical-strike-interceptor",
+      "name": "High-Speed Kinetic Interceptor",
+      "description": "Hypersonic interceptor with terminal dual-mode seeker",
+      "lifecycle": "ACTIVE",
+      "owner_org_id": "org-tac-strike",
+      "estimated_cost": 600000.0,
+      "risk_factor": 5.5,
+      "milestones": [
+        {
+          "id": "ms-strike-propulsion-concept",
+          "thing_id": "thing-tactical-strike-interceptor",
+          "sequence_index": 0,
+          "name": "Solid Rocket Motor Feasibility",
+          "description": "Propellant grain design and burn rate test",
+          "target_date": "2026-05-10",
+          "actual_date": "2026-05-02",
+          "status": "ACHIEVED",
+          "cost_delta": 150000.0,
+          "lane": "STRIKE_TIER",
+          "trl": 2
+        },
+        {
+          "id": "ms-strike-live-test",
+          "thing_id": "thing-tactical-strike-interceptor",
+          "sequence_index": 1,
+          "name": "Range Live-Fire Intercept Test",
+          "description": "Closed-loop intercept against supersonic target drone",
+          "target_date": "2027-08-20",
+          "actual_date": null,
+          "status": "COMMITTED",
+          "cost_delta": 450000.0,
+          "lane": "STRIKE_TIER",
+          "trl": 6
+        }
+      ]
+    },
+    {
+      "id": "thing-autonomous-ew-decoy",
+      "name": "Autonomous EW Airborne Decoy",
+      "description": "Miniature air-launched decoy vehicle with active jamming payload",
+      "lifecycle": "ACTIVE",
+      "owner_org_id": "org-tac-isr",
+      "estimated_cost": 120000.0,
+      "risk_factor": 3.0,
+      "milestones": [
+        {
+          "id": "ms-decoy-rf-test",
+          "thing_id": "thing-autonomous-ew-decoy",
+          "sequence_index": 0,
+          "name": "Anechoic Chamber RF Signature Test",
+          "description": "Emitter mimicry and radar cross-section test",
+          "target_date": "2026-08-01",
+          "actual_date": "2026-07-28",
+          "status": "ACHIEVED",
+          "cost_delta": 40000.0,
+          "lane": "ISR_TIER",
+          "trl": 4
+        },
+        {
+          "id": "ms-decoy-flight-swarm",
+          "thing_id": "thing-autonomous-ew-decoy",
+          "sequence_index": 1,
+          "name": "Tactical Swarm In-Flight Release",
+          "description": "Flight release and coordinated jamming test",
+          "target_date": "2027-05-15",
+          "actual_date": null,
+          "status": "COMMITTED",
+          "cost_delta": 80000.0,
+          "lane": "ISR_TIER",
+          "trl": 7
+        }
+      ]
+    }
+  ],
+  "causal_gates": [
+    {
+      "id": "gate-combinatorial-deep-cueing",
+      "name": "Deep Sensor Cueing Gate",
+      "mechanism": "COMBINATORIAL_AND",
+      "threshold_k": null,
+      "contributors": [
+        {
+          "thing_id": "thing-hypersonic-sensor-constellation",
+          "milestone_id": "ms-space-flight-qual",
+          "contribution_weight": 1.0
+        },
+        {
+          "thing_id": "thing-mesh-relay-bus",
+          "milestone_id": "ms-relay-fielded",
+          "contribution_weight": 1.0
+        }
+      ]
+    },
+    {
+      "id": "gate-additive-relay-capacity",
+      "name": "Multi-Domain Relay Aggregation",
+      "mechanism": "ADDITIVE",
+      "threshold_k": null,
+      "contributors": [
+        {
+          "thing_id": "thing-hypersonic-sensor-constellation",
+          "milestone_id": "ms-space-chamber-proto",
+          "contribution_weight": 0.6
+        },
+        {
+          "thing_id": "thing-allied-federation-gateway",
+          "milestone_id": "ms-gateway-sim",
+          "contribution_weight": 0.4
+        }
+      ]
+    },
+    {
+      "id": "gate-k-of-n-target-lock",
+      "name": "Triangulated Target Lock Gate",
+      "mechanism": "THRESHOLD_K_OF_N",
+      "threshold_k": 2,
+      "contributors": [
+        {
+          "thing_id": "thing-hypersonic-sensor-constellation",
+          "milestone_id": "ms-space-flight-qual",
+          "contribution_weight": 1.0
+        },
+        {
+          "thing_id": "thing-edge-ai-correlator",
+          "milestone_id": "ms-edge-eval-live",
+          "contribution_weight": 1.0
+        },
+        {
+          "thing_id": "thing-allied-federation-gateway",
+          "milestone_id": "ms-gateway-live-peering",
+          "contribution_weight": 1.0
+        }
+      ]
+    }
+  ],
+  "effects": [
+    {
+      "id": "eff-sensor-coverage-t1",
+      "name": "Global Hypersonic Tracking Footprint",
+      "description": "99% orbital line-of-sight tracking capability for hypersonic threats",
+      "tier": "TIER_1_STRATEGIC",
+      "causal_gate_id": "gate-combinatorial-deep-cueing",
+      "accumulator": "SUM",
+      "observed_value": 0.92,
+      "target_threshold": 0.9,
+      "satisfies_concerns": [
+        {
+          "concern_id": "concern-sub-hypersonic",
+          "weight": 0.95
+        }
+      ],
+      "federation_spec": null
+    },
+    {
+      "id": "eff-detection-speed-t1",
+      "name": "Sub-Second Track Formation",
+      "description": "Automated kinematic trajectory prediction within 500ms of launch",
+      "tier": "TIER_1_STRATEGIC",
+      "causal_gate_id": "gate-combinatorial-deep-cueing",
+      "accumulator": "SUM",
+      "observed_value": 0.88,
+      "target_threshold": 0.85,
+      "satisfies_concerns": [
+        {
+          "concern_id": "concern-low-latency-kill-web",
+          "weight": 0.9
+        }
+      ],
+      "federation_spec": null
+    },
+    {
+      "id": "eff-downlink-resilience-t2",
+      "name": "Jam-Resistant Tactical Ingress",
+      "description": "Optical crosslink downlink sustained during severe RF denial",
+      "tier": "TIER_2_OPERATIONAL",
+      "causal_gate_id": "gate-additive-relay-capacity",
+      "accumulator": "SUM",
+      "observed_value": 0.75,
+      "target_threshold": 0.7,
+      "satisfies_concerns": [
+        {
+          "concern_id": "concern-sub-resilient-comms",
+          "weight": 0.85
+        }
+      ],
+      "federation_spec": null
+    },
+    {
+      "id": "eff-federated-track-t2",
+      "name": "Coalition Common Operating Picture",
+      "description": "Real-time bi-directional telemetry broadcast across allied nodes",
+      "tier": "TIER_2_OPERATIONAL",
+      "causal_gate_id": "gate-k-of-n-target-lock",
+      "accumulator": "SUM",
+      "observed_value": 0.8,
+      "target_threshold": 0.75,
+      "satisfies_concerns": [
+        {
+          "concern_id": "concern-c2-interop",
+          "weight": 0.88
+        }
+      ],
+      "federation_spec": null
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-strat-c2-hierarchy",
+      "source_id": "thing-hypersonic-sensor-constellation",
+      "target_id": "thing-edge-ai-correlator",
+      "relationship": "SUPPORTS",
+      "weight": 1.0,
+      "source_milestone_id": "ms-space-chamber-proto",
+      "target_milestone_id": "ms-edge-algo-design"
+    },
+    {
+      "id": "edge-space-sensor-to-relay",
+      "source_id": "thing-hypersonic-sensor-constellation",
+      "target_id": "thing-mesh-relay-bus",
+      "relationship": "DEPENDS_ON",
+      "weight": 1.0,
+      "source_milestone_id": "ms-space-flight-qual",
+      "target_milestone_id": "ms-relay-fielded"
+    },
+    {
+      "id": "edge-relay-to-edge-compute",
+      "source_id": "thing-mesh-relay-bus",
+      "target_id": "thing-edge-ai-correlator",
+      "relationship": "SUPPORTS",
+      "weight": 1.0,
+      "source_milestone_id": "ms-relay-fielded",
+      "target_milestone_id": "ms-edge-hw-integrated"
+    },
+    {
+      "id": "edge-allied-to-edge",
+      "source_id": "thing-allied-federation-gateway",
+      "target_id": "thing-edge-ai-correlator",
+      "relationship": "COLLABORATES_WITH",
+      "weight": 1.0,
+      "source_milestone_id": "ms-gateway-live-peering",
+      "target_milestone_id": "ms-edge-eval-live"
+    },
+    {
+      "id": "edge-edge-to-strike",
+      "source_id": "thing-edge-ai-correlator",
+      "target_id": "thing-tactical-strike-interceptor",
+      "relationship": "DEPENDS_ON",
+      "weight": 1.0,
+      "source_milestone_id": "ms-edge-eval-live",
+      "target_milestone_id": "ms-strike-live-test"
+    },
+    {
+      "id": "edge-decoy-to-strike",
+      "source_id": "thing-autonomous-ew-decoy",
+      "target_id": "thing-tactical-strike-interceptor",
+      "relationship": "SUPPORTS",
+      "weight": 0.8,
+      "source_milestone_id": "ms-decoy-flight-swarm",
+      "target_milestone_id": "ms-strike-live-test"
+    },
+    {
+      "id": "edge-decoy-to-isr",
+      "source_id": "thing-autonomous-ew-decoy",
+      "target_id": "thing-hypersonic-sensor-constellation",
+      "relationship": "IMPACTS",
+      "weight": 0.5,
+      "source_milestone_id": "ms-decoy-rf-test",
+      "target_milestone_id": "ms-space-lab-sensor"
+    },
+    {
+      "id": "edge-sensor-deep-sensing",
+      "source_id": "thing-hypersonic-sensor-constellation",
+      "target_id": "thing-hypersonic-sensor-constellation",
+      "relationship": "SATISFIES",
+      "weight": 1.0,
+      "source_milestone_id": "ms-space-flight-qual",
+      "target_milestone_id": "ms-space-lab-sensor"
+    },
+    {
+      "id": "edge-relay-comms",
+      "source_id": "thing-mesh-relay-bus",
+      "target_id": "thing-mesh-relay-bus",
+      "relationship": "SATISFIES",
+      "weight": 1.0,
+      "source_milestone_id": "ms-relay-fielded",
+      "target_milestone_id": "ms-relay-lab-transceiver"
+    },
+    {
+      "id": "edge-allied-interop",
+      "source_id": "thing-allied-federation-gateway",
+      "target_id": "thing-allied-federation-gateway",
+      "relationship": "SATISFIES",
+      "weight": 1.0,
+      "source_milestone_id": "ms-gateway-live-peering",
+      "target_milestone_id": "ms-gateway-sim"
+    },
+    {
+      "id": "edge-strike-kill-web",
+      "source_id": "thing-tactical-strike-interceptor",
+      "target_id": "thing-tactical-strike-interceptor",
+      "relationship": "SATISFIES",
+      "weight": 1.0,
+      "source_milestone_id": "ms-strike-live-test",
+      "target_milestone_id": "ms-strike-propulsion-concept"
+    },
+    {
+      "id": "edge-sensor-to-allied",
+      "source_id": "thing-hypersonic-sensor-constellation",
+      "target_id": "thing-allied-federation-gateway",
+      "relationship": "PEER_OF",
+      "weight": 0.9,
+      "source_milestone_id": "ms-space-chamber-proto",
+      "target_milestone_id": "ms-gateway-sim"
+    },
+    {
+      "id": "edge-relay-to-allied",
+      "source_id": "thing-mesh-relay-bus",
+      "target_id": "thing-allied-federation-gateway",
+      "relationship": "PEER_OF",
+      "weight": 0.8,
+      "source_milestone_id": "ms-relay-lab-transceiver",
+      "target_milestone_id": "ms-gateway-sim"
+    },
+    {
+      "id": "edge-edge-to-decoy",
+      "source_id": "thing-edge-ai-correlator",
+      "target_id": "thing-autonomous-ew-decoy",
+      "relationship": "COLLABORATES_WITH",
+      "weight": 0.7,
+      "source_milestone_id": "ms-edge-hw-integrated",
+      "target_milestone_id": "ms-decoy-rf-test"
+    },
+    {
+      "id": "edge-sensor-to-strike",
+      "source_id": "thing-hypersonic-sensor-constellation",
+      "target_id": "thing-tactical-strike-interceptor",
+      "relationship": "PEER_OF",
+      "weight": 0.5,
+      "source_milestone_id": "ms-space-lab-sensor",
+      "target_milestone_id": "ms-strike-propulsion-concept"
+    },
+    {
+      "id": "edge-relay-to-decoy",
+      "source_id": "thing-mesh-relay-bus",
+      "target_id": "thing-autonomous-ew-decoy",
+      "relationship": "SUPPORTS",
+      "weight": 0.6,
+      "source_milestone_id": "ms-relay-fielded",
+      "target_milestone_id": "ms-decoy-flight-swarm"
+    },
+    {
+      "id": "edge-strike-to-decoy",
+      "source_id": "thing-tactical-strike-interceptor",
+      "target_id": "thing-autonomous-ew-decoy",
+      "relationship": "COLLABORATES_WITH",
+      "weight": 0.85,
+      "source_milestone_id": "ms-strike-live-test",
+      "target_milestone_id": "ms-decoy-flight-swarm"
+    },
+    {
+      "id": "edge-c2-to-tac-isr",
+      "source_id": "thing-edge-ai-correlator",
+      "target_id": "thing-autonomous-ew-decoy",
+      "relationship": "SUPPORTS",
+      "weight": 0.95,
+      "source_milestone_id": "ms-edge-eval-live",
+      "target_milestone_id": "ms-decoy-flight-swarm"
+    }
+  ]
+}
