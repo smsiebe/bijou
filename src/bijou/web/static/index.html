@@ -582,7 +582,10 @@
       <div style="display: flex; align-items: center; gap: 8px;">
         <span class="puck-drag-indicator">⋮⋮</span>
         <div>
-          <div id="puck-thing-title" class="puck-header-title">-</div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 0.62rem; background: rgba(56, 189, 248, 0.2); color: var(--accent-cyan); padding: 1px 5px; border-radius: 3px; font-weight: 700; letter-spacing: 0.5px;">SYSTEM THING</span>
+            <div id="puck-thing-title" class="puck-header-title">-</div>
+          </div>
           <div id="puck-thing-subtitle" class="puck-header-subtitle">-</div>
         </div>
       </div>
@@ -591,6 +594,15 @@
         <button id="puck-pin-btn" class="puck-icon-btn" title="Pin HUD in place">📌</button>
         <button id="puck-close-btn" class="puck-icon-btn" title="Close HUD">&times;</button>
       </div>
+    </div>
+
+    <!-- Contextual Focused Milestone Banner -->
+    <div id="puck-context-milestone" style="display: none; padding: 6px 14px; background: rgba(56, 189, 248, 0.08); border-bottom: 1px solid rgba(56, 189, 248, 0.2); font-size: 0.75rem; align-items: center; justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+        <span style="color: var(--accent-cyan); font-weight: 700; font-size: 0.68rem; letter-spacing: 0.5px; white-space: nowrap;">SELECTED MILESTONE:</span>
+        <span id="puck-milestone-name" style="font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
+      </div>
+      <span id="puck-milestone-badge" class="badge-pill">-</span>
     </div>
 
     <div class="puck-tabs-bar">

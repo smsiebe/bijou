@@ -128,6 +128,7 @@ const ThingPuck = {
     const puck = document.getElementById("thing-detail-puck");
     if (!puck) return;
 
+    this.currentNode = (typeof nodeOrThing === "object" && nodeOrThing.milestone_id) ? nodeOrThing : null;
     const thingId = typeof nodeOrThing === "string" ? nodeOrThing : (nodeOrThing.thing_id || nodeOrThing.id);
     if (!thingId) return;
 
@@ -183,6 +184,7 @@ const ThingPuck = {
     if (puck) {
       puck.classList.remove("visible");
     }
+    this.currentNode = null;
   },
 
   renderLoadingState(thingId) {
@@ -224,8 +226,25 @@ const ThingPuck = {
       subEl.textContent = `${t.id} • ${orgName}`;
     }
     if (badgeEl) {
-      badgeEl.className = `badge-pill state-${t.lifecycle.toLowerCase().replace('_', '-')}`;
+      badgeEl.className = `badge-pill state-${(t.lifecycle || 'ACTIVE').toLowerCase().replace('_', '-')}`;
       badgeEl.textContent = t.lifecycle;
+    }
+
+    const milestoneBanner = document.getElementById("puck-context-milestone");
+    const milestoneName = document.getElementById("puck-milestone-name");
+    const milestoneBadge = document.getElementById("puck-milestone-badge");
+    if (milestoneBanner) {
+      if (this.currentNode && this.currentNode.title) {
+        milestoneBanner.style.display = "flex";
+        if (milestoneName) milestoneName.textContent = this.currentNode.title;
+        if (milestoneBadge) {
+          const state = this.currentNode.state || "COMMITTED";
+          milestoneBadge.className = `badge-pill state-${state.toLowerCase().replace('_', '-')}`;
+          milestoneBadge.textContent = state;
+        }
+      } else {
+        milestoneBanner.style.display = "none";
+      }
     }
   },
 
@@ -310,6 +329,29 @@ const ThingPuck = {
         <div class="puck-section-title">STRATEGIC CONCERNS SERVICED</div>
         <div class="puck-chip-container">
           ${concernsHtml}
+        </div>
+      </div>
+
+      <div class="puck-section">
+        <div class="puck-section-title">DELIVERY MILESTONES (${(t.milestones || []).length})</div>
+        <div class="puck-milestones-list" style="display: flex; flex-direction: column; gap: 5px;">
+          ${(t.milestones || []).length > 0 ? (t.milestones || []).map((m, idx) => {
+            const isSelected = this.currentNode && (this.currentNode.milestone_id === m.id || this.currentNode.title === m.name);
+            const border = isSelected ? "border: 1px solid var(--accent-cyan); background: rgba(56, 189, 248, 0.12);" : "border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);";
+            return `
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: 4px; ${border}">
+                <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+                  <span style="font-size: 0.7rem; color: var(--text-muted); font-family: monospace;">#${idx + 1}</span>
+                  <span style="font-size: 0.78rem; font-weight: 600; color: ${isSelected ? 'var(--accent-cyan)' : 'var(--text-bright)'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${m.name}</span>
+                  ${isSelected ? `<span style="font-size: 0.65rem; color: var(--accent-cyan); font-weight: 700;">[SELECTED]</span>` : ''}
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                  <span style="font-size: 0.7rem; color: var(--text-muted);">TRL ${m.trl || t.trl}</span>
+                  <span class="badge-pill state-${(m.status || 'COMMITTED').toLowerCase().replace('_', '-')}">${m.status || 'COMMITTED'}</span>
+                </div>
+              </div>
+            `;
+          }).join('') : '<div style="font-size: 0.75rem; color: var(--text-dim); font-style: italic;">No milestones defined for this Thing.</div>'}
         </div>
       </div>
 
@@ -726,18 +768,18 @@ const ThingPuck = {
     const t = this.currentThing;
 
     // Use current tech tree selected node or construct adapter node
-    const dummyNode = {
+    const targetNode = this.currentNode || {
       thing_id: t.id,
       thing_name: t.name,
-      milestone_id: `ms-${t.id}-initial`,
-      title: `${t.name} Deployment`,
+      milestone_id: (t.milestones && t.milestones.length > 0) ? t.milestones[0].id : `ms-${t.id}-initial`,
+      title: (t.milestones && t.milestones.length > 0) ? t.milestones[0].name : `${t.name} Deployment`,
       state: t.lifecycle === "OPERATIONAL" ? "COMPLETED" : "IN_PROGRESS",
       trl: t.trl,
       cost_estimate: t.estimated_cost
     };
 
     if (window.TechTreeManager && typeof window.TechTreeManager.openSlipDrawer === "function") {
-      window.TechTreeManager.openSlipDrawer(dummyNode);
+      window.TechTreeManager.openSlipDrawer(targetNode);
     }
   },
 
