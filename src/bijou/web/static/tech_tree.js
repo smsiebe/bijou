@@ -476,7 +476,7 @@ const TechTreeManager = {
       p.style.stroke = p.dataset.defaultStroke || "#475569";
       p.style.strokeWidth = p.dataset.defaultWidth || "2px";
     });
-  }
+  },
 
   showContextMenu(node, e) {
     let menu = document.getElementById("node-context-menu");

@@ -787,7 +787,7 @@ const ThingPuck = {
     if (ledger) {
       ledger.scrollIntoView({ behavior: "smooth" });
     }
-  }
+  },
 
   openThingEditorModal() {
     if (!this.currentThing) return;

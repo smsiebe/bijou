@@ -142,8 +142,9 @@ const BijouAPI = {
       as_of_date: asOfDate,
       org_filter: orgFilter
     });
-  }
-getEdges() {
+  },
+
+  getEdges() {
     return this.get("/api/v1/edges");
   },
 
