@@ -137,9 +137,14 @@ def test_gui_full_lens_workflows_and_interactions(live_gui_server: str, browser_
     edge_paths = svg_overlay.find_elements(By.TAG_NAME, "path")
     assert len(edge_paths) > 0
 
-    # 3. What-If Slip Simulation Drawer
+    # 3. What-If Slip Simulation Drawer (via Thing Detail Puck HUD)
     target_card = driver.find_element(By.CSS_SELECTOR, ".node-card[data-milestone-id='ms-space-chamber-proto']")
     driver.execute_script("arguments[0].click();", target_card)
+    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#thing-detail-puck.visible")))
+
+    # Launch Slip Simulator from Puck HUD (wait for async puck telemetry load)
+    puck_slip_btn = wait.until(EC.presence_of_element_located((By.ID, "puck-quick-slip-btn")))
+    driver.execute_script("arguments[0].click();", puck_slip_btn)
     wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#slip-drawer.open")))
     time.sleep(0.4)
 
@@ -173,6 +178,8 @@ def test_gui_full_lens_workflows_and_interactions(live_gui_server: str, browser_
 
     close_btn = driver.find_element(By.ID, "close-drawer-btn")
     driver.execute_script("arguments[0].click();", close_btn)
+    puck_close = driver.find_element(By.ID, "puck-close-btn")
+    driver.execute_script("arguments[0].click();", puck_close)
     time.sleep(0.3)
 
     # 4. Lens 2: Executive Perspective Briefing
@@ -244,6 +251,9 @@ def test_gui_full_lens_workflows_and_interactions(live_gui_server: str, browser_
     # 6. Lens 4: Manifest JSON Studio, Diagnostics & Direct Manipulation Workbench
     crud_tab = driver.find_element(By.CSS_SELECTOR, "button[data-lens='crud-studio']")
     crud_tab.click()
+
+    manifest_subtab = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-crud-tab='panel-manifest']")))
+    manifest_subtab.click()
 
     export_btn = wait.until(EC.element_to_be_clickable((By.ID, "crud-export-btn")))
     export_btn.click()

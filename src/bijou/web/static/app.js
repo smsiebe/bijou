@@ -9,6 +9,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lensViews = document.querySelectorAll(".lens-view");
 
   function switchLens(targetId) {
+    if (window.ThingPuck && typeof window.ThingPuck.close === "function") {
+      window.ThingPuck.close();
+    }
     lensButtons.forEach(btn => {
       if (btn.dataset.lens === targetId) {
         btn.classList.add("active");
