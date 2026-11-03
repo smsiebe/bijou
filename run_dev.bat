@@ -26,12 +26,19 @@ if not defined PYTHON_EXE (
 
 echo [Bijou Dev] Using Python: %PYTHON_EXE%
 
-:: 2. Set PYTHONPATH to local dev source trees for immediate live reloading
+:: 2. Ensure uvicorn is installed in this Python environment
+"%PYTHON_EXE%" -c "import uvicorn" >nul 2>&1
+if errorlevel 1 (
+    echo [Bijou Dev] uvicorn not found in %PYTHON_EXE%. Installing uvicorn...
+    "%PYTHON_EXE%" -m pip install uvicorn
+)
+
+:: 3. Set PYTHONPATH to local dev source trees for immediate live reloading
 set "BIJOU_ROOT=%~dp0"
 if "%BIJOU_ROOT:~-1%"=="\" set "BIJOU_ROOT=%BIJOU_ROOT:~0,-1%"
 set "PYTHONPATH=%BIJOU_ROOT%\src;%BIJOU_ROOT%\projects\bijou-pysdk\src;%BIJOU_ROOT%\projects\bijou-doc-ingest\src;%PYTHONPATH%"
 
-:: 3. Configure storage pointing to %TEMP%\bijou_test
+:: 4. Configure storage pointing to %TEMP%\bijou_test
 set "TEST_DIR=%TEMP%\bijou_test"
 if not exist "%TEST_DIR%" mkdir "%TEST_DIR%"
 set "DB_FILE=%TEST_DIR%\bijou_graph.db"
@@ -42,17 +49,19 @@ set "BIJOU_DUCKDB_PATH=%DUCK_FILE%"
 set "BIJOU_BIND_HOST=0.0.0.0"
 set "BIJOU_BIND_PORT=8000"
 
-:: 4. Seed test data once per system session/restart
+:: 5. Seed test data once per system session/restart
 "%PYTHON_EXE%" "%BIJOU_ROOT%\scripts\dev_seed.py"
 if errorlevel 1 (
     echo [Bijou Dev] Warning: Seeder exited with error code %ERRORLEVEL%.
 )
 
-:: 5. Launch uvicorn with live auto-reload on src/
+:: 6. Launch uvicorn with live code & static assets auto-reload
 echo.
-echo [Bijou Dev] Starting Bijou server on http://localhost:8000 ...
-echo [Bijou Dev] Live auto-reload is active on %BIJOU_ROOT%\src
-echo [Bijou Dev] Press Ctrl+C in this window to stop the server.
+echo ======================================================================
+echo  Starting Uvicorn live development server on http://localhost:8000
+echo  Watching for changes in: %BIJOU_ROOT%\src
+echo  Press Ctrl+C to terminate.
+echo ======================================================================
 echo.
 
 cd /d "%BIJOU_ROOT%"
