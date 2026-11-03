@@ -10,7 +10,13 @@
     "projects/bijou-pysdk",
     "projects/bijou-doc-ingest"
   ],
+  "artifacts": [
+    "datasets/*.json",
+    "datasets/*.yaml"
+  ],
+  "hooks": {
+    "post_install": "hooks/post_install.py"
+  },
   "create_desktop_shortcut": true,
   "create_launchers": true
 }
-
