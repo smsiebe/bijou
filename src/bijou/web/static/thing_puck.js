@@ -315,7 +315,7 @@ const ThingPuck = {
 
       <div class="puck-section-divider"></div>
 
-      <div class="puck-quick-actions">
+      <div class="puck-quick-actions" style="display: flex; flex-wrap: wrap; gap: 8px;">
         <button class="puck-action-btn primary" id="puck-quick-slip-btn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           Slip Simulator
@@ -324,9 +324,21 @@ const ThingPuck = {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
           Spheres View
         </button>
-        <button class="puck-action-btn" id="puck-quick-focal-btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg>
-          Focal Ego Lens
+        <button class="puck-action-btn edit" id="puck-quick-edit-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          Edit Thing
+        </button>
+        <button class="puck-action-btn retire" id="puck-quick-retire-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+          Retire Thing
+        </button>
+        <button class="puck-action-btn" id="puck-quick-link-edge-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          + Link Dependency
+        </button>
+        <button class="puck-action-btn" id="puck-quick-link-concern-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="12 8 8 12 12 16 16 12 12 8"/></svg>
+          + Link Concern
         </button>
       </div>
     `;
@@ -345,6 +357,26 @@ const ThingPuck = {
     const focalBtn = panel.querySelector("#puck-quick-focal-btn");
     if (focalBtn) {
       focalBtn.addEventListener("click", () => this.launchFocalView());
+    }
+
+    const editBtn = panel.querySelector("#puck-quick-edit-btn");
+    if (editBtn) {
+      editBtn.addEventListener("click", () => this.openThingEditorModal());
+    }
+
+    const retireBtn = panel.querySelector("#puck-quick-retire-btn");
+    if (retireBtn) {
+      retireBtn.addEventListener("click", () => this.retireCurrentThing());
+    }
+
+    const linkEdgeBtn = panel.querySelector("#puck-quick-link-edge-btn");
+    if (linkEdgeBtn) {
+      linkEdgeBtn.addEventListener("click", () => this.openEdgeLinkerModal());
+    }
+
+    const linkConcernBtn = panel.querySelector("#puck-quick-link-concern-btn");
+    if (linkConcernBtn) {
+      linkConcernBtn.addEventListener("click", () => this.openConcernLinkerModal());
     }
   },
 
@@ -436,14 +468,20 @@ const ThingPuck = {
       </div>
 
       <div class="puck-section">
-        <div class="puck-section-title">UPSTREAM SUPPLIERS & PREREQUISITES (${upThings.length})</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;" class="puck-section-title">
+          <span>UPSTREAM SUPPLIERS & PREREQUISITES (${upThings.length})</span>
+          <button id="puck-add-up-edge-btn" class="action-pill-btn" style="font-size: 0.68rem; padding: 2px 6px;">+ Link Upstream</button>
+        </div>
         <div class="relation-chips-wrapper">
           ${upChips}
         </div>
       </div>
 
       <div class="puck-section">
-        <div class="puck-section-title">DOWNSTREAM CONSUMERS & BENEFICIARIES (${downThings.length})</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;" class="puck-section-title">
+          <span>DOWNSTREAM CONSUMERS & BENEFICIARIES (${downThings.length})</span>
+          <button id="puck-add-down-edge-btn" class="action-pill-btn" style="font-size: 0.68rem; padding: 2px 6px;">+ Link Downstream</button>
+        </div>
         <div class="relation-chips-wrapper">
           ${downChips}
         </div>
@@ -458,6 +496,16 @@ const ThingPuck = {
     `;
 
     // Wire up interactive clickable chips for instant puck node traversal
+    const addUpBtn = panel.querySelector("#puck-add-up-edge-btn");
+    if (addUpBtn) {
+      addUpBtn.addEventListener("click", () => this.openEdgeLinkerModal(true));
+    }
+
+    const addDownBtn = panel.querySelector("#puck-add-down-edge-btn");
+    if (addDownBtn) {
+      addDownBtn.addEventListener("click", () => this.openEdgeLinkerModal(false));
+    }
+
     panel.querySelectorAll(".relation-nav-chip").forEach(chip => {
       chip.addEventListener("click", () => {
         const nextId = chip.dataset.thingId;
@@ -574,6 +622,34 @@ const ThingPuck = {
         icon: "history",
         category: "audit",
         description: "Review provenance audit trail and commit new strategic decision logs."
+      },
+      {
+        tool_id: "edit_thing_spec",
+        title: "Edit Specification",
+        icon: "edit",
+        category: "crud_management",
+        description: "Modify name, lifecycle status, TRL, budget, or ownership organization."
+      },
+      {
+        tool_id: "retire_thing_spec",
+        title: "Retire Thing",
+        icon: "slash",
+        category: "crud_management",
+        description: "Decommission or transition this Thing to RETIRED lifecycle status."
+      },
+      {
+        tool_id: "link_dependency_edge",
+        title: "Link Dependency Vector",
+        icon: "link",
+        category: "graph_topology",
+        description: "Establish upstream prerequisites or downstream capability dependencies."
+      },
+      {
+        tool_id: "assign_strategic_concern",
+        title: "Assign Concern",
+        icon: "award",
+        category: "strategic_intent",
+        description: "Associate a strategic mission concern or capability satisfaction edge."
       }
     ];
 
@@ -626,6 +702,18 @@ const ThingPuck = {
         break;
       case "decision_provenance_ledger":
         this.launchDecisionLedger();
+        break;
+      case "edit_thing_spec":
+        this.openThingEditorModal();
+        break;
+      case "retire_thing_spec":
+        this.retireCurrentThing();
+        break;
+      case "link_dependency_edge":
+        this.openEdgeLinkerModal();
+        break;
+      case "assign_strategic_concern":
+        this.openConcernLinkerModal();
         break;
       default:
         console.info(`Dispatched analytical tool: ${toolId} for ${this.currentThing.id}`);
@@ -700,6 +788,113 @@ const ThingPuck = {
       ledger.scrollIntoView({ behavior: "smooth" });
     }
   }
+
+  openThingEditorModal() {
+    if (!this.currentThing) return;
+    const t = this.currentThing;
+    const modal = document.getElementById("modal-thing-editor");
+    if (!modal) return;
+
+    document.getElementById("modal-thing-id").value = t.id;
+    document.getElementById("modal-thing-name").value = t.name;
+    document.getElementById("modal-thing-desc").value = t.description || "";
+    document.getElementById("modal-thing-lifecycle").value = t.lifecycle;
+    document.getElementById("modal-thing-trl").value = t.trl || 1;
+    document.getElementById("modal-thing-cost").value = t.estimated_cost || 0;
+    document.getElementById("modal-thing-risk").value = t.risk_factor || 1.0;
+
+    // Populate orgs dropdown
+    const orgSelect = document.getElementById("modal-thing-org");
+    if (orgSelect) {
+      BijouAPI.getOrganizations().then(orgs => {
+        orgSelect.innerHTML = orgs.map(o => `
+          <option value="${o.id}" ${o.id === t.owner_org_id ? "selected" : ""}>${o.name}</option>
+        `).join("");
+      });
+    }
+
+    if (typeof modal.showModal === "function") {
+      modal.showModal();
+    } else {
+      modal.setAttribute("open", "");
+    }
+  },
+
+  async retireCurrentThing() {
+    if (!this.currentThing) return;
+    const t = this.currentThing;
+    const confirmed = confirm(`Are you sure you want to retire "${t.name}" (${t.id})?\n\nThis will transition its lifecycle state to RETIRED.`);
+    if (!confirmed) return;
+
+    try {
+      await BijouAPI.retireThing(t.id);
+      alert(`"${t.name}" successfully retired.`);
+      // Re-fetch this thing details and refresh views
+      await this.open(t.id);
+      if (window.ViewsManager && typeof window.ViewsManager.refreshAllEntityViews === "function") {
+        await window.ViewsManager.refreshAllEntityViews();
+      }
+    } catch (err) {
+      alert("Failed to retire thing: " + err.message);
+    }
+  },
+
+  openEdgeLinkerModal(isUpstream = false) {
+    if (!this.currentThing) return;
+    const t = this.currentThing;
+    const modal = document.getElementById("modal-edge-linker");
+    if (!modal) return;
+
+    const sourceSelect = document.getElementById("modal-edge-source");
+    const targetSelect = document.getElementById("modal-edge-target");
+
+    BijouAPI.getThings().then(things => {
+      const options = things.map(th => `<option value="${th.id}">${th.name} (${th.id})</option>`).join("");
+      if (sourceSelect) {
+        sourceSelect.innerHTML = options;
+        sourceSelect.value = isUpstream ? (things[0]?.id || t.id) : t.id;
+      }
+      if (targetSelect) {
+        targetSelect.innerHTML = options;
+        targetSelect.value = isUpstream ? t.id : (things.find(th => th.id !== t.id)?.id || t.id);
+      }
+    });
+
+    if (typeof modal.showModal === "function") {
+      modal.showModal();
+    } else {
+      modal.setAttribute("open", "");
+    }
+  },
+
+  openConcernLinkerModal() {
+    if (!this.currentThing) return;
+    const t = this.currentThing;
+    const modal = document.getElementById("modal-concern-linker");
+    if (!modal) return;
+
+    const thingSelect = document.getElementById("modal-concern-thing");
+    const concernSelect = document.getElementById("modal-concern-select");
+
+    if (thingSelect) {
+      thingSelect.innerHTML = `<option value="${t.id}">${t.name} (${t.id})</option>`;
+      thingSelect.value = t.id;
+    }
+
+    BijouAPI.getConcerns().then(concerns => {
+      if (concernSelect) {
+        concernSelect.innerHTML = concerns.map(c => `
+          <option value="${c.id}">${c.name} (Priority: ${c.priority})</option>
+        `).join("");
+      }
+    });
+
+    if (typeof modal.showModal === "function") {
+      modal.showModal();
+    } else {
+      modal.setAttribute("open", "");
+    }
+  },
 };
 
 window.ThingPuck = ThingPuck;

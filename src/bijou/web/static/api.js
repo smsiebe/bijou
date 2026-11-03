@@ -143,4 +143,47 @@ const BijouAPI = {
       org_filter: orgFilter
     });
   }
+getEdges() {
+    return this.get("/api/v1/edges");
+  },
+
+  createThing(thingData) {
+    return this.post("/api/v1/things", thingData);
+  },
+
+  deleteThing(thingId) {
+    return this.delete(`/api/v1/things/${thingId}`);
+  },
+
+  async retireThing(thingId) {
+    const existing = await this.get(`/api/v1/things/${thingId}`);
+    existing.lifecycle = "RETIRED";
+    return this.post("/api/v1/things", existing);
+  },
+
+  createConcern(concernData) {
+    return this.post("/api/v1/concerns", concernData);
+  },
+
+  deleteConcern(concernId) {
+    return this.delete(`/api/v1/concerns/${concernId}`);
+  },
+
+  createEdge(edgeData) {
+    return this.post("/api/v1/edges", edgeData);
+  },
+
+  deleteEdge(edgeId) {
+    return this.delete(`/api/v1/edges/${edgeId}`);
+  },
+
+  createOrganization(orgData) {
+    return this.post("/api/v1/organizations", orgData);
+  },
+
+  deleteOrganization(orgId) {
+    return this.delete(`/api/v1/organizations/${orgId}`);
+  }
 };
+
+window.BijouAPI = BijouAPI;

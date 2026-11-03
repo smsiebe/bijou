@@ -33,6 +33,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       TechTreeManager.refresh();
     } else if (targetId === "spheres-canvas-view") {
       if (window.SpheresManager) SpheresManager.refresh();
+    } else if (targetId === "crud-studio") {
+      if (window.ViewsManager && typeof window.ViewsManager.refreshCrudStudio === "function") {
+        window.ViewsManager.refreshCrudStudio();
+      }
     }
   }
 

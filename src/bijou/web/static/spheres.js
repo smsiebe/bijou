@@ -122,6 +122,16 @@ const SpheresManager = {
   },
 
   async refresh() {
+    const target = document.getElementById("spheres-graph-target");
+    if (target && (!this.data || !this.data.clusters)) {
+      target.innerHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 420px; color: var(--accent-cyan); font-family: var(--font-mono); gap: 14px;">
+          <div style="width: 28px; height: 28px; border: 3px solid var(--accent-cyan); border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+          <span style="font-size: 0.85rem; letter-spacing: 1px;">PROJECTING CAUSAL SPHERES & CROSS-CUTTING GRAPH...</span>
+        </div>
+      `;
+    }
+
     try {
       const viewData = await BijouAPI.getClusteredSpheres(null, this.selectedOrgId);
       this.data = viewData;
@@ -129,9 +139,8 @@ const SpheresManager = {
       this.render();
     } catch (err) {
       console.error("SpheresManager: refresh failed:", err);
-      const target = document.getElementById("spheres-graph-target");
       if (target) {
-        target.innerHTML = `<div style="color: var(--color-blocked); padding: 40px; text-align: center;">Error loading Clustered Spheres: ${err.message}</div>`;
+        target.innerHTML = `<div style="color: var(--color-blocked); padding: 40px; text-align: center; font-weight: 600;">Error projecting Clustered Spheres: ${err.message}</div>`;
       }
     }
   },
@@ -187,6 +196,12 @@ const SpheresManager = {
 
     [target, modalTarget].forEach(container => {
       if (!container) return;
+      // Skip modalTarget if dialog is not open
+      if (container.id === "spheres-modal-graph-target") {
+        const modal = document.getElementById("spheres-modal");
+        if (!modal || (!modal.open && !modal.hasAttribute("open"))) return;
+      }
+
       container.innerHTML = "";
 
       if (this.viewMode === "macro_orgs") {
@@ -196,8 +211,11 @@ const SpheresManager = {
       }
     });
 
-    // Draw SVG overlay edges
-    this.renderEdges();
+    // Draw SVG overlay edges with dual RAF/timeout passes for robust layout sync
+    requestAnimationFrame(() => {
+      this.renderEdges();
+      setTimeout(() => this.renderEdges(), 60);
+    });
   },
 
   // --- MODE A: Thing-to-Thing inside Clustered Org Spheres ---
@@ -363,6 +381,7 @@ const SpheresManager = {
 
     targets.forEach(container => {
       if (!container || !this.data) return;
+      if (container.offsetWidth === 0 && container.offsetHeight === 0) return;
 
       const existingSvg = container.querySelector(".spheres-svg-overlay");
       if (existingSvg) existingSvg.remove();

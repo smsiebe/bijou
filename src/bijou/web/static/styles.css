@@ -1529,3 +1529,260 @@ input:focus, select:focus, textarea:focus {
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-subtle);
 }
+
+/* --- Comprehensive Entity Lifecycle & Relational CRUD Studio --- */
+.crud-studio-header {
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 8px;
+}
+
+.crud-nav-tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.crud-tab-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.crud-tab-btn:hover {
+  color: var(--text-main);
+  border-color: var(--border-bright);
+}
+
+.crud-tab-btn.active {
+  background: rgba(56, 189, 248, 0.12);
+  color: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+}
+
+.crud-tab-content-container {
+  min-height: 540px;
+}
+
+.crud-tab-panel {
+  display: none;
+}
+
+.crud-tab-panel.active {
+  display: block;
+}
+
+.crud-panel-layout {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 20px;
+}
+
+.crud-form-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.crud-form-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.crud-inventory-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow: hidden;
+}
+
+.entity-table-wrapper {
+  overflow-x: auto;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.entity-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.entity-table th {
+  background: var(--bg-card);
+  color: var(--text-dim);
+  font-weight: 600;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.entity-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  vertical-align: middle;
+}
+
+.entity-table tr:hover {
+  background: rgba(56, 189, 248, 0.04);
+}
+
+.entity-action-group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.action-pill-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.action-pill-btn:hover {
+  color: var(--text-main);
+  border-color: var(--text-muted);
+}
+
+.action-pill-btn.edit-btn:hover {
+  color: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+}
+
+.action-pill-btn.retire-btn {
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.action-pill-btn.retire-btn:hover {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: #f59e0b;
+  color: #fbbf24;
+}
+
+.action-pill-btn.delete-btn {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.action-pill-btn.delete-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+  color: #f87171;
+}
+
+/* Universal Bijou Modal Dialogs */
+.bijou-dialog {
+  border: none;
+  background: transparent;
+  padding: 0;
+  max-width: 90vw;
+  width: 580px;
+}
+
+.bijou-dialog::backdrop {
+  background: rgba(10, 14, 20, 0.85);
+  backdrop-filter: blur(8px);
+}
+
+.bijou-dialog:not([open]) {
+  display: none;
+}
+
+.bijou-dialog-wrapper {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-bright);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.2);
+  display: flex;
+  flex-direction: column;
+}
+
+.bijou-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.bijou-dialog-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--accent-cyan);
+  font-weight: 700;
+}
+
+.bijou-dialog-body {
+  padding: 20px;
+  max-height: 75vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bijou-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 14px 20px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Additional Puck Action Buttons */
+.puck-action-btn.retire {
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #f59e0b;
+}
+
+.puck-action-btn.retire:hover {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: #f59e0b;
+}
+
+.puck-action-btn.edit {
+  border-color: rgba(56, 189, 248, 0.4);
+  color: var(--accent-cyan);
+}
+
+.puck-action-btn.edit:hover {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: var(--accent-cyan);
+}

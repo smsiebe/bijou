@@ -11,6 +11,7 @@ class LifecycleStatus(StrEnum):
     DELIVERED = "DELIVERED"
     DEPRECATED = "DEPRECATED"
     CANCELLED = "CANCELLED"
+    RETIRED = "RETIRED"
 
 
 class MilestoneStatus(StrEnum):

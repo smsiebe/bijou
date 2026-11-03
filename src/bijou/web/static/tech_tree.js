@@ -238,7 +238,11 @@ const TechTreeManager = {
           card.addEventListener("contextmenu", (e) => {
             e.preventDefault();
             e.stopPropagation();
-            this.showContextMenu(node, e);
+            if (window.ThingPuck) {
+              window.ThingPuck.open(node, e);
+            } else {
+              this.showContextMenu(node, e);
+            }
           });
           card.addEventListener("mouseenter", () => this.highlightSpine(node.node_id));
           card.addEventListener("mouseleave", () => this.clearSpineHighlight());
@@ -562,3 +566,5 @@ const TechTreeManager = {
     }
   }
 };
+
+window.TechTreeManager = TechTreeManager;

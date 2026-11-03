@@ -872,8 +872,14 @@ const ViewsManager = {
     }
   },
 
-  // --- 3. Admin CRUD, Manifest Studio & Direct Manipulation Workbench ---
+  // --- 3. Comprehensive Entity Lifecycle & Relational CRUD Studio ---
   async initCrud() {
+    this.bindCrudSubTabs();
+    this.bindEntityFormEvents();
+    this.bindUniversalModals();
+    await this.refreshCrudStudio();
+
+    // Manifest import/export controls
     const exportBtn = document.getElementById("crud-export-btn");
     const importBtn = document.getElementById("crud-import-btn");
     const validateBtn = document.getElementById("crud-validate-btn");
@@ -908,38 +914,847 @@ const ViewsManager = {
           const thingsCount = res.things || 0;
           const orgsCount = res.organizations || 0;
           alert(`Manifest imported successfully! (Imported: ${thingsCount} things, ${orgsCount} organizations)`);
-          window.location.reload();
+          await this.refreshAllEntityViews();
         } catch (err) {
           alert("Import failed: " + err.message);
         }
       });
     }
+  },
 
-    // Quick Entity Creation Form
+  bindCrudSubTabs() {
+    const tabBtns = document.querySelectorAll(".crud-tab-btn");
+    const panels = document.querySelectorAll(".crud-tab-panel");
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener("click", () => {
+        const targetTab = btn.dataset.crudTab;
+        tabBtns.forEach(b => b.classList.toggle("active", b === btn));
+        panels.forEach(p => p.classList.toggle("active", p.id === `crud-${targetTab}`));
+      });
+    });
+  },
+
+  async refreshCrudStudio() {
+    await Promise.all([
+      this.refreshThingsTable(),
+      this.refreshConcernsTable(),
+      this.refreshEdgesTable(),
+      this.refreshOrgsTable()
+    ]).catch(err => console.warn("refreshCrudStudio partial fail:", err));
+  },
+
+  async refreshThingsTable() {
+    const tbody = document.getElementById("things-table-tbody");
+    const countEl = document.getElementById("thing-inventory-count");
+    const orgSelect = document.getElementById("thing-form-org");
+    const assignThingSelect = document.getElementById("assign-concern-thing-select");
+    const edgeSourceSelect = document.getElementById("edge-form-source");
+    const edgeTargetSelect = document.getElementById("edge-form-target");
+    if (!tbody) return;
+
+    try {
+      const [things, orgs] = await Promise.all([
+        BijouAPI.getThings(),
+        BijouAPI.getOrganizations()
+      ]);
+
+      if (countEl) countEl.textContent = `${things.length} Things registered`;
+
+      // Update Form Dropdowns
+      const orgOptions = orgs.map(o => `<option value="${o.id}">${o.name} (${o.id})</option>`).join("");
+      if (orgSelect) orgSelect.innerHTML = orgOptions;
+
+      const thingOptions = things.map(t => `<option value="${t.id}">${t.name} (${t.id})</option>`).join("");
+      if (assignThingSelect) assignThingSelect.innerHTML = thingOptions;
+      if (edgeSourceSelect) edgeSourceSelect.innerHTML = thingOptions;
+      if (edgeTargetSelect) edgeTargetSelect.innerHTML = thingOptions;
+
+      const orgMap = Object.fromEntries(orgs.map(o => [o.id, o.name]));
+
+      if (things.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-dim); padding:24px;">No Things registered yet. Use the form to register one!</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = things.map(t => {
+        const costStr = t.estimated_cost >= 1000000
+          ? `$${(t.estimated_cost / 1000000).toFixed(2)}M`
+          : `$${(t.estimated_cost / 1000).toFixed(0)}k`;
+        const stateClass = `state-${(t.lifecycle || "ACTIVE").toLowerCase().replace('_', '-')}`;
+
+        return `
+          <tr data-thing-id="${t.id}" data-thing-name="${t.name.toLowerCase()}">
+            <td>
+              <div style="font-weight: 700; color: var(--text-main);">${t.name}</div>
+              <div style="font-size: 0.72rem; color: var(--text-dim); font-family: var(--font-mono);">${t.id}</div>
+            </td>
+            <td>
+              <span style="font-size: 0.78rem; color: var(--accent-cyan);">${orgMap[t.owner_org_id] || t.owner_org_id}</span>
+            </td>
+            <td>
+              <span class="badge-pill ${stateClass}" style="font-size: 0.65rem;">${t.lifecycle}</span>
+            </td>
+            <td>
+              <span style="font-family: var(--font-mono); font-size: 0.78rem;">TRL ${t.trl || 1}</span>
+            </td>
+            <td>
+              <span style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--accent-amber);">${costStr}</span>
+            </td>
+            <td>
+              <div class="entity-action-group">
+                <button class="action-pill-btn edit-btn" data-action="edit-thing" data-thing-id="${t.id}" title="Edit Specification">✏️ Edit</button>
+                <button class="action-pill-btn retire-btn" data-action="retire-thing" data-thing-id="${t.id}" title="Retire Thing">🛑 Retire</button>
+                <button class="action-pill-btn delete-btn" data-action="delete-thing" data-thing-id="${t.id}" title="Delete Thing">🗑️</button>
+                <button class="action-pill-btn" data-action="inspect-puck" data-thing-id="${t.id}" title="Inspect Detail Puck">👁️ HUD</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      // Bind Row Action Buttons
+      tbody.querySelectorAll('[data-action="edit-thing"]').forEach(btn => {
+        btn.addEventListener("click", () => {
+          const thing = things.find(t => t.id === btn.dataset.thingId);
+          if (thing) this.populateThingForm(thing);
+        });
+      });
+
+      tbody.querySelectorAll('[data-action="retire-thing"]').forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const thingId = btn.dataset.thingId;
+          const confirmed = confirm(`Retire Thing "${thingId}"? This transitions its lifecycle to RETIRED.`);
+          if (!confirmed) return;
+          try {
+            await BijouAPI.retireThing(thingId);
+            await this.refreshAllEntityViews();
+          } catch (err) {
+            alert("Retire failed: " + err.message);
+          }
+        });
+      });
+
+      tbody.querySelectorAll('[data-action="delete-thing"]').forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const thingId = btn.dataset.thingId;
+          const confirmed = confirm(`Are you sure you want to permanently delete Thing "${thingId}"?`);
+          if (!confirmed) return;
+          try {
+            await BijouAPI.deleteThing(thingId);
+            await this.refreshAllEntityViews();
+          } catch (err) {
+            alert("Delete failed: " + err.message);
+          }
+        });
+      });
+
+      tbody.querySelectorAll('[data-action="inspect-puck"]').forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          if (window.ThingPuck) window.ThingPuck.open(btn.dataset.thingId, e);
+        });
+      });
+
+      // Filter search
+      const searchInput = document.getElementById("thing-table-search");
+      if (searchInput && !searchInput.dataset.bound) {
+        searchInput.dataset.bound = "true";
+        searchInput.addEventListener("input", (e) => {
+          const q = e.target.value.toLowerCase().trim();
+          tbody.querySelectorAll("tr").forEach(tr => {
+            const match = !q || tr.dataset.thingName?.includes(q) || tr.dataset.thingId?.toLowerCase().includes(q);
+            tr.style.display = match ? "" : "none";
+          });
+        });
+      }
+    } catch (err) {
+      console.error("refreshThingsTable failed:", err);
+    }
+  },
+
+  populateThingForm(thing) {
+    document.getElementById("thing-form-title").textContent = `Edit Thing: ${thing.id}`;
+    document.getElementById("thing-form-id").value = thing.id;
+    document.getElementById("thing-form-id").disabled = true;
+    document.getElementById("thing-form-name").value = thing.name;
+    document.getElementById("thing-form-desc").value = thing.description || "";
+    document.getElementById("thing-form-org").value = thing.owner_org_id;
+    document.getElementById("thing-form-lifecycle").value = thing.lifecycle;
+    document.getElementById("thing-form-trl").value = thing.trl || 1;
+    document.getElementById("thing-form-cost").value = thing.estimated_cost || 0;
+    document.getElementById("thing-form-risk").value = thing.risk_factor || 1.0;
+    document.getElementById("thing-form-submit-btn").textContent = "Update Thing Specification";
+  },
+
+  clearThingForm() {
+    document.getElementById("thing-form-title").textContent = "Register New Thing";
+    const idInput = document.getElementById("thing-form-id");
+    idInput.value = "";
+    idInput.disabled = false;
+    document.getElementById("thing-form-name").value = "";
+    document.getElementById("thing-form-desc").value = "";
+    document.getElementById("thing-form-lifecycle").value = "ACTIVE";
+    document.getElementById("thing-form-trl").value = "6";
+    document.getElementById("thing-form-cost").value = "250000";
+    document.getElementById("thing-form-risk").value = "1.0";
+    document.getElementById("thing-form-submit-btn").textContent = "Save Thing Specification";
+  },
+
+  async refreshConcernsTable() {
+    const tbody = document.getElementById("concerns-table-tbody");
+    const countEl = document.getElementById("concern-inventory-count");
+    const orgSelect = document.getElementById("concern-form-org");
+    const assignConcernSelect = document.getElementById("assign-concern-target-select");
+    if (!tbody) return;
+
+    try {
+      const [concerns, orgs] = await Promise.all([
+        BijouAPI.getConcerns(),
+        BijouAPI.getOrganizations()
+      ]);
+
+      if (countEl) countEl.textContent = `${concerns.length} Concerns registered`;
+
+      if (orgSelect) {
+        orgSelect.innerHTML = orgs.map(o => `<option value="${o.id}">${o.name}</option>`).join("");
+      }
+      if (assignConcernSelect) {
+        assignConcernSelect.innerHTML = concerns.map(c => `<option value="${c.id}">${c.name} (${c.id})</option>`).join("");
+      }
+
+      const orgMap = Object.fromEntries(orgs.map(o => [o.id, o.name]));
+
+      if (concerns.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-dim); padding:24px;">No strategic concerns registered.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = concerns.map(c => `
+        <tr data-concern-id="${c.id}">
+          <td>
+            <div style="font-weight: 700; color: var(--text-main);">${c.name}</div>
+            <div style="font-size: 0.72rem; color: var(--text-dim); font-family: var(--font-mono);">${c.id}</div>
+          </td>
+          <td>
+            <span style="font-size: 0.78rem; color: var(--accent-cyan);">${orgMap[c.owner_org_id] || c.owner_org_id}</span>
+          </td>
+          <td>
+            <span class="badge-pill" style="border-color: rgba(56,189,248,0.3); color: var(--accent-cyan);">${c.priority.toFixed(2)}</span>
+          </td>
+          <td>
+            <span style="font-family: var(--font-mono); font-size: 0.78rem;">${c.target_metric_sla ? `${c.target_metric_sla}% SLA` : 'Sovereign Metric'}</span>
+          </td>
+          <td>
+            <div class="entity-action-group">
+              <button class="action-pill-btn delete-btn" data-action="delete-concern" data-concern-id="${c.id}">🗑️ Delete</button>
+            </div>
+          </td>
+        </tr>
+      `).join("");
+
+      tbody.querySelectorAll('[data-action="delete-concern"]').forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const concernId = btn.dataset.concernId;
+          const confirmed = confirm(`Delete Concern "${concernId}"?`);
+          if (!confirmed) return;
+          try {
+            await BijouAPI.deleteConcern(concernId);
+            await this.refreshAllEntityViews();
+          } catch (err) {
+            alert("Delete concern failed: " + err.message);
+          }
+        });
+      });
+    } catch (err) {
+      console.error("refreshConcernsTable failed:", err);
+    }
+  },
+
+  async refreshEdgesTable() {
+    const tbody = document.getElementById("edges-table-tbody");
+    const countEl = document.getElementById("edge-inventory-count");
+    if (!tbody) return;
+
+    try {
+      const [edges, things, orgs] = await Promise.all([
+        BijouAPI.getEdges(),
+        BijouAPI.getThings(),
+        BijouAPI.getOrganizations()
+      ]);
+
+      if (countEl) countEl.textContent = `${edges.length} Edges`;
+
+      const thingMap = Object.fromEntries(things.map(t => [t.id, t]));
+
+      if (edges.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-dim); padding:24px;">No dependency edges established yet.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = edges.map(e => {
+        const srcThing = thingMap[e.source_id];
+        const tgtThing = thingMap[e.target_id];
+        const srcName = srcThing ? srcThing.name : e.source_id;
+        const tgtName = tgtThing ? tgtThing.name : e.target_id;
+        const isCrossOrg = srcThing && tgtThing && srcThing.owner_org_id !== tgtThing.owner_org_id;
+
+        const crossBadge = isCrossOrg
+          ? `<span class="badge-pill" style="border-color: rgba(245,158,11,0.4); color: #f59e0b; font-size: 0.65rem;">Cross-Org</span>`
+          : `<span style="font-size: 0.72rem; color: var(--text-dim);">Intra</span>`;
+
+        return `
+          <tr data-edge-id="${e.id}">
+            <td>
+              <div style="font-weight: 600; font-size: 0.78rem;">${srcName}</div>
+              <div style="font-size: 0.7rem; color: var(--text-dim); font-family: var(--font-mono);">${e.source_id}</div>
+            </td>
+            <td>
+              <span class="badge-pill" style="font-size: 0.68rem; font-family: var(--font-mono);">${e.relationship}</span>
+            </td>
+            <td>
+              <div style="font-weight: 600; font-size: 0.78rem;">${tgtName}</div>
+              <div style="font-size: 0.7rem; color: var(--text-dim); font-family: var(--font-mono);">${e.target_id}</div>
+            </td>
+            <td>${crossBadge}</td>
+            <td><span style="font-family: var(--font-mono); font-size: 0.75rem;">${(e.weight || 1.0).toFixed(1)}</span></td>
+            <td>
+              <button class="action-pill-btn delete-btn" data-action="delete-edge" data-edge-id="${e.id}" title="Remove Dependency Link">🗑️</button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      tbody.querySelectorAll('[data-action="delete-edge"]').forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const edgeId = btn.dataset.edgeId;
+          const confirmed = confirm(`Delete Edge "${edgeId}"?`);
+          if (!confirmed) return;
+          try {
+            await BijouAPI.deleteEdge(edgeId);
+            await this.refreshAllEntityViews();
+          } catch (err) {
+            alert("Delete edge failed: " + err.message);
+          }
+        });
+      });
+
+      // Filter search
+      const searchInput = document.getElementById("edge-table-search");
+      if (searchInput && !searchInput.dataset.bound) {
+        searchInput.dataset.bound = "true";
+        searchInput.addEventListener("input", (e) => {
+          const q = e.target.value.toLowerCase().trim();
+          tbody.querySelectorAll("tr").forEach(tr => {
+            const text = tr.innerText.toLowerCase();
+            tr.style.display = !q || text.includes(q) ? "" : "none";
+          });
+        });
+      }
+    } catch (err) {
+      console.error("refreshEdgesTable failed:", err);
+    }
+  },
+
+  async refreshOrgsTable() {
+    const tbody = document.getElementById("orgs-table-tbody");
+    const countEl = document.getElementById("org-inventory-count");
+    if (!tbody) return;
+
+    try {
+      const [orgs, things] = await Promise.all([
+        BijouAPI.getOrganizations(),
+        BijouAPI.getThings()
+      ]);
+
+      if (countEl) countEl.textContent = `${orgs.length} Organizations registered`;
+
+      if (orgs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-dim); padding:24px;">No organizations registered.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = orgs.map(o => {
+        const owned = things.filter(t => t.owner_org_id === o.id).length;
+        return `
+          <tr data-org-id="${o.id}">
+            <td>
+              <div style="font-weight: 700; color: var(--accent-cyan);">${o.name}</div>
+              <div style="font-size: 0.72rem; color: var(--text-dim); font-family: var(--font-mono);">${o.id}</div>
+            </td>
+            <td>
+              <span class="badge-pill" style="border-color: var(--accent-cyan); color: var(--accent-cyan);">Echelon ${o.echelon_level}</span>
+            </td>
+            <td>
+              <div style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">"${o.mission_statement || 'Sovereign unit'}"</div>
+            </td>
+            <td>
+              <span style="font-family: var(--font-mono); font-weight: 700;">${owned} Things</span>
+            </td>
+            <td>
+              <button class="action-pill-btn delete-btn" data-action="delete-org" data-org-id="${o.id}">🗑️ Delete</button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      tbody.querySelectorAll('[data-action="delete-org"]').forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const orgId = btn.dataset.orgId;
+          const confirmed = confirm(`Delete Organization "${orgId}"? This may cascade to its owned Things.`);
+          if (!confirmed) return;
+          try {
+            await BijouAPI.deleteOrganization(orgId);
+            await this.refreshAllEntityViews();
+          } catch (err) {
+            alert("Delete org failed: " + err.message);
+          }
+        });
+      });
+    } catch (err) {
+      console.error("refreshOrgsTable failed:", err);
+    }
+  },
+
+  bindEntityFormEvents() {
+    // 1. Thing Submit
+    const thingSubmitBtn = document.getElementById("thing-form-submit-btn");
+    const thingClearBtn = document.getElementById("thing-form-clear-btn");
+    if (thingClearBtn) {
+      thingClearBtn.addEventListener("click", () => this.clearThingForm());
+    }
+
+    if (thingSubmitBtn) {
+      thingSubmitBtn.addEventListener("click", async () => {
+        const rawId = document.getElementById("thing-form-id").value.trim();
+        const name = document.getElementById("thing-form-name").value.trim();
+        const desc = document.getElementById("thing-form-desc").value.trim();
+        const orgId = document.getElementById("thing-form-org").value;
+        const lifecycle = document.getElementById("thing-form-lifecycle").value;
+        const trl = parseInt(document.getElementById("thing-form-trl").value || "6", 10);
+        const cost = parseFloat(document.getElementById("thing-form-cost").value || "250000");
+        const risk = parseFloat(document.getElementById("thing-form-risk").value || "1.0");
+
+        if (!name) {
+          alert("Thing Name is required.");
+          return;
+        }
+
+        const id = rawId || `thing-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+
+        const thingData = {
+          id,
+          name,
+          description: desc,
+          owner_org_id: orgId,
+          lifecycle,
+          estimated_cost: cost,
+          risk_factor: risk,
+          milestones: [
+            {
+              id: `ms-${id}-alpha`,
+              thing_id: id,
+              sequence_index: 0,
+              name: `${name} Deployment`,
+              description: `Initial operational baseline for ${name}`,
+              target_date: new Date().toISOString().split("T")[0],
+              status: lifecycle === "DELIVERED" ? "ACHIEVED" : "IN_PROGRESS",
+              cost_delta: 0.0,
+              lane: "Default",
+              trl: trl
+            }
+          ]
+        };
+
+        try {
+          await BijouAPI.createThing(thingData);
+          alert(`Thing "${name}" successfully saved!`);
+          this.clearThingForm();
+          await this.refreshAllEntityViews();
+        } catch (err) {
+          alert("Save Thing failed: " + err.message);
+        }
+      });
+    }
+
+    // 2. Concern Submit
+    const concernSubmitBtn = document.getElementById("concern-form-submit-btn");
+    const concernClearBtn = document.getElementById("concern-form-clear-btn");
+    if (concernClearBtn) {
+      concernClearBtn.addEventListener("click", () => {
+        document.getElementById("concern-form-id").value = "";
+        document.getElementById("concern-form-name").value = "";
+        document.getElementById("concern-form-desc").value = "";
+        document.getElementById("concern-form-priority").value = "0.9";
+        document.getElementById("concern-form-sla").value = "99.5";
+      });
+    }
+
+    if (concernSubmitBtn) {
+      concernSubmitBtn.addEventListener("click", async () => {
+        const rawId = document.getElementById("concern-form-id").value.trim();
+        const name = document.getElementById("concern-form-name").value.trim();
+        const desc = document.getElementById("concern-form-desc").value.trim();
+        const orgId = document.getElementById("concern-form-org").value;
+        const priority = parseFloat(document.getElementById("concern-form-priority").value || "0.9");
+        const sla = parseFloat(document.getElementById("concern-form-sla").value || "99.5");
+
+        if (!name) {
+          alert("Concern Name is required.");
+          return;
+        }
+
+        const id = rawId || `concern-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+
+        const concernData = {
+          id,
+          name,
+          description: desc,
+          owner_org_id: orgId,
+          priority: Math.min(1.0, Math.max(0.0, priority)),
+          target_metric_sla: sla
+        };
+
+        try {
+          await BijouAPI.createConcern(concernData);
+          alert(`Concern "${name}" saved!`);
+          await this.refreshAllEntityViews();
+        } catch (err) {
+          alert("Save Concern failed: " + err.message);
+        }
+      });
+    }
+
+    // 3. Assign Concern to Thing Submit
+    const assignConcernBtn = document.getElementById("assign-concern-submit-btn");
+    if (assignConcernBtn) {
+      assignConcernBtn.addEventListener("click", async () => {
+        const thingId = document.getElementById("assign-concern-thing-select").value;
+        const concernId = document.getElementById("assign-concern-target-select").value;
+        const relType = document.getElementById("assign-concern-rel-type").value;
+        const weight = parseFloat(document.getElementById("assign-concern-weight").value || "1.0");
+
+        if (!thingId || !concernId) {
+          alert("Both Thing and Concern must be selected.");
+          return;
+        }
+
+        const edgeId = `edge-${thingId}-${concernId}`.slice(0, 64);
+        const edgeData = {
+          id: edgeId,
+          source_id: thingId,
+          target_id: concernId,
+          relationship: relType,
+          weight: Math.min(1.0, Math.max(0.1, weight))
+        };
+
+        try {
+          await BijouAPI.createEdge(edgeData);
+          alert(`Concern linked to Thing successfully!`);
+          await this.refreshAllEntityViews();
+        } catch (err) {
+          alert("Link Concern failed: " + err.message);
+        }
+      });
+    }
+
+    // 4. Edge Connect Submit
+    const edgeSubmitBtn = document.getElementById("edge-form-submit-btn");
+    if (edgeSubmitBtn) {
+      edgeSubmitBtn.addEventListener("click", async () => {
+        const sourceId = document.getElementById("edge-form-source").value;
+        const targetId = document.getElementById("edge-form-target").value;
+        const relType = document.getElementById("edge-form-rel").value;
+        const weight = parseFloat(document.getElementById("edge-form-weight").value || "1.0");
+
+        if (!sourceId || !targetId) {
+          alert("Source and Target must be selected.");
+          return;
+        }
+        if (sourceId === targetId) {
+          alert("Source and Target cannot be the exact same entity.");
+          return;
+        }
+
+        const edgeId = `edge-${sourceId}-${targetId}`.slice(0, 64);
+        const edgeData = {
+          id: edgeId,
+          source_id: sourceId,
+          target_id: targetId,
+          relationship: relType,
+          weight: Math.min(1.0, Math.max(0.1, weight))
+        };
+
+        try {
+          await BijouAPI.createEdge(edgeData);
+          alert(`Dependency Edge created!`);
+          await this.refreshAllEntityViews();
+        } catch (err) {
+          alert("Connect Edge failed: " + err.message);
+        }
+      });
+    }
+
+    // 5. Organization Create Submit
     const createOrgBtn = document.getElementById("crud-create-org-btn");
     if (createOrgBtn) {
       createOrgBtn.addEventListener("click", async () => {
-        const id = document.getElementById("crud-org-id")?.value;
-        const name = document.getElementById("crud-org-name")?.value;
+        const id = document.getElementById("crud-org-id")?.value.trim();
+        const name = document.getElementById("crud-org-name")?.value.trim();
         const echelonInput = document.getElementById("crud-org-echelon")?.value || "1";
-        const mission = document.getElementById("crud-org-mission")?.value || "";
+        const mission = document.getElementById("crud-org-mission")?.value.trim() || "";
+
         if (!id || !name) {
           alert("Organization ID and Name are required.");
           return;
         }
+
         try {
-          await BijouAPI.post("/api/v1/organizations", {
+          await BijouAPI.createOrganization({
             id,
             name,
             echelon_level: parseInt(echelonInput, 10),
             mission_statement: mission
           });
-          alert(`Organization ${name} created!`);
-          window.location.reload();
+          alert(`Organization "${name}" created!`);
+          document.getElementById("crud-org-id").value = "";
+          document.getElementById("crud-org-name").value = "";
+          document.getElementById("crud-org-mission").value = "";
+          await this.refreshAllEntityViews();
         } catch (err) {
           alert("Create organization failed: " + err.message);
         }
       });
+    }
+  },
+
+  bindUniversalModals() {
+    // 1. Thing Editor Modal
+    const thingModal = document.getElementById("modal-thing-editor");
+    const thingCloseBtn = document.getElementById("modal-thing-close-btn");
+    const thingCancelBtn = document.getElementById("modal-thing-cancel-btn");
+    const thingSaveBtn = document.getElementById("modal-thing-save-btn");
+    const thingRetireBtn = document.getElementById("modal-thing-retire-btn");
+
+    const closeThingModal = () => {
+      if (thingModal) {
+        if (typeof thingModal.close === "function") thingModal.close();
+        else thingModal.removeAttribute("open");
+      }
+    };
+
+    if (thingCloseBtn) thingCloseBtn.addEventListener("click", closeThingModal);
+    if (thingCancelBtn) thingCancelBtn.addEventListener("click", closeThingModal);
+
+    if (thingRetireBtn) {
+      thingRetireBtn.addEventListener("click", async () => {
+        const thingId = document.getElementById("modal-thing-id").value;
+        if (!thingId) return;
+        const confirmed = confirm(`Retire Thing "${thingId}"? Lifecycle will be set to RETIRED.`);
+        if (!confirmed) return;
+        try {
+          await BijouAPI.retireThing(thingId);
+          closeThingModal();
+          await this.refreshAllEntityViews();
+          if (window.ThingPuck) window.ThingPuck.open(thingId);
+        } catch (err) {
+          alert("Retire failed: " + err.message);
+        }
+      });
+    }
+
+    if (thingSaveBtn) {
+      thingSaveBtn.addEventListener("click", async () => {
+        const thingId = document.getElementById("modal-thing-id").value;
+        const name = document.getElementById("modal-thing-name").value.trim();
+        const desc = document.getElementById("modal-thing-desc").value.trim();
+        const orgId = document.getElementById("modal-thing-org").value;
+        const lifecycle = document.getElementById("modal-thing-lifecycle").value;
+        const trl = parseInt(document.getElementById("modal-thing-trl").value || "6", 10);
+        const cost = parseFloat(document.getElementById("modal-thing-cost").value || "250000");
+        const risk = parseFloat(document.getElementById("modal-thing-risk").value || "1.0");
+
+        if (!thingId || !name) {
+          alert("Name is required.");
+          return;
+        }
+
+        const thingData = {
+          id: thingId,
+          name,
+          description: desc,
+          owner_org_id: orgId,
+          lifecycle,
+          estimated_cost: cost,
+          risk_factor: risk,
+          milestones: [
+            {
+              id: `ms-${thingId}-m1`,
+              thing_id: thingId,
+              sequence_index: 0,
+              name: `${name} Capability`,
+              description: desc || name,
+              target_date: new Date().toISOString().split("T")[0],
+              status: lifecycle === "DELIVERED" ? "ACHIEVED" : "IN_PROGRESS",
+              cost_delta: 0.0,
+              lane: "Default",
+              trl: trl
+            }
+          ]
+        };
+
+        try {
+          await BijouAPI.createThing(thingData);
+          closeThingModal();
+          await this.refreshAllEntityViews();
+          if (window.ThingPuck) window.ThingPuck.open(thingId);
+        } catch (err) {
+          alert("Update Thing failed: " + err.message);
+        }
+      });
+    }
+
+    // 2. Edge Linker Modal
+    const edgeModal = document.getElementById("modal-edge-linker");
+    const edgeCloseBtn = document.getElementById("modal-edge-close-btn");
+    const edgeCancelBtn = document.getElementById("modal-edge-cancel-btn");
+    const edgeSaveBtn = document.getElementById("modal-edge-save-btn");
+
+    const closeEdgeModal = () => {
+      if (edgeModal) {
+        if (typeof edgeModal.close === "function") edgeModal.close();
+        else edgeModal.removeAttribute("open");
+      }
+    };
+
+    if (edgeCloseBtn) edgeCloseBtn.addEventListener("click", closeEdgeModal);
+    if (edgeCancelBtn) edgeCancelBtn.addEventListener("click", closeEdgeModal);
+
+    if (edgeSaveBtn) {
+      edgeSaveBtn.addEventListener("click", async () => {
+        const sourceId = document.getElementById("modal-edge-source").value;
+        const targetId = document.getElementById("modal-edge-target").value;
+        const relType = document.getElementById("modal-edge-rel").value;
+        const weight = parseFloat(document.getElementById("modal-edge-weight").value || "1.0");
+
+        if (!sourceId || !targetId || sourceId === targetId) {
+          alert("Please select two distinct entities.");
+          return;
+        }
+
+        const edgeId = `edge-${sourceId}-${targetId}`.slice(0, 64);
+        try {
+          await BijouAPI.createEdge({
+            id: edgeId,
+            source_id: sourceId,
+            target_id: targetId,
+            relationship: relType,
+            weight
+          });
+          closeEdgeModal();
+          await this.refreshAllEntityViews();
+          if (window.ThingPuck && window.ThingPuck.currentThing) {
+            window.ThingPuck.open(window.ThingPuck.currentThing.id);
+          }
+        } catch (err) {
+          alert("Create edge failed: " + err.message);
+        }
+      });
+    }
+
+    // 3. Concern Linker Modal
+    const concernModal = document.getElementById("modal-concern-linker");
+    const concernCloseBtn = document.getElementById("modal-concern-close-btn");
+    const concernCancelBtn = document.getElementById("modal-concern-cancel-btn");
+    const concernSaveBtn = document.getElementById("modal-concern-save-btn");
+
+    const closeConcernModal = () => {
+      if (concernModal) {
+        if (typeof concernModal.close === "function") concernModal.close();
+        else concernModal.removeAttribute("open");
+      }
+    };
+
+    if (concernCloseBtn) concernCloseBtn.addEventListener("click", closeConcernModal);
+    if (concernCancelBtn) concernCancelBtn.addEventListener("click", closeConcernModal);
+
+    if (concernSaveBtn) {
+      concernSaveBtn.addEventListener("click", async () => {
+        const thingId = document.getElementById("modal-concern-thing").value;
+        const concernId = document.getElementById("modal-concern-select").value;
+        const weight = parseFloat(document.getElementById("modal-concern-weight").value || "1.0");
+
+        if (!thingId || !concernId) {
+          alert("Both Thing and Concern must be selected.");
+          return;
+        }
+
+        const edgeId = `edge-${thingId}-${concernId}`.slice(0, 64);
+        try {
+          await BijouAPI.createEdge({
+            id: edgeId,
+            source_id: thingId,
+            target_id: concernId,
+            relationship: "SATISFIES",
+            weight
+          });
+          closeConcernModal();
+          await this.refreshAllEntityViews();
+          if (window.ThingPuck && window.ThingPuck.currentThing) {
+            window.ThingPuck.open(window.ThingPuck.currentThing.id);
+          }
+        } catch (err) {
+          alert("Link Concern failed: " + err.message);
+        }
+      });
+    }
+  },
+
+  async refreshAllEntityViews() {
+    // 1. Refresh CRUD Studio tables & dropdowns
+    await this.refreshCrudStudio();
+
+    // 2. Re-populate top-level dropdowns in other lenses
+    try {
+      const [orgs, things] = await Promise.all([
+        BijouAPI.getOrganizations(),
+        BijouAPI.getThings()
+      ]);
+
+      const techTreeOrgFilter = document.getElementById("tech-tree-org-filter");
+      if (techTreeOrgFilter) {
+        const cur = techTreeOrgFilter.value;
+        techTreeOrgFilter.innerHTML = `<option value="">All Organizations</option>` +
+          orgs.map(o => `<option value="${o.id}" ${o.id === cur ? "selected" : ""}>${o.name}</option>`).join("");
+      }
+
+      const focalSelect = document.getElementById("focal-thing-select");
+      if (focalSelect) {
+        const cur = focalSelect.value;
+        focalSelect.innerHTML = things.map(t => `<option value="${t.id}" ${t.id === cur ? "selected" : ""}>${t.name} (${t.lifecycle})</option>`).join("");
+      }
+
+      const spheresOrgFilter = document.getElementById("spheres-org-filter");
+      if (spheresOrgFilter) {
+        const cur = spheresOrgFilter.value;
+        spheresOrgFilter.innerHTML = `<option value="">All Organization Spheres</option>` +
+          orgs.map(o => `<option value="${o.id}" ${o.id === cur ? "selected" : ""}>${o.name}</option>`).join("");
+      }
+    } catch (e) {
+      console.warn("Could not sync top-level dropdowns:", e);
+    }
+
+    // 3. Refresh active lens
+    const activeLens = document.querySelector(".lens-view.active");
+    if (activeLens) {
+      if (activeLens.id === "tech-tree-canvas" && window.TechTreeManager) {
+        window.TechTreeManager.refresh();
+      } else if (activeLens.id === "spheres-canvas-view" && window.SpheresManager) {
+        window.SpheresManager.refresh();
+      } else if (activeLens.id === "focal-dashboard") {
+        this.refreshFocal();
+      } else if (activeLens.id === "briefing-one-pager") {
+        this.refreshBriefing();
+      }
     }
   },
 
@@ -1097,3 +1912,5 @@ const ViewsManager = {
     });
   }
 };
+
+window.ViewsManager = ViewsManager;
