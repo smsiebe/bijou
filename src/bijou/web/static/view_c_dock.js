@@ -120,6 +120,14 @@
       return this.simulate();
     }
 
+    stageSlipShock(effortId, days) {
+      this.request.effort_slips[effortId] = Number(days || 30);
+      this.updateCartCount();
+      this.setOpen(true);
+      this.renderStaticLists();
+      return this.simulate();
+    }
+
     updateCartCount() {
       const count =
         Object.keys(this.request.toggle_mitigators).length +
@@ -490,3 +498,4 @@
 
   global.BillOfEffortsDock = BillOfEffortsDock;
 })(window);
+

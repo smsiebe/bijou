@@ -1,12 +1,12 @@
 """End-to-End Headless Browser GUI Tests for Bijou v2 Web Interface using Selenium.
 
 Verifies:
-1. View A: Stateful Capability Progression DAG + Pedigree/Perspective controls
+1. View A: Stateful Capability Progression DAG + Hover Emphasis + Pedigree/Perspective controls
 2. View B: Tri-Partite Architectural Flow + Indirect Shared-Interest Paths
-3. View C: Live Decision Workbench + Bill of Efforts Cart (mitigator toggle & skill mismatch alert)
-4. Contextual Entity Puck Inspector
-5. Lens 2: Executive Briefing (Landscape 1-slide)
-6. Lens 3: Entity & Graph Studio + Pre-Flight Diagnostics
+3. Global Neural Graph View: Free-floating Orgs/Efforts/Interests + Node Dragging + Hover Emphasis
+4. Graph-Native Editing: Right-click canvas creation modal + Drag-to-connect Edge Creation modal
+5. Toggleable Bill of Efforts Cart Dock (mitigator toggle & live simulation)
+6. Contextual Entity Puck Inspector, Executive Briefing & Entity Studio
 7. Zero SEVERE JavaScript console errors
 """
 
@@ -23,6 +23,7 @@ import uvicorn
 pytest.importorskip("selenium")
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
+from selenium.webdriver import ActionChains
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -110,7 +111,7 @@ def browser_driver():
         pass
 
 
-def test_gui_abc_modes_bill_of_efforts_briefing_and_studio(live_gui_server: str, browser_driver: webdriver.Chrome) -> None:
+def test_gui_views_graph_native_editing_and_studio(live_gui_server: str, browser_driver: webdriver.Chrome) -> None:
     driver = browser_driver
     wait = WebDriverWait(driver, 10)
     driver.get(live_gui_server)
@@ -118,14 +119,20 @@ def test_gui_abc_modes_bill_of_efforts_briefing_and_studio(live_gui_server: str,
     assert "Bijou" in driver.title
     wait.until(EC.presence_of_element_located((By.CLASS_NAME, "effort-card")))
 
-    # 1. View A renders 6 Effort cards & SVG connectors
+    # 1. View A renders 6 Effort cards, SVG connectors & hover neighborhood emphasis
     effort_cards = driver.find_elements(By.CLASS_NAME, "effort-card")
     assert len(effort_cards) == 6
     svg_paths = driver.find_elements(By.CSS_SELECTOR, "#canvas-svg-layer path")
     assert len(svg_paths) >= 5
 
-    # 2. Contextual Effort Puck opens cleanly
+    hover_card = driver.find_element(By.CSS_SELECTOR, ".effort-card[data-effort-id='eff-optical-bench']")
+    ActionChains(driver).move_to_element(hover_card).perform()
+    wait.until(lambda d: len(d.find_elements(By.CSS_SELECTOR, ".effort-card.highlighted")) >= 2)
+    assert len(driver.find_elements(By.CSS_SELECTOR, ".effort-card.dimmed")) >= 3
+
     first_card = driver.find_element(By.CSS_SELECTOR, ".effort-card[data-effort-id='eff-edge-correlator']")
+
+    # 2. Contextual Effort Puck opens & closes cleanly
     driver.execute_script("arguments[0].click();", first_card)
     wait.until(lambda d: "hidden" not in d.find_element(By.ID, "puck-backdrop").get_attribute("class"))
     wait.until(lambda d: "Correlator" in d.find_element(By.ID, "puck-title").text)
@@ -137,27 +144,70 @@ def test_gui_abc_modes_bill_of_efforts_briefing_and_studio(live_gui_server: str,
     tri_nodes = driver.find_elements(By.CLASS_NAME, "tri-node")
     assert len(tri_nodes) >= 15
 
-    # 4. Switch to View C: Live Decision Workbench & Bill of Efforts Dock
-    driver.execute_script("document.getElementById('btn-mode-c').click();")
-    wait.until(lambda d: "hidden" not in d.find_element(By.ID, "bill-of-efforts-dock").get_attribute("class"))
+    # 4. Switch to Global Neural Graph & verify free-floating nodes + node dragging
+    driver.execute_script("document.getElementById('btn-mode-neural').click();")
+    wait.until(EC.presence_of_element_located((By.CLASS_NAME, "neural-node")))
+    neural_nodes = driver.find_elements(By.CLASS_NAME, "neural-node")
+    assert len(neural_nodes) >= 15
 
-    # Toggle a mitigator inside BoE dock and trigger live simulation
-    mit_cb = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".boe-mit-toggle")))
-    driver.execute_script("arguments[0].click();", mit_cb)
+    drag_node = driver.find_element(By.CSS_SELECTOR, ".neural-node[data-entity-id='eff-edge-correlator']")
+    before_left = drag_node.value_of_css_property("left")
+    ActionChains(driver).drag_and_drop_by_offset(drag_node, 70, 45).perform()
+    after_left = drag_node.value_of_css_property("left")
+    assert before_left != after_left
+
+    # 5. Graph-native Right-click Canvas Context Menu -> Create Effort Modal
+    viewport = driver.find_element(By.ID, "canvas-viewport")
+    driver.execute_script(
+        "var r = arguments[0].getBoundingClientRect();"
+        "arguments[0].dispatchEvent(new MouseEvent('contextmenu', {bubbles:true, cancelable:true, button:2, clientX: r.left + 40, clientY: r.top + 80}));",
+        viewport,
+    )
+    wait.until(lambda d: "hidden" not in d.find_element(By.ID, "graph-context-menu").get_attribute("class"))
+    create_btn = driver.find_element(By.CSS_SELECTOR, "#graph-context-menu [data-act='create'][data-kind='effort']")
+    driver.execute_script("arguments[0].click();", create_btn)
+
+    wait.until(lambda d: "hidden" not in d.find_element(By.ID, "graph-node-modal-backdrop").get_attribute("class"))
+    driver.find_element(By.ID, "gm-node-name").send_keys("Selenium Rapid Sensor Test")
+    driver.find_element(By.ID, "gm-node-save-btn").click()
+    wait.until(lambda d: "hidden" in d.find_element(By.ID, "graph-node-modal-backdrop").get_attribute("class"))
+    wait.until(lambda d: len(d.find_elements(By.CSS_SELECTOR, ".neural-node[data-entity-id='eff-selenium-rapid-sensor-test']")) == 1)
+
+    # 6. Drag-to-connect from node connect port to another node -> Edge Creation Popup
+    src_port = driver.find_element(
+        By.CSS_SELECTOR,
+        ".neural-node[data-entity-id='eff-edge-correlator'] .node-connect-port",
+    )
+    dst_node = driver.find_element(
+        By.CSS_SELECTOR,
+        ".neural-node[data-entity-id='eff-selenium-rapid-sensor-test']",
+    )
+    edge_count_before = len(driver.find_elements(By.CSS_SELECTOR, "#canvas-svg-layer path[data-edge-id]"))
+    ActionChains(driver).click_and_hold(src_port).move_to_element(dst_node).release(dst_node).perform()
+    wait.until(lambda d: "hidden" not in d.find_element(By.ID, "graph-edge-modal-backdrop").get_attribute("class"))
+    driver.find_element(By.ID, "gm-edge-save-btn").click()
+    wait.until(lambda d: "hidden" in d.find_element(By.ID, "graph-edge-modal-backdrop").get_attribute("class"))
+    wait.until(lambda d: len(d.find_elements(By.CSS_SELECTOR, "#canvas-svg-layer path[data-edge-id]")) > edge_count_before)
+
+    # 7. Open Bill of Efforts Cart Drawer on top of active view & run live simulation
+    driver.execute_script("document.getElementById('btn-toggle-dock').click();")
+    wait.until(lambda d: "hidden" not in d.find_element(By.ID, "bill-of-efforts-dock").get_attribute("class"))
+    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".boe-mit-toggle")))
+    driver.execute_script("document.querySelector('.boe-mit-toggle').click();")
     wait.until(lambda d: int(d.find_element(By.ID, "cart-badge-count").text) >= 1)
 
-    # 5. Switch Perspective Switcher to Managed Org Owner
+    # 8. Switch Perspective Switcher to Managed Org Owner
     persp_select = Select(driver.find_element(By.ID, "perspective-select"))
     if len(persp_select.options) > 1:
         persp_select.select_by_index(1)
 
-    # 6. Lens 2: Executive Briefing
+    # 9. Lens 2: Executive Briefing
     driver.execute_script("document.getElementById('nav-lens-briefing').click();")
     wait.until(EC.presence_of_element_located((By.CLASS_NAME, "briefing-quadrants")))
     quads = driver.find_elements(By.CLASS_NAME, "quadrant-box")
     assert len(quads) == 4
 
-    # 7. Lens 3: Entity & Graph Studio + Diagnostics
+    # 10. Lens 3: Entity & Graph Studio + Diagnostics
     driver.execute_script("document.getElementById('nav-lens-studio').click();")
     wait.until(EC.presence_of_element_located((By.ID, "st-org-form")))
     diag_tab = driver.find_element(By.CSS_SELECTOR, ".studio-tab[data-tab='diagnostics']")

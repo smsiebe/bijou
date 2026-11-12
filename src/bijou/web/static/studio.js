@@ -253,10 +253,13 @@
                   <option value="STRATEGIC_CONCEPT">STRATEGIC_CONCEPT</option>
                   <option value="CAPABILITY_AREA">CAPABILITY_AREA</option>
                   <option value="MISSION_GOAL">MISSION_GOAL</option>
-                  <option value="CUSTOMER_NEED">CUSTOMER_NEED</option>
+                  <option value="NIPF_PRIORITY">NIPF_PRIORITY</option>
+                  <option value="INTELLIGENCE_GAP">INTELLIGENCE_GAP</option>
                   <option value="THREAT_VECTOR">THREAT_VECTOR</option>
-                  <option value="COUNTRY_OR_REGION">COUNTRY_OR_REGION</option>
-                  <option value="SPECIFIC_GAP">SPECIFIC_GAP</option>
+                  <option value="CUSTOMER">CUSTOMER</option>
+                  <option value="INVESTMENT">INVESTMENT</option>
+                  <option value="COUNTRY">COUNTRY</option>
+                  <option value="OTHER">OTHER</option>
                 </select>
               </label>
               <label>Description <textarea id="st-intr-desc"></textarea></label>
@@ -672,7 +675,7 @@
             <label>Effort <select id="ed-eff">${effOpts}</select></label>
             <label>Interest <select id="ed-intr">${intrOpts}</select></label>
             <div class="form-row-2">
-              <label>Relation <select id="ed-rel"><option value="DIRECT_SOLUTION">DIRECT_SOLUTION</option><option value="ENABLING">ENABLING</option><option value="MITIGATES_GAP">MITIGATES_GAP</option><option value="EXPLORATORY">EXPLORATORY</option></select></label>
+              <label>Relation <select id="ed-rel"><option value="DIRECT_SOLUTION">DIRECT_SOLUTION</option><option value="INDIRECT_ENABLER">INDIRECT_ENABLER</option><option value="FUNDED_FOR">FUNDED_FOR</option><option value="PARTIAL_ALIGNMENT">PARTIAL_ALIGNMENT</option></select></label>
               <label>Weight <input type="number" step="0.1" min="0" max="1" value="0.9" id="ed-wt" /></label>
             </div>
           `;
@@ -681,7 +684,7 @@
             <label>Organization <select id="ed-org">${orgOpts}</select></label>
             <label>Interest <select id="ed-intr">${intrOpts}</select></label>
             <div class="form-row-2">
-              <label>Stance <select id="ed-stance"><option value="RESPONSIBLE_OWNER">RESPONSIBLE_OWNER</option><option value="MISSION_ALIGNED">MISSION_ALIGNED</option><option value="STAKEHOLDER_BENEFICIARY">STAKEHOLDER_BENEFICIARY</option><option value="MONITORING">MONITORING</option></select></label>
+              <label>Stance <select id="ed-stance"><option value="RESPONSIBLE_OWNER">RESPONSIBLE_OWNER</option><option value="DIRECT_INVESTOR">DIRECT_INVESTOR</option><option value="MISSION_ALIGNED">MISSION_ALIGNED</option><option value="BENEFICIARY">BENEFICIARY</option><option value="PERCEIVED_GAP">PERCEIVED_GAP</option></select></label>
               <label>Priority (0-1) <input type="number" step="0.05" min="0" max="1" value="0.8" id="ed-prio" /></label>
             </div>
           `;
@@ -689,13 +692,13 @@
           dynEl.innerHTML = `
             <label>Parent (Broader) Interest <select id="ed-src">${intrOpts}</select></label>
             <label>Child (Specific) Interest <select id="ed-dst">${intrOpts}</select></label>
-            <label>Relation <select id="ed-rel"><option value="SPECIALIZES">SPECIALIZES</option><option value="COMPONENT_OF">COMPONENT_OF</option><option value="RELATED_TO">RELATED_TO</option></select></label>
+            <label>Relation <select id="ed-rel"><option value="SPECIALIZES">SPECIALIZES</option><option value="CONTRIBUTES_TO">CONTRIBUTES_TO</option><option value="RELATED_TO">RELATED_TO</option></select></label>
           `;
         } else {
           dynEl.innerHTML = `
             <label>Source Org <select id="ed-src">${orgOpts}</select></label>
             <label>Target Org <select id="ed-dst">${orgOpts}</select></label>
-            <label>Relation <select id="ed-rel"><option value="HIERARCHICAL_PARENT">HIERARCHICAL_PARENT</option><option value="FORMAL_SUPPORTING">FORMAL_SUPPORTING</option><option value="COLLABORATIVE_ADJACENT">COLLABORATIVE_ADJACENT</option></select></label>
+            <label>Relation <select id="ed-rel"><option value="HIERARCHICAL_PARENT">HIERARCHICAL_PARENT</option><option value="FORMAL_SUPPORTING">FORMAL_SUPPORTING</option><option value="COLLABORATIVE_ADJACENT">COLLABORATIVE_ADJACENT</option><option value="CO_SPONSOR">CO_SPONSOR</option></select></label>
           `;
         }
       };
@@ -830,3 +833,4 @@
 
   global.StudioController = StudioController;
 })(window);
+

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,6 +8,7 @@
   <link rel="icon" href="data:," />
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
+
 <body>
   <header class="app-header">
     <div class="brand">
@@ -19,7 +21,7 @@
     </div>
 
     <nav class="lens-bar" aria-label="Primary Lenses">
-      <button class="lens-btn active" data-lens="canvas" id="nav-lens-canvas">Primary Canvas (A / B / C)</button>
+      <button class="lens-btn active" data-lens="canvas" id="nav-lens-canvas">Primary Canvas</button>
       <button class="lens-btn" data-lens="briefing" id="nav-lens-briefing">Executive Briefing</button>
       <button class="lens-btn" data-lens="studio" id="nav-lens-studio">Entity &amp; Graph Studio</button>
     </nav>
@@ -47,12 +49,13 @@
         <label for="as-of-date-input">As-Of</label>
         <input type="date" id="as-of-date-input" />
       </div>
-      <button class="btn btn-secondary btn-sm" id="btn-global-refresh" title="Refresh active graph state">Refresh</button>
+      <button class="btn btn-secondary btn-sm" id="btn-global-refresh"
+        title="Refresh active graph state">Refresh</button>
     </div>
   </header>
 
   <main class="app-workspace">
-    <!-- LENS 1: PRIMARY CANVAS (A / B / C SWITCHER) -->
+    <!-- LENS 1: PRIMARY CANVAS (CAPABILITY TREE / TRI-PARTITE / GLOBAL NEURAL) -->
     <section class="lens-panel active" id="lens-canvas">
       <div class="canvas-toolbar">
         <div class="abc-switcher" role="tablist" aria-label="Canvas Visualization Modes">
@@ -62,8 +65,8 @@
           <button class="abc-btn" data-mode="B" id="btn-mode-b">
             <span class="abc-tag">B</span> Tri-Partite Architectural Flow
           </button>
-          <button class="abc-btn" data-mode="C" id="btn-mode-c">
-            <span class="abc-tag">C</span> Decision Workbench &amp; Bill of Efforts
+          <button class="abc-btn" data-mode="NEURAL" id="btn-mode-neural">
+            <span class="abc-tag">G</span> Global Neural Graph
           </button>
         </div>
 
@@ -90,13 +93,26 @@
               <span>Partnership Candidates</span>
             </label>
           </div>
+          <div class="overlay-control hidden" id="view-neural-overlay-wrap">
+            <label class="toggle-chip">
+              <input type="checkbox" id="view-neural-show-structural" checked />
+              <span>Org &amp; Taxonomy Links</span>
+            </label>
+            <label class="toggle-chip">
+              <input type="checkbox" id="view-neural-show-indirect" checked />
+              <span>Indirect Paths</span>
+            </label>
+            <button class="btn btn-secondary btn-xs" id="btn-neural-relayout"
+              title="Recompute force-directed layout">Re-Layout</button>
+          </div>
           <div class="zoom-controls">
             <button class="btn btn-secondary btn-xs" id="btn-zoom-out" title="Zoom Out">-</button>
             <span class="mono-badge" id="zoom-level-label">100%</span>
             <button class="btn btn-secondary btn-xs" id="btn-zoom-in" title="Zoom In">+</button>
             <button class="btn btn-secondary btn-xs" id="btn-zoom-reset" title="Reset View">Fit</button>
           </div>
-          <button class="btn btn-accent btn-sm" id="btn-toggle-dock">Bill of Efforts Cart <span class="badge-count" id="cart-badge-count">0</span></button>
+          <button class="btn btn-accent btn-sm" id="btn-toggle-dock">Bill of Efforts Cart <span class="badge-count"
+              id="cart-badge-count">0</span></button>
         </div>
       </div>
 
@@ -107,13 +123,15 @@
             <span class="legend-item"><span class="dot dot-inwork"></span> In Work</span>
             <span class="legend-item"><span class="dot dot-planned"></span> Planned / Discovery</span>
             <span class="legend-item"><span class="line-sample solid"></span> Blocking</span>
-            <span class="legend-item"><span class="line-sample dashed"></span> Non-Blocking Informs</span>
+            <span class="legend-item"><span class="line-sample dashed"></span> Informs / Indirect</span>
             <span class="legend-item"><span class="spof-sample">SPOF</span> Bottleneck</span>
+            <span class="legend-item legend-tip">Right-click to create/edit · Drag ● handle to connect</span>
           </div>
           <div class="canvas-viewport" id="canvas-viewport">
             <div class="canvas-world" id="canvas-world">
               <svg class="canvas-svg-layer" id="canvas-svg-layer"></svg>
               <div class="canvas-dom-layer" id="canvas-dom-layer"></div>
+              <svg class="canvas-drag-svg" id="canvas-drag-svg"></svg>
             </div>
           </div>
         </div>
@@ -231,7 +249,8 @@
                 </div>
                 <div class="btn-row-2">
                   <button type="submit" class="btn btn-secondary btn-sm">+ Add Slip Shock</button>
-                  <button type="button" class="btn btn-danger-outline btn-sm" id="btn-boe-cancel-effort">Toggle Cancel Effort</button>
+                  <button type="button" class="btn btn-danger-outline btn-sm" id="btn-boe-cancel-effort">Toggle Cancel
+                    Effort</button>
                 </div>
               </form>
               <div id="boe-staged-shocks" class="stack-xs mt-2"></div>
@@ -247,7 +266,8 @@
           <div class="dock-footer">
             <button class="btn btn-secondary btn-sm" id="btn-boe-reset">Reset</button>
             <button class="btn btn-primary btn-sm" id="btn-boe-simulate">Simulate Live</button>
-            <button class="btn btn-success btn-sm" id="btn-boe-commit" title="Persist simulated changes to database">Commit Scenario</button>
+            <button class="btn btn-success btn-sm" id="btn-boe-commit"
+              title="Persist simulated changes to database">Commit Scenario</button>
           </div>
         </aside>
       </div>
@@ -306,10 +326,13 @@
   <script src="/static/api.js"></script>
   <script src="/static/view_a_dag.js"></script>
   <script src="/static/view_b_tripartite.js"></script>
+  <script src="/static/view_global_neural.js"></script>
+  <script src="/static/graph_editor.js"></script>
   <script src="/static/view_c_dock.js"></script>
   <script src="/static/entity_puck.js"></script>
   <script src="/static/studio.js"></script>
   <script src="/static/briefing.js"></script>
   <script src="/static/app.js"></script>
 </body>
+
 </html>

@@ -1124,6 +1124,341 @@ aside.boe-dock {
   color: var(--text-dim);
 }
 
+.legend-tip {
+  color: var(--accent-cyan);
+  border-left: 1px solid var(--border-subtle);
+  padding-left: 10px;
+}
+
+/* Hover Neighborhood Emphasis & Interactive Edges */
+.effort-card.highlighted,
+.neural-node.highlighted {
+  border-color: var(--accent-cyan);
+  background: var(--bg-card-hover);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.45), 0 8px 24px rgba(14, 165, 233, 0.2);
+}
+
+.effort-card.dimmed {
+  opacity: 0.28;
+}
+
+.neural-node.dimmed {
+  opacity: 0.26;
+}
+
+.interactive-edge {
+  pointer-events: stroke;
+  cursor: pointer;
+  transition: stroke-opacity 0.12s ease, stroke-width 0.12s ease;
+}
+
+.interactive-edge:hover {
+  stroke-opacity: 1 !important;
+  stroke-width: 3.4px !important;
+}
+
+/* Drag-to-Connect Ports & Rubber-Band Wire */
+.node-connect-port {
+  position: absolute;
+  right: -7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  border: 2px solid var(--accent-cyan);
+  cursor: crosshair;
+  z-index: 5;
+  opacity: 0.65;
+  transition: transform 0.12s ease, opacity 0.12s ease, background 0.12s ease;
+}
+
+.effort-card:hover > .node-connect-port,
+.tri-node:hover > .node-connect-port,
+.neural-node:hover > .node-connect-port,
+.node-connect-port:hover {
+  opacity: 1;
+  transform: translateY(-50%) scale(1.22);
+  background: var(--accent-cyan);
+}
+
+.drop-target-hover {
+  border-color: #22d3ee !important;
+  box-shadow: 0 0 0 2px #22d3ee, 0 0 22px rgba(34, 211, 238, 0.35) !important;
+}
+
+.canvas-drag-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 25;
+  overflow: visible;
+}
+
+.rubber-band-wire {
+  stroke: #38bdf8;
+  stroke-width: 2.6px;
+  stroke-dasharray: 7, 4;
+}
+
+/* Global Neural Graph Nodes */
+.neural-node {
+  position: absolute;
+  width: 196px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  padding: 8px 11px;
+  cursor: grab;
+  user-select: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.38);
+  transition: border-color 0.14s ease, box-shadow 0.14s ease, opacity 0.14s ease;
+}
+
+.neural-node:hover {
+  border-color: var(--accent-cyan);
+  background: var(--bg-card-hover);
+  z-index: 6;
+}
+
+.neural-node.is-dragging {
+  cursor: grabbing;
+  z-index: 15;
+  border-color: var(--accent-cyan);
+  box-shadow: 0 14px 32px rgba(56, 189, 248, 0.28);
+}
+
+.neural-node.kind-organization {
+  border-top: 3px solid var(--accent-cyan);
+  border-radius: 14px;
+}
+
+.neural-node.kind-interest {
+  border-top: 3px solid var(--color-discovery);
+  background: rgba(30, 25, 48, 0.94);
+}
+
+.neural-node.kind-effort {
+  border-left: 4px solid var(--color-planned);
+}
+
+.neural-node.state-COMPLETED { border-left-color: var(--color-completed); }
+.neural-node.state-IN_WORK { border-left-color: var(--color-inwork); }
+.neural-node.state-BACKLOGGED,
+.neural-node.state-PLANNED { border-left-color: var(--color-planned); }
+.neural-node.state-DISCOVERY_PENDING { border-left-color: var(--color-discovery); }
+.neural-node.state-CANCELLED { border-left-color: var(--color-cancelled); opacity: 0.6; }
+
+.neural-node.impacted {
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.78), 0 10px 24px rgba(249, 115, 22, 0.28);
+}
+
+.neural-node-title {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text-main);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.neural-node-sub {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Graph Context Menu */
+.graph-context-menu {
+  position: fixed;
+  z-index: 70;
+  min-width: 224px;
+  max-width: 300px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-bright);
+  border-radius: 8px;
+  padding: 5px;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.68);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gcm-header {
+  padding: 5px 9px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent-cyan);
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gcm-meta {
+  padding: 4px 9px;
+  font-size: 0.69rem;
+  color: var(--text-dim);
+}
+
+.gcm-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 3px 4px;
+}
+
+.gcm-item {
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: 5px;
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+
+.gcm-item:hover {
+  background: rgba(56, 189, 248, 0.16);
+  color: var(--accent-cyan);
+}
+
+.gcm-item.gcm-danger {
+  color: #fca5a5;
+}
+
+.gcm-item.gcm-danger:hover {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fecaca;
+}
+
+.gcm-item.gcm-danger.armed {
+  background: var(--color-risk);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* Connect Mode Banner */
+.connect-mode-banner {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 65;
+  background: rgba(17, 23, 34, 0.96);
+  border: 1px solid var(--accent-cyan);
+  color: var(--text-main);
+  border-radius: 9999px;
+  padding: 7px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.78rem;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+
+/* Graph-Native Node & Edge Modals */
+.graph-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 7, 12, 0.72);
+  z-index: 68;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.graph-modal {
+  width: 520px;
+  max-width: 96vw;
+  max-height: 90vh;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-bright);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 22px 54px rgba(0, 0, 0, 0.65);
+}
+
+.graph-modal-header {
+  padding: 12px 16px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.graph-modal-header h3 {
+  font-size: 0.96rem;
+  color: var(--text-main);
+}
+
+.graph-modal-body {
+  padding: 14px 16px;
+  overflow-y: auto;
+}
+
+.graph-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 6px;
+}
+
+.edge-endpoints-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.endpoint-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: rgba(56, 189, 248, 0.14);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.endpoint-badge.kind-interest {
+  background: rgba(168, 85, 247, 0.16);
+  color: #d8b4fe;
+  border-color: rgba(168, 85, 247, 0.4);
+}
+
+.endpoint-badge.kind-effort {
+  background: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.endpoint-arrow {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
 /* ==========================================================================
    @media print Rules for Multi-Perspective 1-Slide Executive Briefing
    ========================================================================== */
@@ -1145,6 +1480,9 @@ aside.boe-dock {
   #lens-canvas,
   #lens-studio,
   .puck-backdrop,
+  .graph-context-menu,
+  .graph-modal-backdrop,
+  .connect-mode-banner,
   .toast-container {
     display: none !important;
   }

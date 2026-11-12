@@ -14,7 +14,7 @@ def test_zero_external_cdn_links_in_static_bundle() -> None:
     assert static_dir.exists(), f"Static directory does not exist: {static_dir}"
 
     static_files = list(static_dir.glob("*.html")) + list(static_dir.glob("*.css")) + list(static_dir.glob("*.js"))
-    assert len(static_files) >= 8, f"Expected at least 8 modular static asset files, found {len(static_files)}"
+    assert len(static_files) >= 10, f"Expected at least 10 modular static asset files, found {len(static_files)}"
 
     url_pattern = re.compile(r"https?://(?!www\.w3\.org/)[^\s\"'>]+")
 
@@ -29,7 +29,7 @@ def test_zero_external_cdn_links_in_static_bundle() -> None:
 
 
 def test_web_root_serves_v2_shell_and_assets() -> None:
-    """Verifies web root serves Bijou v2 index.html with A/B/C canvas, BoE dock, Puck, Briefing & Studio."""
+    """Verifies web root serves Bijou v2 shell with Tree/Tri-Partite/Global Neural modes, Cart Dock & Graph Editor."""
     client = TestClient(app)
 
     resp_root = client.get("/")
@@ -40,8 +40,10 @@ def test_web_root_serves_v2_shell_and_assets() -> None:
     assert 'id="lens-canvas"' in body
     assert 'id="btn-mode-a"' in body
     assert 'id="btn-mode-b"' in body
-    assert 'id="btn-mode-c"' in body
+    assert 'id="btn-mode-neural"' in body
+    assert 'id="btn-mode-c"' not in body
     assert 'id="bill-of-efforts-dock"' in body
+    assert 'id="btn-toggle-dock"' in body
     assert 'id="briefing-one-pager"' in body
     assert 'id="lens-studio"' in body
     assert 'id="puck-backdrop"' in body
@@ -51,6 +53,14 @@ def test_web_root_serves_v2_shell_and_assets() -> None:
     resp_asset = client.get("/static/app.js")
     assert resp_asset.status_code == 200
     assert "switchCanvasMode" in resp_asset.text
+
+    resp_neural = client.get("/static/view_global_neural.js")
+    assert resp_neural.status_code == 200
+    assert "renderGlobalNeuralGraph" in resp_neural.text
+
+    resp_editor = client.get("/static/graph_editor.js")
+    assert resp_editor.status_code == 200
+    assert "BijouGraphEditor" in resp_editor.text
 
 
 def test_print_stylesheet_present_for_one_slide_briefing() -> None:

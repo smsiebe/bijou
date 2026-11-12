@@ -2,6 +2,7 @@
    Bijou v2 View B: Tri-Partite Architectural Flow
    Organizations & Pools  <-->  Efforts DAG  <-->  Interest Taxonomy DAG
    Illuminates Direct Resourcing, Dependencies & Indirect Benefit Paths
+   with Graph-Native Connect Ports & Hover Neighborhood Emphasis
    ========================================================================== */
 
 (function (global) {
@@ -16,6 +17,8 @@
     worldEl,
     showIndirect = true,
     showPartners = true,
+    impactedIds = [],
+    zoom = 1.0,
     onSelectEntity,
   }) {
     const { escapeHtml, fmtUsd, fmtForecast } = global.BijouApi;
@@ -28,12 +31,19 @@
       return;
     }
 
+    const scale = Number(zoom || 1) || 1;
+    const impactedSet = new Set(impactedIds || []);
+
     const orgs = tree.organizations || [];
     const efforts = tree.nodes || [];
     const interests = tree.interests || [];
     const poolBalances = triView.pool_balances || [];
     const indirectBenefits = triView.indirect_benefits || [];
     const partnerships = triView.shared_interest_partnerships || [];
+
+    const orgName = Object.fromEntries(orgs.map((o) => [o.id, o.name]));
+    const effName = Object.fromEntries(efforts.map((n) => [n.effort.id, n.effort.name]));
+    const intrName = Object.fromEntries(interests.map((i) => [i.id, i.name]));
 
     const poolsByOrg = {};
     poolBalances.forEach((pb) => {
@@ -54,8 +64,11 @@
       const opools = poolsByOrg[org.id] || [];
       const indCount = indirectBenefits.filter((b) => b.beneficiary_org_id === org.id).length;
       const el = document.createElement("div");
-      el.className = "tri-node";
+      el.className = "tri-node kind-organization";
       el.dataset.nodeKey = `org:${org.id}`;
+      el.dataset.entityKind = "organization";
+      el.dataset.entityId = org.id;
+      el.dataset.entityLabel = org.name;
       el.innerHTML = `
         <div class="card-top-row">
           <span class="state-pill">${org.is_managed ? "MANAGED" : "MODELED"}</span>
@@ -68,8 +81,12 @@
             <span class="mini-chip">${escapeHtml(pb.pool.name)}: ${escapeHtml(String(pb.remaining_amount))} ${escapeHtml(pb.pool.unit)}</span>
           </div>
         `).join("")}
+        <span class="node-connect-port" title="Drag to another node to create relationship" data-port-kind="organization" data-port-id="${escapeHtml(org.id)}"></span>
       `;
-      el.addEventListener("click", () => onSelectEntity && onSelectEntity("organization", org.id));
+      el.addEventListener("click", (ev) => {
+        if (ev.target.closest(".node-connect-port")) return;
+        if (onSelectEntity) onSelectEntity("organization", org.id);
+      });
       el.addEventListener("mouseenter", () => highlightConnected(`org:${org.id}`));
       el.addEventListener("mouseleave", clearHighlight);
       colOrgs.appendChild(el);
@@ -78,8 +95,6 @@
     if (showPartners && partnerships.length > 0) {
       const pbox = document.createElement("div");
       pbox.className = "partner-callout";
-      const orgName = Object.fromEntries(orgs.map((o) => [o.id, o.name]));
-      const intrName = Object.fromEntries(interests.map((i) => [i.id, i.name]));
       pbox.innerHTML = `
         <div class="tri-node-title" style="color:#d8b4fe">Shared-Interest Partnership Candidates (${partnerships.length})</div>
         ${partnerships.slice(0, 4).map((p) => `
@@ -104,8 +119,11 @@
       .forEach((node) => {
         const eff = node.effort;
         const el = document.createElement("div");
-        el.className = "tri-node";
+        el.className = `tri-node kind-effort${impactedSet.has(eff.id) ? " impacted" : ""}`;
         el.dataset.nodeKey = `effort:${eff.id}`;
+        el.dataset.entityKind = "effort";
+        el.dataset.entityId = eff.id;
+        el.dataset.entityLabel = eff.name;
         el.innerHTML = `
           <div class="card-top-row">
             <span class="state-pill ${escapeHtml(eff.state)}">${escapeHtml(eff.state)}</span>
@@ -117,8 +135,12 @@
             ${(node.indirect_beneficiary_org_ids || []).length > 0 ? `<span class="mini-chip indirect">${node.indirect_beneficiary_org_ids.length} Indirect Beneficiaries</span>` : ""}
             ${node.active_risk_count > 0 ? `<span class="mini-chip risk">${node.active_risk_count} Risks</span>` : ""}
           </div>
+          <span class="node-connect-port" title="Drag to another node to create relationship" data-port-kind="effort" data-port-id="${escapeHtml(eff.id)}"></span>
         `;
-        el.addEventListener("click", () => onSelectEntity && onSelectEntity("effort", eff.id));
+        el.addEventListener("click", (ev) => {
+          if (ev.target.closest(".node-connect-port")) return;
+          if (onSelectEntity) onSelectEntity("effort", eff.id);
+        });
         el.addEventListener("mouseenter", () => highlightConnected(`effort:${eff.id}`));
         el.addEventListener("mouseleave", clearHighlight);
         colEfforts.appendChild(el);
@@ -134,13 +156,15 @@
       if (!childMap[e.child_interest_id]) childMap[e.child_interest_id] = [];
       childMap[e.child_interest_id].push(e.parent_interest_id);
     });
-    const intrMap = Object.fromEntries(interests.map((i) => [i.id, i]));
 
     interests.forEach((intr) => {
-      const parents = (childMap[intr.id] || []).map((pid) => intrMap[pid]?.name || pid);
+      const parents = (childMap[intr.id] || []).map((pid) => intrName[pid] || pid);
       const el = document.createElement("div");
-      el.className = "tri-node";
+      el.className = "tri-node kind-interest";
       el.dataset.nodeKey = `interest:${intr.id}`;
+      el.dataset.entityKind = "interest";
+      el.dataset.entityId = intr.id;
+      el.dataset.entityLabel = intr.name;
       el.innerHTML = `
         <div class="card-top-row">
           <span class="state-pill">${escapeHtml(intr.interest_kind)}</span>
@@ -148,8 +172,12 @@
         </div>
         <div class="tri-node-title">${escapeHtml(intr.name)}</div>
         <div class="tri-node-sub">${parents.length ? `Parent(s): ${escapeHtml(parents.join(", "))}` : escapeHtml(intr.description || "")}</div>
+        <span class="node-connect-port" title="Drag to another node to create relationship" data-port-kind="interest" data-port-id="${escapeHtml(intr.id)}"></span>
       `;
-      el.addEventListener("click", () => onSelectEntity && onSelectEntity("interest", intr.id));
+      el.addEventListener("click", (ev) => {
+        if (ev.target.closest(".node-connect-port")) return;
+        if (onSelectEntity) onSelectEntity("interest", intr.id);
+      });
       el.addEventListener("mouseenter", () => highlightConnected(`interest:${intr.id}`));
       el.addEventListener("mouseleave", clearHighlight);
       colInterests.appendChild(el);
@@ -160,7 +188,6 @@
     grid.appendChild(colInterests);
     domEl.appendChild(grid);
 
-    // Measure coordinates after layout frame and draw SVG ribbons
     const connectionIndex = new Map();
     const linkPairs = [];
 
@@ -177,7 +204,11 @@
         color: "#38bdf8",
         dash: e.confidence === "UNCONFIRMED" ? "3,4" : null,
         width: 2.0,
+        opacity: 0.78,
         kind: "direct",
+        edgeCat: "org_effort_edge",
+        edgeId: e.id,
+        label: `${orgName[e.org_id] || e.org_id} → ${effName[e.effort_id] || e.effort_id} (${e.resourcing_type}: ${e.allocation_amount} ${e.allocation_unit})`,
       })
     );
 
@@ -186,7 +217,24 @@
         color: "#10b981",
         dash: e.confidence === "UNCONFIRMED" ? "3,4" : null,
         width: 2.0,
+        opacity: 0.78,
         kind: "align",
+        edgeCat: "effort_interest_edge",
+        edgeId: e.id,
+        label: `${effName[e.effort_id] || e.effort_id} → ${intrName[e.interest_id] || e.interest_id} (${e.relation_type})`,
+      })
+    );
+
+    (tree.org_interest_edges || []).forEach((e) =>
+      addConnection(`org:${e.org_id}`, `interest:${e.interest_id}`, {
+        color: "#818cf8",
+        dash: e.confidence === "UNCONFIRMED" ? "3,4" : "2,3",
+        width: 1.4,
+        opacity: 0.45,
+        kind: "stance",
+        edgeCat: "org_interest_edge",
+        edgeId: e.id,
+        label: `${orgName[e.org_id] || e.org_id} ↦ ${intrName[e.interest_id] || e.interest_id} (${e.stance})`,
       })
     );
 
@@ -196,17 +244,51 @@
           color: "#a855f7",
           dash: "5,5",
           width: 1.5,
+          opacity: 0.48,
           kind: "indirect",
+          edgeCat: null,
+          edgeId: null,
+          label: `Indirect benefit via ${intrName[b.via_interest_id] || b.via_interest_id}`,
         });
       });
     }
 
-    (tree.effort_effort_edges || []).forEach((e) =>
+    (tree.effort_edges || tree.effort_effort_edges || []).forEach((e) =>
       addConnection(`effort:${e.source_effort_id}`, `effort:${e.target_effort_id}`, {
         color: e.blocking_mode === "BLOCKING" ? "#f59e0b" : "#94a3b8",
         dash: e.blocking_mode === "NON_BLOCKING_INFORMS" ? "4,4" : null,
         width: 1.6,
+        opacity: 0.75,
         kind: "dep",
+        edgeCat: "effort_effort_edge",
+        edgeId: e.id,
+        label: `${effName[e.source_effort_id] || e.source_effort_id} → ${effName[e.target_effort_id] || e.target_effort_id} (${e.blocking_mode})`,
+      })
+    );
+
+    (tree.org_org_edges || []).forEach((e) =>
+      addConnection(`org:${e.source_org_id}`, `org:${e.target_org_id}`, {
+        color: "#2dd4bf",
+        dash: e.relation_type === "COLLABORATIVE_ADJACENT" ? "4,3" : null,
+        width: 1.6,
+        opacity: 0.68,
+        kind: "org_org",
+        edgeCat: "org_org_edge",
+        edgeId: e.id,
+        label: `${orgName[e.source_org_id] || e.source_org_id} → ${orgName[e.target_org_id] || e.target_org_id} (${e.relation_type})`,
+      })
+    );
+
+    (tree.interest_interest_edges || []).forEach((e) =>
+      addConnection(`interest:${e.parent_interest_id}`, `interest:${e.child_interest_id}`, {
+        color: "#c084fc",
+        dash: null,
+        width: 1.6,
+        opacity: 0.68,
+        kind: "intr_intr",
+        edgeCat: "interest_interest_edge",
+        edgeId: e.id,
+        label: `${intrName[e.parent_interest_id] || e.parent_interest_id} ⊃ ${intrName[e.child_interest_id] || e.child_interest_id} (${e.relation_type})`,
       })
     );
 
@@ -216,17 +298,17 @@
       domEl.querySelectorAll("[data-node-key]").forEach((el) => {
         const r = el.getBoundingClientRect();
         boxMap.set(el.dataset.nodeKey, {
-          left: r.left - worldRect.left,
-          right: r.right - worldRect.left,
-          top: r.top - worldRect.top,
-          bottom: r.bottom - worldRect.top,
-          cx: r.left - worldRect.left + r.width / 2,
-          cy: r.top - worldRect.top + r.height / 2,
+          left: (r.left - worldRect.left) / scale,
+          right: (r.right - worldRect.left) / scale,
+          top: (r.top - worldRect.top) / scale,
+          bottom: (r.bottom - worldRect.top) / scale,
+          cx: (r.left - worldRect.left + r.width / 2) / scale,
+          cy: (r.top - worldRect.top + r.height / 2) / scale,
         });
       });
 
-      const totalW = Math.max(1150, grid.scrollWidth + 40);
-      const totalH = Math.max(660, grid.scrollHeight + 40);
+      const totalW = Math.max(1180, grid.scrollWidth + 60);
+      const totalH = Math.max(660, grid.scrollHeight + 48);
       worldEl.style.width = `${totalW}px`;
       worldEl.style.height = `${totalH}px`;
       svgEl.setAttribute("viewBox", `0 0 ${totalW} ${totalH}`);
@@ -241,22 +323,35 @@
 
         let d = "";
         if (lnk.kind === "dep") {
-          // Loop along right side of Efforts column
           const x1 = ba.right;
           const y1 = ba.cy;
           const x2 = bb.right;
           const y2 = bb.cy;
           const bulge = Math.max(x1, x2) + 34;
           d = `M ${x1} ${y1} C ${bulge} ${y1}, ${bulge} ${y2}, ${x2} ${y2}`;
-        } else if (lnk.kind === "indirect") {
-          // Sweeping arch across top/bottom for Org -> Interest indirect awareness
-          const x1 = ba.right;
-          const y1 = ba.cy - 8;
+        } else if (lnk.kind === "org_org") {
+          const x1 = ba.left;
+          const y1 = ba.cy;
           const x2 = bb.left;
-          const y2 = bb.cy - 8;
+          const y2 = bb.cy;
+          const bulge = Math.min(x1, x2) - 26;
+          d = `M ${x1} ${y1} C ${bulge} ${y1}, ${bulge} ${y2}, ${x2} ${y2}`;
+        } else if (lnk.kind === "intr_intr") {
+          const x1 = ba.right;
+          const y1 = ba.cy;
+          const x2 = bb.right;
+          const y2 = bb.cy;
+          const bulge = Math.max(x1, x2) + 28;
+          d = `M ${x1} ${y1} C ${bulge} ${y1}, ${bulge} ${y2}, ${x2} ${y2}`;
+        } else if (lnk.kind === "indirect" || lnk.kind === "stance") {
+          const x1 = ba.right;
+          const y1 = ba.cy - (lnk.kind === "indirect" ? 10 : 0);
+          const x2 = bb.left;
+          const y2 = bb.cy - (lnk.kind === "indirect" ? 10 : 0);
           const midX = (x1 + x2) / 2;
-          const archY = Math.min(y1, y2) - 42;
-          d = `M ${x1} ${y1} Q ${midX} ${archY}, ${x2} ${y2}`;
+          const archOffset = lnk.kind === "indirect" ? -44 : 38;
+          const ctrlY = (lnk.kind === "indirect" ? Math.min(y1, y2) : Math.max(y1, y2)) + archOffset;
+          d = `M ${x1} ${y1} Q ${midX} ${ctrlY}, ${x2} ${y2}`;
         } else {
           const x1 = ba.right;
           const y1 = ba.cy;
@@ -271,14 +366,26 @@
         p.setAttribute("fill", "none");
         p.setAttribute("stroke", lnk.color);
         p.setAttribute("stroke-width", String(lnk.width));
-        p.setAttribute("stroke-opacity", lnk.kind === "indirect" ? "0.5" : "0.75");
+        p.setAttribute("stroke-opacity", String(lnk.opacity));
         if (lnk.dash) p.setAttribute("stroke-dasharray", lnk.dash);
         p.dataset.endpoints = `${lnk.a}|${lnk.b}`;
+        p.dataset.baseOpacity = String(lnk.opacity);
+        p.dataset.baseWidth = String(lnk.width);
+        if (lnk.edgeCat && lnk.edgeId) {
+          p.dataset.edgeCat = lnk.edgeCat;
+          p.dataset.edgeId = lnk.edgeId;
+          p.dataset.edgeLabel = lnk.label;
+          p.classList.add("interactive-edge");
+        }
+        const title = document.createElementNS(SVG_NS, "title");
+        title.textContent = lnk.label || "";
+        p.appendChild(title);
         svgEl.appendChild(p);
       });
     });
 
     function highlightConnected(rootKey) {
+      if (document.body.classList.contains("is-connecting")) return;
       const neighbors = connectionIndex.get(rootKey) || new Set();
       domEl.querySelectorAll("[data-node-key]").forEach((el) => {
         const k = el.dataset.nodeKey;
@@ -293,8 +400,9 @@
       svgEl.querySelectorAll("path[data-endpoints]").forEach((p) => {
         const [a, b] = p.dataset.endpoints.split("|");
         const active = a === rootKey || b === rootKey;
-        p.setAttribute("stroke-opacity", active ? "1" : "0.1");
-        p.setAttribute("stroke-width", active ? "2.6" : "1.2");
+        const baseW = parseFloat(p.dataset.baseWidth || "1.8");
+        p.setAttribute("stroke-opacity", active ? "1" : "0.08");
+        p.setAttribute("stroke-width", active ? (baseW + 1.0).toFixed(1) : "1.1");
       });
     }
 
@@ -303,8 +411,8 @@
         el.classList.remove("highlighted", "dimmed");
       });
       svgEl.querySelectorAll("path[data-endpoints]").forEach((p) => {
-        p.setAttribute("stroke-opacity", "0.7");
-        p.setAttribute("stroke-width", "1.8");
+        p.setAttribute("stroke-opacity", p.dataset.baseOpacity || "0.75");
+        p.setAttribute("stroke-width", p.dataset.baseWidth || "1.8");
       });
     }
   }

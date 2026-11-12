@@ -1,6 +1,7 @@
 /* ==========================================================================
    Bijou v2 View A: Stateful Capability Progression Tree (DAG)
    Renders COMPLETED -> IN_WORK -> Future/Discovery Effort Layers + Overlays
+   with View-B-parity Hover Neighborhood Emphasis & Graph-Native Connect Ports
    ========================================================================== */
 
 (function (global) {
@@ -33,7 +34,7 @@
     const nodes = treeView?.nodes || [];
     const edges = treeView?.effort_edges || [];
     if (!nodes.length) {
-      domEl.innerHTML = '<div class="empty-state">No Efforts match the current filter criteria.</div>';
+      domEl.innerHTML = '<div class="empty-state">No Efforts match the current filter criteria. Right-click canvas to create an Effort.</div>';
       worldEl.style.width = "100%";
       worldEl.style.height = "400px";
       return;
@@ -41,9 +42,52 @@
 
     const orgById = Object.fromEntries((treeView.organizations || []).map((o) => [o.id, o]));
     const intrById = Object.fromEntries((treeView.interests || []).map((i) => [i.id, i]));
+    const effNameById = Object.fromEntries(nodes.map((n) => [n.effort.id, n.effort.name]));
     const orgColors = buildColorMap(treeView.organizations || []);
     const intrColors = buildColorMap(treeView.interests || []);
     const impactedSet = new Set(impactedIds || []);
+
+    const connectionIndex = new Map();
+    edges.forEach((edge) => {
+      const a = `effort:${edge.source_effort_id}`;
+      const b = `effort:${edge.target_effort_id}`;
+      if (!connectionIndex.has(a)) connectionIndex.set(a, new Set());
+      if (!connectionIndex.has(b)) connectionIndex.set(b, new Set());
+      connectionIndex.get(a).add(b);
+      connectionIndex.get(b).add(a);
+    });
+
+    function highlightConnected(rootKey) {
+      if (document.body.classList.contains("is-connecting")) return;
+      const neighbors = connectionIndex.get(rootKey) || new Set();
+      domEl.querySelectorAll("[data-node-key]").forEach((el) => {
+        const k = el.dataset.nodeKey;
+        if (k === rootKey || neighbors.has(k)) {
+          el.classList.add("highlighted");
+          el.classList.remove("dimmed");
+        } else {
+          el.classList.remove("highlighted");
+          el.classList.add("dimmed");
+        }
+      });
+      svgEl.querySelectorAll("path[data-endpoints]").forEach((p) => {
+        const [a, b] = p.dataset.endpoints.split("|");
+        const active = a === rootKey || b === rootKey;
+        const baseW = parseFloat(p.dataset.baseWidth || "2");
+        p.setAttribute("stroke-opacity", active ? "1" : "0.12");
+        p.setAttribute("stroke-width", active ? (baseW + 1.2).toFixed(1) : "1.2");
+      });
+    }
+
+    function clearHighlight() {
+      domEl.querySelectorAll("[data-node-key]").forEach((el) => {
+        el.classList.remove("highlighted", "dimmed");
+      });
+      svgEl.querySelectorAll("path[data-endpoints]").forEach((p) => {
+        p.setAttribute("stroke-opacity", p.dataset.baseOpacity || "0.9");
+        p.setAttribute("stroke-width", p.dataset.baseWidth || "2");
+      });
+    }
 
     // Group by topological depth layers, ordered Completed -> In Work -> Future inside columns
     const stateOrder = {
@@ -82,7 +126,6 @@
       });
       maxRows = Math.max(maxRows, colNodes.length);
 
-      // Column header
       const header = document.createElement("div");
       header.className = "mono-text";
       header.style.position = "absolute";
@@ -101,6 +144,10 @@
         const card = document.createElement("div");
         card.className = `effort-card state-${escapeHtml(eff.state)}${impactedSet.has(eff.id) ? " impacted" : ""}`;
         card.dataset.effortId = eff.id;
+        card.dataset.nodeKey = `effort:${eff.id}`;
+        card.dataset.entityKind = "effort";
+        card.dataset.entityId = eff.id;
+        card.dataset.entityLabel = eff.name;
         card.style.left = `${x}px`;
         card.style.top = `${y}px`;
         card.style.minHeight = `${cardH}px`;
@@ -148,12 +195,16 @@
             <span title="Primary Resourcing Org">${escapeHtml(primaryOrg)}</span>
             <span>${fmtUsd(node.total_estimated_cost_usd)} · ${covPct}%</span>
           </div>
+          <span class="node-connect-port" title="Drag to link to another Effort" data-port-kind="effort" data-port-id="${escapeHtml(eff.id)}"></span>
         `;
 
         card.addEventListener("click", (ev) => {
+          if (ev.target.closest(".node-connect-port")) return;
           ev.stopPropagation();
           if (onSelectEffort) onSelectEffort(eff.id);
         });
+        card.addEventListener("mouseenter", () => highlightConnected(`effort:${eff.id}`));
+        card.addEventListener("mouseleave", clearHighlight);
         domEl.appendChild(card);
       });
     });
@@ -166,7 +217,6 @@
     svgEl.style.width = `${totalW}px`;
     svgEl.style.height = `${totalH}px`;
 
-    // Arrowhead markers
     const defs = document.createElementNS(SVG_NS, "defs");
     defs.innerHTML = `
       <marker id="arrow-blocking" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -178,7 +228,6 @@
     `;
     svgEl.appendChild(defs);
 
-    // Draw Effort -> Effort Dependency Edges
     edges.forEach((edge) => {
       const src = coords.get(edge.source_effort_id);
       const dst = coords.get(edge.target_effort_id);
@@ -195,19 +244,35 @@
       path.setAttribute("fill", "none");
 
       const isBlocking = edge.blocking_mode === "BLOCKING";
+      const baseWidth = isBlocking ? (1.6 + edge.dependency_degree).toFixed(1) : "1.6";
+      let baseOpacity = "0.9";
+
       path.setAttribute("stroke", isBlocking ? "#38bdf8" : "#a855f7");
-      path.setAttribute("stroke-width", isBlocking ? (1.6 + edge.dependency_degree).toFixed(1) : "1.6");
+      path.setAttribute("stroke-width", baseWidth);
       path.setAttribute("marker-end", isBlocking ? "url(#arrow-blocking)" : "url(#arrow-informs)");
 
       if (!isBlocking) {
         path.setAttribute("stroke-dasharray", "6,4");
       } else if (edge.confidence === "ASSESSED") {
         path.setAttribute("stroke-dasharray", "10,3");
-        path.setAttribute("stroke-opacity", "0.85");
+        baseOpacity = "0.85";
       } else if (edge.confidence === "UNCONFIRMED") {
         path.setAttribute("stroke-dasharray", "3,4");
-        path.setAttribute("stroke-opacity", "0.65");
+        baseOpacity = "0.65";
       }
+
+      path.setAttribute("stroke-opacity", baseOpacity);
+      path.dataset.endpoints = `effort:${edge.source_effort_id}|effort:${edge.target_effort_id}`;
+      path.dataset.baseOpacity = baseOpacity;
+      path.dataset.baseWidth = baseWidth;
+      path.dataset.edgeCat = "effort_effort_edge";
+      path.dataset.edgeId = edge.id;
+      path.dataset.edgeLabel = `${effNameById[edge.source_effort_id] || edge.source_effort_id} → ${effNameById[edge.target_effort_id] || edge.target_effort_id} (${edge.blocking_mode})`;
+      path.classList.add("interactive-edge");
+
+      const title = document.createElementNS(SVG_NS, "title");
+      title.textContent = `${path.dataset.edgeLabel} · ${edge.confidence} · Click or right-click to inspect/delete`;
+      path.appendChild(title);
 
       svgEl.appendChild(path);
     });

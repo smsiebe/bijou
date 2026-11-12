@@ -1,7 +1,8 @@
 /* ==========================================================================
    Bijou v2 Application Controller
-   Coordinates Lens Navigation, A/B/C Canvas Switcher, Perspective Seam,
-   Pedigree Filters, Pan/Zoom, Entity Puck, Briefing, and Studio
+   Coordinates Lens Navigation, Canvas Switcher (Capability Tree / Tri-Partite /
+   Global Neural Graph), Bill of Efforts Dock Drawer, Graph-Native Editing,
+   Perspective Seam, Pedigree Filters, Pan/Zoom, Entity Puck, Briefing & Studio
    ========================================================================== */
 
 (function (global) {
@@ -9,7 +10,7 @@
 
   const state = {
     activeLens: "canvas",
-    canvasMode: "A", // "A" | "B" | "C"
+    canvasMode: "A", // "A" | "B" | "NEURAL"
     minConfidence: "",
     includeHierarchyPriorities: true,
     asOfDate: "",
@@ -17,6 +18,8 @@
     clusterBy: "state",
     showIndirect: true,
     showPartners: true,
+    neuralShowStructural: true,
+    neuralShowIndirect: true,
     zoom: 1.0,
     treeView: null,
     triView: null,
@@ -51,6 +54,9 @@
     const label = document.getElementById("zoom-level-label");
     if (world) world.style.transform = `scale(${state.zoom.toFixed(2)})`;
     if (label) label.textContent = `${Math.round(state.zoom * 100)}%`;
+    if (state.canvasMode === "B") {
+      renderCanvasStage();
+    }
   }
 
   async function initPerspectiveDropdown() {
@@ -75,6 +81,7 @@
   let puckController = null;
   let briefingController = null;
   let studioController = null;
+  let graphEditor = null;
 
   function renderCanvasStage() {
     const svgEl = document.getElementById("canvas-svg-layer");
@@ -82,31 +89,52 @@
     const worldEl = document.getElementById("canvas-world");
     const aOverlays = document.getElementById("view-a-overlay-wrap");
     const bOverlays = document.getElementById("view-b-overlay-wrap");
+    const neuralOverlays = document.getElementById("view-neural-overlay-wrap");
+
+    const impactedIds = state.simulationResult?.impacted_effort_ids || [];
+    const activeTree = state.simulationResult?.projected_tree || state.treeView;
+    const activeTri = state.simulationResult?.projected_tree
+      ? {
+          ...state.triView,
+          capability_tree: state.simulationResult.projected_tree,
+          pool_balances: state.simulationResult.pool_balances || state.triView?.pool_balances,
+        }
+      : state.triView;
 
     if (state.canvasMode === "B") {
       aOverlays?.classList.add("hidden");
       bOverlays?.classList.remove("hidden");
+      neuralOverlays?.classList.add("hidden");
       global.BijouViewB.renderViewBTripartite({
-        triView: state.triView,
+        triView: activeTri,
         svgEl,
         domEl,
         worldEl,
         showIndirect: state.showIndirect,
         showPartners: state.showPartners,
+        impactedIds,
+        zoom: state.zoom,
+        onSelectEntity: (kind, id) => puckController.open(kind, id, buildViewParams()),
+      });
+    } else if (state.canvasMode === "NEURAL") {
+      aOverlays?.classList.add("hidden");
+      bOverlays?.classList.add("hidden");
+      neuralOverlays?.classList.remove("hidden");
+      global.BijouViewNeural.renderGlobalNeuralGraph({
+        triView: activeTri,
+        svgEl,
+        domEl,
+        worldEl,
+        showStructural: state.neuralShowStructural,
+        showIndirect: state.neuralShowIndirect,
+        impactedIds,
+        zoom: state.zoom,
         onSelectEntity: (kind, id) => puckController.open(kind, id, buildViewParams()),
       });
     } else {
       aOverlays?.classList.remove("hidden");
       bOverlays?.classList.add("hidden");
-      const activeTree =
-        state.canvasMode === "C" && state.simulationResult?.projected_tree
-          ? state.simulationResult.projected_tree
-          : state.treeView;
-      const impactedIds =
-        state.canvasMode === "C" && state.simulationResult
-          ? state.simulationResult.impacted_effort_ids
-          : [];
-
+      neuralOverlays?.classList.add("hidden");
       global.BijouViewA.renderViewADag({
         treeView: activeTree,
         svgEl,
@@ -185,13 +213,6 @@
   function switchCanvasMode(mode) {
     state.canvasMode = mode;
     document.querySelectorAll(".abc-btn").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
-
-    if (mode === "C") {
-      dockController.setOpen(true);
-      document.getElementById("boe-mode-subtitle").textContent = "Live Decision Workbench (Mode C)";
-    } else {
-      dockController.setOpen(false);
-    }
     renderCanvasStage();
   }
 
@@ -205,7 +226,8 @@
     let scrollTop = 0;
 
     viewport.addEventListener("mousedown", (e) => {
-      if (e.target.closest(".effort-card, .tri-node, button, input, select")) return;
+      if (e.button !== 0) return;
+      if (e.target.closest(".effort-card, .tri-node, .neural-node, .node-connect-port, button, input, select")) return;
       isPanning = true;
       startX = e.pageX - viewport.offsetLeft;
       startY = e.pageY - viewport.offsetTop;
@@ -230,11 +252,7 @@
       notify,
       onSimulationUpdated: (simRes) => {
         state.simulationResult = simRes;
-        if (state.canvasMode !== "C" && simRes) {
-          switchCanvasMode("C");
-        } else {
-          renderCanvasStage();
-        }
+        renderCanvasStage();
       },
       onCommitted: async () => {
         state.simulationResult = null;
@@ -246,7 +264,6 @@
       notify,
       onStageMitigator: (mitId, nextVal) => {
         switchLens("canvas");
-        switchCanvasMode("C");
         dockController.stageMitigator(mitId, nextVal);
       },
       onEditInStudio: async (tab, id) => {
@@ -265,12 +282,37 @@
       },
     });
 
+    graphEditor = new global.BijouGraphEditor({
+      notify,
+      getSnapshot: () => ({
+        treeView: state.treeView,
+        triView: state.triView,
+        zoom: state.zoom,
+        canvasMode: state.canvasMode,
+      }),
+      onGraphMutated: async () => {
+        await initPerspectiveDropdown();
+        await refreshAllData();
+      },
+      onInspectEntity: (kind, id) => puckController.open(kind, id, buildViewParams()),
+      onStageSlip: (effortId, days) => {
+        switchLens("canvas");
+        dockController.stageSlipShock(effortId, days);
+      },
+      onOpenCart: () => dockController.setOpen(true),
+      onOpenStudio: async (tab, id) => {
+        switchLens("studio");
+        await studioController.refresh();
+        if (tab === "efforts") studioController.openEffortForEdit(id);
+      },
+    });
+
     // Wire Lens Navigation
     document.querySelectorAll(".lens-btn").forEach((btn) => {
       btn.addEventListener("click", () => switchLens(btn.dataset.lens));
     });
 
-    // Wire A / B / C Canvas Switcher
+    // Wire Canvas View Switcher
     document.querySelectorAll(".abc-btn").forEach((btn) => {
       btn.addEventListener("click", () => switchCanvasMode(btn.dataset.mode));
     });
@@ -326,6 +368,22 @@
     document.getElementById("view-b-show-partners")?.addEventListener("change", (ev) => {
       state.showPartners = Boolean(ev.target.checked);
       renderCanvasStage();
+    });
+
+    document.getElementById("view-neural-show-structural")?.addEventListener("change", (ev) => {
+      state.neuralShowStructural = Boolean(ev.target.checked);
+      renderCanvasStage();
+    });
+
+    document.getElementById("view-neural-show-indirect")?.addEventListener("change", (ev) => {
+      state.neuralShowIndirect = Boolean(ev.target.checked);
+      renderCanvasStage();
+    });
+
+    document.getElementById("btn-neural-relayout")?.addEventListener("click", () => {
+      global.BijouViewNeural.resetLayout();
+      renderCanvasStage();
+      notify("Recomputed Global Neural Graph layout.", "info");
     });
 
     // Dock Toggle & Zoom
