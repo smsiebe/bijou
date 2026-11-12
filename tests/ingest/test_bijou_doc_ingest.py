@@ -1,4 +1,4 @@
-"""Tests for bijou-doc-ingest (YAML/JSON reference dataset loading, telemetry ingestion, path traversal guard)."""
+"""Tests for Bijou v2 integrated manifest & telemetry ingestion utilities (bijou.sdk)."""
 
 from pathlib import Path
 
@@ -6,9 +6,7 @@ import pytest
 
 from bijou.api.app import create_app
 from bijou.config import BijouSettings
-from bijou_ingest import ManifestIngestor
-from bijou_ingest.path_utils import validate_safe_path
-from bijou_sdk import BijouClient
+from bijou.sdk import BijouClient, ManifestIngestor, validate_safe_path
 
 
 def test_ingestor_loads_v2_json_and_yaml_manifests_and_telemetry(tmp_path: Path) -> None:
@@ -22,7 +20,12 @@ def test_ingestor_loads_v2_json_and_yaml_manifests_and_telemetry(tmp_path: Path)
     )
     with BijouClient(app=app) as client:
         ing = ManifestIngestor(client)
-        counts_json = ing.ingest_manifest_file("joint_isr_architecture.json", base_dir=datasets_dir, replace_all=True)
+        counts_json = ing.ingest_manifest_file(
+            "joint_isr_architecture.json",
+            base_dir=datasets_dir,
+            replace_all=True,
+            validate_first=True,
+        )
         assert counts_json["organizations"] == 5
         assert counts_json["efforts"] == 6
 

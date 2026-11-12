@@ -1,0 +1,2 @@
+recursive-include src/bijou/web/static *
+include README.md LICENSE

@@ -14,8 +14,8 @@ import time
 from pathlib import Path
 
 import uvicorn
-from bijou_ingest import ManifestIngestor
-from bijou_sdk import BijouClient
+from bijou.sdk import BijouClient
+from bijou.sdk import ManifestIngestor
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.chrome.options import Options

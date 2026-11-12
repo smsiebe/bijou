@@ -1,72 +1,39 @@
 # Bijou
 
-**Multi-Echelon Impact & Causal Graph Engine**
+**Organizational Interests, Stateful Capability Progression & Resource Portfolio Engine (v2)**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Tests Passing](https://img.shields.io/badge/tests-41%20passed-success.svg)]()
-[![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Zero External CDN](https://img.shields.io/badge/offline--first-airgapped%20compliant-brightgreen)]()
 
 ---
 
 ## Overview
 
-**Bijou** is an offline-capable, multi-echelon strategic causal graph and decision-support engine designed for complex capital acquisition portfolios, defense architectures, and mission-critical systems engineering.
+**Bijou** is an offline-first strategic portfolio, capability dependency, and resource orchestration engine designed for modeling the complex interactions between:
+- **Organizations** (and managed Color-of-Money resource pools)
+- **Interests** (hierarchical DAGs spanning mission goals, threats, intelligence gaps, customers, and strategic categories)
+- **Efforts** (stateful capability programs with optional resource requirements, delivery risks, mitigators, and explicit or dependency-relative timing)
+- **6 Typed Relationships with Pedigree** (`OrgOrgEdge`, `OrgInterestEdge`, `InterestInterestEdge`, `OrgEffortEdge`, `EffortInterestEdge`, `EffortEffortEdge`)
 
-Rather than relying on static roadmaps or unweighted dependencies, Bijou models the non-linear ripple effects of technology slips, budget cuts, and architectural trade-offs using rigorous causal graph projections, Critical Path Method (CPM) schedule slack propagation, Pareto optimal frontier evaluation, and real-time operational telemetry rollups.
-
-![Bijou 4X Stratified Tech Tree](docs/assets/snapshots/01_tech_tree_canvas.png)
+Bijou ships as a single Python package (`bijou`) bundling the FastAPI engine, SQLite + DuckDB stores, offline Vanilla JS/SVG Web UI, CLI entrypoints (`bijou`, `bijou-ingest`), and the integrated Python client SDK (`bijou.sdk`).
 
 ---
 
 ## Key Capabilities
 
-1. **4X-Style Stratified Tech Tree**:
-   - Interactive dependency matrix supporting **TRL Maturity Tiers**, **Fiscal Eras**, and **Topological Depths**.
-   - Dynamic SVG connector overlays with orthogonal routing and upstream critical-path spine highlighting.
-2. **What-If Milestone Slip Simulator & Decision Provenance Ledger**:
-   - Slack-aware Critical Path Method (CPM) simulation: minor slips are absorbed by downstream slack; critical slips cascade across prerequisites.
-   - Computes exact downstream blast radius: impacted milestone states (`BLOCKED`, `LOCKED`, `ACTIVE`), degraded effects, broken strategic concerns, and portfolio ROI delta.
-   - **Decision Provenance Ledger (`REC-019`)**: Thread-safe SQLite WAL audit log capturing decision author, timestamp, and strategic rationale directly from the slip drawer.
-3. **Multi-Perspective Sovereign Briefing**:
-   - Instant 1-slide executive briefing evaluated from any organization's sovereign viewpoint.
-   - 4-quadrant layout: Supported Strategic Concerns, Owned Things, Cross-Organizational Dependencies, and Total Committed Cost with executive narrative synthesis.
-   - Built-in print stylesheet for landscape executive PDF/print generation.
-4. **Single-Thing 2-Hop Concentric Radial Ego-Network (`REC-013`)**:
-   - Interactive HTML5 `<canvas>` rendering 2-hop concentric radial graphs: Focal center, 1-hop upstream predecessors (inner-left), 1-hop downstream dependents (inner-right), and 2-hop produced effects (outer-right).
-   - Ingests analytical telemetry events via embedded DuckDB sidecar with **Inline Telemetry Sparklines & Horizontal SLA Threshold Bands (`REC-014`)**.
-5. **Live Portfolio Trade-Off Matrix & Pareto Frontier Optimizer (`REC-008`)**:
-   - Evaluates multi-candidate acquisition portfolios against strategic concern coverage and cost floors.
-   - **Interactive 2D SVG Pareto Scatterplot**: Computes non-dominated optimal portfolios subject to dynamic budget ceilings ($5M to $1000M) preserving $\ge 10$ decimal place ROI micro-precision.
-6. **Direct Manipulation Workbench & Manifest Diagnostic Linter (`REC-016`, `REC-017`)**:
-   - Visual drag-and-drop entity cards across 4 lifecycle buckets (`PROPOSED`, `ACTIVE`, `DELIVERED`, `RETIRED`) updating manifest JSON in real-time.
-   - Pre-flight diagnostic linter HUD detecting topological dependency cycles (`nx.simple_cycles`) and orphaned entities before import.
-7. **Air-Gapped & Offline Compliance**:
-   - Strictly local assets: zero external CDN links, zero third-party font/script calls, self-contained SVG and HTML5 Canvas rendering.
-
----
-
-## Architecture at a Glance
-
-```
-                      +-----------------------------------+
-                      |      Web GUI (Air-Gapped)         |
-                      |  4X Tree | Briefing | Focal | CRUD|
-                      +-----------------+-----------------+
-                                        | (Relative REST)
-                      +-----------------v-----------------+
-                      |       FastAPI REST Service        |
-                      +-----------------+-----------------+
-                                        |
-        +-------------------------------+-------------------------------+
-        |                               |                               |
-+-------v-------+               +-------v-------+               +-------v-------+
-| In-Memory DAG |               | SQLite Repo   |               | DuckDB Store  |
-| Projection    |               | (Atomic CRUD) |               | (Telemetry    |
-| (NetworkX)    |               |               |               |  Rollups)     |
-+---------------+               +---------------+               +---------------+
-```
+1. **Three Primary Graph Modes (`A` / `B` / `G`)**:
+   - **View A — Capability Progression Tree**: Stateful Effort DAG (`COMPLETED` → `IN_WORK` → `PLANNED` / `DISCOVERY_PENDING`) with SPOF detection, slack calculation, and hover neighborhood emphasis.
+   - **View B — Tri-Partite Architectural Flow**: Maps **Organizations & Pools ↔ Efforts ↔ Interest Taxonomy**, illuminating indirect shared-interest benefits and potential organizational partnerships.
+   - **View G — Global Neural Graph**: Free-floating force-directed topology with pairwise AABB zero-overlap resolution, node-type toggles, Org/Interest multi-filters, node isolation (`Right-Click → Isolate & Connections`), breadcrumb filter history, drag pinning, and cursor-anchored scroll-wheel zoom.
+2. **Graph-Native Non-Technical Editing**:
+   - Right-click anywhere to spawn Organizations, Efforts, or Interests; drag `●` connect handles between nodes to create relationships using plain-English statements instead of raw enum/direction jargon.
+3. **Bill of Efforts Scenario Dock**:
+   - Persistent slide-out cart for exercising mitigators, staging resource pool allocations (with Color-of-Money Interest DAG inheritance & skill-mismatch slip warnings), testing schedule slip/cancellation shocks, and committing approved decisions.
+4. **Executive Briefing & Entity Studio**:
+   - 1-slide landscape printable briefing tailored per Organization (`X-Bijou-Access-Mode` / `X-Bijou-Active-Org` perspective seam) plus a full Entity & Graph Studio with pre-flight manifest diagnostics.
+5. **Air-Gapped & Self-Contained**:
+   - Zero external JS libraries or CDNs in the Web UI; custom pure Vanilla JS + native browser SVG/DOM rendering bundled directly into the Python wheel.
 
 ---
 
@@ -74,126 +41,96 @@ Rather than relying on static roadmaps or unweighted dependencies, Bijou models 
 
 ### 1. Installation
 
-Clone the repository and set up a virtual environment:
+Install from source (or PyPI wheel once published):
 
 ```bash
-git clone https://github.com/smsiebe/bijou.git
-cd bijou
-
-# Create virtual environment
-python -m venv .venv
-
-# Activate environment (Linux / macOS)
-source .venv/bin/activate
-
-# Activate environment (Windows PowerShell)
-.venv\Scripts\Activate.ps1
-
-# Install Bijou with developer dependencies and subprojects
 pip install -e ".[dev]"
-pip install -e ./projects/bijou-pysdk
-pip install -e ./projects/bijou-doc-ingest
 ```
 
-### 2. Launch the Application
+The single `bijou` wheel includes the backend API, CLI, Web UI static assets, and `bijou.sdk`.
 
-Start the standalone Bijou server (API + Web GUI):
+### 2. Launch the Application
 
 ```bash
 bijou --mode standalone --port 8000
 ```
 
-Open your browser to `http://0.0.0.0:8000/` to access the interactive web interface.
+- **Web UI**: `http://0.0.0.0:8000/`
+- **Interactive OpenAPI (Swagger UI)**: `http://0.0.0.0:8000/docs`
+- **ReDoc**: `http://0.0.0.0:8000/redoc`
+- **OpenAPI 3.1 Schema**: `http://0.0.0.0:8000/openapi.json`
 
-### 3. Load Sample Reference Architecture
-
-Bijou includes a comprehensive multi-echelon Joint ISR reference architecture manifest and telemetry event stream in `datasets/`:
+### 3. Ingest Reference Data
 
 ```bash
-# Ingest YAML manifest and telemetry stream via the Python SDK CLI
-bijou-ingest --manifest datasets/joint_isr_architecture.yaml --telemetry datasets/satellite_cascade_telemetry.jsonl
+bijou-ingest --server-url http://0.0.0.0:8000 \
+  --manifest datasets/joint_isr_architecture.yaml \
+  --telemetry datasets/satellite_cascade_telemetry.jsonl \
+  --replace-all
 ```
 
 ---
 
-## The 4 Decision-Support Lenses
+## Integrated Python SDK (`bijou.sdk`)
 
-| Lens | View Description | Key Actions |
-|---|---|---|
-| **4X Tech Tree** | Deterministic stratified layout across TRL maturity, fiscal eras, or topological depth. | Click milestone card &rarr; Open Slip Drawer &rarr; Simulate date slip or full cancellation &rarr; Review cascade delta. |
-| **Executive Briefing** | 1-Slide executive decision quadrant seen through any organization's sovereign boundary. | Select Subject Org & Observed Perspective &rarr; Toggle sub-org inheritance &rarr; Click Export PDF. |
-| **Focal Dashboard** | 2-Hop ego-network with DuckDB telemetry rollups and live tradeoff matrix. | Select focus Thing &rarr; Inspect telemetry metrics &rarr; Select candidate Things &rarr; Click Evaluate Trade-Off. |
-| **Manifest Studio** | Raw JSON/YAML manifest editor with atomic replacement and quick entity creation. | Export active portfolio JSON &rarr; Edit/Paste modifications &rarr; Atomic Import Swap. |
-
----
-
-## Python SDK Example
-
-Interact programmatically with Bijou via `bijou-pysdk`:
+Use [`BijouClient`](src/bijou/sdk/client.py) (sync), [`AsyncBijouClient`](src/bijou/sdk/client.py) (async), and [`ManifestIngestor`](src/bijou/sdk/ingest.py) directly from `bijou.sdk` for document-extraction pipelines and analytical automation:
 
 ```python
-from bijou_sdk import BijouClient
+from bijou.sdk import (
+    AccessMode,
+    BijouClient,
+    ManifestIngestor,
+    Organization,
+)
 
-# Connect to live server or in-memory ASGI application
 with BijouClient(base_url="http://0.0.0.0:8000") as client:
-    # Query organizations
-    orgs = client.list_organizations()
-    print(f"Loaded {len(orgs)} sovereign organizations")
-
-    # Fetch 4X Tech Tree View
-    tree = client.get_tech_tree(stratification_mode="TRL_TIERS")
-    print(f"Tech Tree: {len(tree.nodes)} nodes across {len(tree.tiers)} tiers")
-
-    # Simulate a 90-day milestone slip
-    simulation = client.simulate_slip(
-        milestone_id="ms-space-chamber-proto",
-        slip_days=90,
-        simulate_cancellation=False,
+    # Upsert entities (idempotent by string ID)
+    client.upsert_organization(
+        Organization(id="org-demo", name="Joint Demo Org", is_managed=True)
     )
-    print(f"ROI Delta: {simulation.roi_delta}")
-    print(f"Impacted Nodes: {list(simulation.impacted_node_states.keys())}")
+
+    # Or import an atomic multi-entity manifest bundle from an extractor
+    ingestor = ManifestIngestor(client)
+    ingestor.ingest_manifest_file(
+        "datasets/joint_isr_architecture.json",
+        validate_first=True,
+    )
+
+    # Query projections and run Bill of Efforts simulation
+    tree = client.get_capability_tree()
+    sim = client.simulate_bill_of_efforts({"effort_slips": {"eff-edge-correlator": 30}})
+    print(f"Nodes: {len(tree.nodes)}, Impacted: {sim.impacted_effort_ids}")
 ```
 
 ---
 
 ## Documentation Index
 
-- [**User Guide**](docs/user_guide.md): Complete guide to multi-echelon governance, causal gates, the 4 lenses, and CLI options.
-- [**Architecture Specification**](docs/architecture.md): Deep-dive into hexagonal architecture, NetworkX projection math, DuckDB analytical storage, and offline security.
-- [**Developer & Contributing Guide**](docs/developer_guide.md): Setup, test suites (unit, e2e, red-team torture, selenium GUI), linting, and extension guidelines.
-- [**API Reference**](docs/api_reference.md): Complete OpenAPI endpoint reference, request/response models, and error codes.
+- [**User Guide**](docs/user_guide.md): Domain ontology, forecasting semantics, Color-of-Money rules, and UI walkthrough.
+- [**Architecture Specification**](docs/architecture.md): Hexagonal architecture, SQLite/DuckDB persistence, NetworkX projection engine, and custom SVG/DOM rendering.
+- [**Developer & Contributing Guide**](docs/developer_guide.md): Setup, test suites, banned-token / offline compliance audits, and wheel packaging.
+- [**API & SDK Reference**](docs/api_reference.md): Complete REST endpoint catalog, `bijou.sdk` methods, models, exceptions, and CLI flags.
 
 ---
 
 ## Testing & Quality Assurance
 
-Bijou enforces strict 100% test pass rates and zero-warning standards:
-
 ```bash
-# Run full test suite (41 unit, integration, adversarial, and selenium tests)
-pytest -v
+# Run full suite (unit, contract, adversarial, SDK, ingest, Selenium E2E, wheel check)
+pytest tests -v
 
-# Run adversarial red-team analytics & torture suite
-pytest tests/adversarial/ -v
-
-# Run Selenium Headless Chrome GUI E2E tests
-pytest tests/web/test_gui_selenium.py -v
-
-# Run linting and code formatting checks
-ruff check .
-
-# Audit codebase for banned tokens (localhost, 127.0.0.1, TODO)
+# Audit source code for banned tokens
 python scripts/audit_banned_tokens.py
 
-# Run BLACK framework automated reflection gate
-python scripts/black_preflight_audit.py --remediation-mode
+# Run pre-flight gate
+python scripts/black_preflight_audit.py --root .
 
-# Re-generate GUI reference snapshots
-python scripts/capture_gui_snapshots.py
+# Regenerate static OpenAPI schema snapshot
+python scripts/export_openapi.py
 ```
 
 ---
 
 ## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License — see [LICENSE](LICENSE).

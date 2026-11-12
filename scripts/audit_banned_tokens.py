@@ -11,7 +11,7 @@ BANNED_TOKENS = [
     "NotImplementedException",
 ]
 
-TARGET_DIRS = ["src", "projects"]
+TARGET_DIRS = ["src"]
 
 
 def audit_tokens() -> int:

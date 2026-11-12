@@ -4,8 +4,7 @@ from pathlib import Path
 
 from bijou.api.app import create_app
 from bijou.config import BijouSettings
-from bijou_ingest import ManifestIngestor
-from bijou_sdk import BijouClient
+from bijou.sdk import BijouClient, ManifestIngestor
 
 
 def test_full_v2_ecosystem_scenario(tmp_path: Path) -> None:
@@ -48,8 +47,8 @@ def test_full_v2_ecosystem_scenario(tmp_path: Path) -> None:
             }
         )
         assert len(sim.skill_mismatch_warnings) == 1
-        assert sim.skill_mismatch_warnings[0]["suggested_slip_penalty_days"] == 55
+        assert sim.skill_mismatch_warnings[0].suggested_slip_penalty_days == 55
         assert len(sim.newly_registered_risks) == 1
 
         diag = client.validate_manifest()
-        assert diag["blockers"] == []
+        assert diag.blockers == []

@@ -36,7 +36,7 @@ if errorlevel 1 (
 :: 3. Set PYTHONPATH to local dev source trees for immediate live reloading
 set "BIJOU_ROOT=%~dp0"
 if "%BIJOU_ROOT:~-1%"=="\" set "BIJOU_ROOT=%BIJOU_ROOT:~0,-1%"
-set "PYTHONPATH=%BIJOU_ROOT%\src;%BIJOU_ROOT%\projects\bijou-pysdk\src;%BIJOU_ROOT%\projects\bijou-doc-ingest\src;%PYTHONPATH%"
+set "PYTHONPATH=%BIJOU_ROOT%\src;%PYTHONPATH%"
 
 :: 4. Configure storage pointing to %TEMP%\bijou_test
 set "TEST_DIR=%TEMP%\bijou_test"

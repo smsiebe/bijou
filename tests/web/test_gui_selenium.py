@@ -31,8 +31,7 @@ from selenium.webdriver.support.ui import Select, WebDriverWait
 
 from bijou.api.app import create_app
 from bijou.config import BijouSettings
-from bijou_ingest import ManifestIngestor
-from bijou_sdk import BijouClient
+from bijou.sdk import BijouClient, ManifestIngestor
 
 
 def find_free_port() -> int:

@@ -18,8 +18,7 @@ def seed_if_needed() -> None:
 
     from bijou.config import BijouSettings
     from bijou.api.app import create_app
-    from bijou_sdk import BijouClient
-    from bijou_ingest import ManifestIngestor
+    from bijou.sdk import BijouClient, ManifestIngestor
 
     settings = BijouSettings(
         db_uri=f"sqlite:///{db_file}",
