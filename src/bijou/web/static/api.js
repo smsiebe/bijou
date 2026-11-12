@@ -11,6 +11,8 @@
     activeOrgId: null,
   };
 
+  let customTransport = null;
+
   function setPerspective(mode, activeOrgId) {
     perspectiveState.mode = mode || "GLOBAL_ANALYST";
     perspectiveState.activeOrgId = activeOrgId || null;
@@ -18,6 +20,51 @@
 
   function getPerspective() {
     return { ...perspectiveState };
+  }
+
+  function setTransport(transportFn) {
+    customTransport = typeof transportFn === "function" ? transportFn : null;
+  }
+
+  async function waitForPyWebViewApi(timeoutMs = 2000) {
+    if (global.pywebview?.api?.dispatch) return global.pywebview.api;
+    if (!global.__BIJOU_DESKTOP_MODE__) return null;
+    return await new Promise((resolve) => {
+      const started = Date.now();
+      const onReady = () => {
+        window.removeEventListener("pywebviewready", onReady);
+        resolve(global.pywebview?.api?.dispatch ? global.pywebview.api : null);
+      };
+      window.addEventListener("pywebviewready", onReady);
+      const poll = () => {
+        if (global.pywebview?.api?.dispatch) {
+          window.removeEventListener("pywebviewready", onReady);
+          resolve(global.pywebview.api);
+          return;
+        }
+        if (Date.now() - started >= timeoutMs) {
+          window.removeEventListener("pywebviewready", onReady);
+          resolve(null);
+          return;
+        }
+        setTimeout(poll, 25);
+      };
+      setTimeout(poll, 25);
+    });
+  }
+
+  async function invokeBridge(method, url, headers, body) {
+    if (customTransport) {
+      return await customTransport(method, url, headers, body ?? null);
+    }
+    if (typeof global.__BIJOU_BRIDGE__ === "function") {
+      return await global.__BIJOU_BRIDGE__(method, url, headers, body ?? null);
+    }
+    const pywebviewApi = await waitForPyWebViewApi();
+    if (pywebviewApi?.dispatch) {
+      return await pywebviewApi.dispatch(method, url, headers, body ?? null);
+    }
+    return null;
   }
 
   async function request(method, path, body, queryParams) {
@@ -39,6 +86,22 @@
     };
     if (perspectiveState.activeOrgId) {
       headers["X-Bijou-Active-Org"] = perspectiveState.activeOrgId;
+    }
+
+    const bridged = await invokeBridge(method, url, headers, body);
+    if (bridged && typeof bridged === "object" && "status" in bridged) {
+      const data = bridged.data ?? null;
+      if (!bridged.ok) {
+        let detail = `HTTP ${bridged.status}`;
+        if (data && data.detail !== undefined) {
+          detail = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
+        }
+        const err = new Error(detail);
+        err.status = bridged.status;
+        err.payload = data;
+        throw err;
+      }
+      return data;
     }
 
     const opts = { method, headers };
@@ -123,6 +186,7 @@
   const BijouApi = {
     setPerspective,
     getPerspective,
+    setTransport,
     escapeHtml,
     fmtUsd,
     fmtForecast,

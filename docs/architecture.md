@@ -38,6 +38,15 @@ Bijou follows **Hexagonal (Ports & Adapters)** architecture to keep domain contr
 - **`src/bijou/services/`**: `BijouOrchestrationService` coordinating repository commits, perspective boundaries (`GLOBAL_ANALYST` vs `MANAGED_ORG_OWNER`), and diagnostics.
 - **`src/bijou/sdk/`**: Integrated synchronous (`BijouClient`) & asynchronous (`AsyncBijouClient`) SDK plus `ManifestIngestor` (`validate_safe_path` traversal guard + pre-flight validation) and `bijou-ingest` CLI.
 - **`src/bijou/web/static/`**: Bundled zero-CDN offline Web UI.
+- **`src/bijou/web/bridge.py`**: Optional [`BijouDesktopBridge`](../src/bijou/web/bridge.py) allowing desktop WebViews (`pywebview`, Tkinter + WebView2, Qt `QWebEngineView`) to embed the exact same FastAPI app & Web UI in-process with zero open TCP ports.
+
+### Standalone Web Server vs. In-Process Desktop Bridge
+
+Both runtime options share 100% of the FastAPI routing and static assets:
+- **Standalone HTTP Server (`bijou --mode standalone`)**: `api.js` issues standard `fetch('/api/v1/...')` calls against FastAPI.
+- **Zero-Webserver Desktop Bridge (`BijouDesktopBridge`)**: Wraps `create_app()` in Starlette's in-memory `TestClient` lifecycle and exposes:
+  - `bridge.dispatch(method, path, headers, body)` / `dispatch_json(...)` (automatically picked up by `api.js` via `window.__BIJOU_BRIDGE__`, `BijouApi.setTransport(...)`, or `window.pywebview.api.dispatch`), with `bridge.render_desktop_html()` rewriting `/static/` to local `file://` `<base>` paths.
+  - `bridge.serve_resource(method, path, ...)` for custom Chromium/Qt scheme handlers (`QWebEngineUrlSchemeHandler` / WebView2 `WebResourceRequested`) without rewriting HTML at all.
 
 ---
 

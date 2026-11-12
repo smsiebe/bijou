@@ -105,6 +105,7 @@ def test_wheel_bundle_includes_web_ui_and_sdk(tmp_path: Path, monkeypatch) -> No
         "bijou/sdk/__init__.py",
         "bijou/sdk/client.py",
         "bijou/sdk/ingest.py",
+        "bijou/web/bridge.py",
     }
     missing = sorted(expected_assets - names)
     assert not missing, f"Built wheel missing Web UI / SDK files: {missing}"
