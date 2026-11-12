@@ -86,6 +86,8 @@ def create_app(settings: BijouSettings | None = None) -> FastAPI:
         version="2.0.0",
         description="Offline-capable organizational interest, effort dependency, and resource portfolio engine.",
         lifespan=lifespan,
+        docs_url=None,
+        redoc_url=None,
     )
     app.state.settings = app_settings
 
@@ -124,6 +126,11 @@ def create_app(settings: BijouSettings | None = None) -> FastAPI:
         @app.get("/", include_in_schema=False)
         def serve_index() -> FileResponse:
             return FileResponse(str(static_dir / "index.html"))
+
+        @app.get("/docs", include_in_schema=False)
+        @app.get("/redoc", include_in_schema=False)
+        def serve_offline_docs() -> FileResponse:
+            return FileResponse(str(static_dir / "docs.html"))
 
     return app
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import date
 from typing import Any
 
@@ -88,7 +89,7 @@ class BijouClient:
 
     def __init__(
         self,
-        base_url: str = DEFAULT_BASE_URL,
+        base_url: str | None = None,
         transport: httpx.BaseTransport | None = None,
         timeout: float = 30.0,
         app: Any | None = None,
@@ -98,7 +99,8 @@ class BijouClient:
         api_key: str | None = None,
         extra_headers: dict[str, str] | None = None,
     ) -> None:
-        self.base_url = base_url.rstrip("/")
+        resolved_base = base_url or os.environ.get("BIJOU_SERVER_URL", DEFAULT_BASE_URL)
+        self.base_url = resolved_base.rstrip("/")
         self.access_mode = access_mode
         self.active_org_id = active_org_id
         self.api_key = api_key
@@ -413,7 +415,7 @@ class AsyncBijouClient:
 
     def __init__(
         self,
-        base_url: str = DEFAULT_BASE_URL,
+        base_url: str | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
         timeout: float = 30.0,
         app: Any | None = None,
@@ -423,7 +425,8 @@ class AsyncBijouClient:
         api_key: str | None = None,
         extra_headers: dict[str, str] | None = None,
     ) -> None:
-        self.base_url = base_url.rstrip("/")
+        resolved_base = base_url or os.environ.get("BIJOU_SERVER_URL", DEFAULT_BASE_URL)
+        self.base_url = resolved_base.rstrip("/")
         self.access_mode = access_mode
         self.active_org_id = active_org_id
         self.api_key = api_key

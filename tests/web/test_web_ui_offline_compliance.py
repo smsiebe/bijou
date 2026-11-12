@@ -83,6 +83,7 @@ def test_wheel_bundle_includes_web_ui_and_sdk(tmp_path: Path, monkeypatch) -> No
     root_dir = Path(__file__).parent.parent.parent
     monkeypatch.chdir(root_dir)
     whl_name = _build_meta.build_wheel(str(tmp_path))
+    assert whl_name.startswith("bijou_portfolio-2.0.0-")
     whl_path = tmp_path / whl_name
     assert whl_path.exists()
 
@@ -91,6 +92,7 @@ def test_wheel_bundle_includes_web_ui_and_sdk(tmp_path: Path, monkeypatch) -> No
 
     expected_assets = {
         "bijou/web/static/index.html",
+        "bijou/web/static/docs.html",
         "bijou/web/static/app.js",
         "bijou/web/static/styles.css",
         "bijou/web/static/api.js",
@@ -109,3 +111,45 @@ def test_wheel_bundle_includes_web_ui_and_sdk(tmp_path: Path, monkeypatch) -> No
     }
     missing = sorted(expected_assets - names)
     assert not missing, f"Built wheel missing Web UI / SDK files: {missing}"
+
+
+def test_offline_openapi_docs_have_zero_external_cdns() -> None:
+    """Verifies /docs and /redoc serve Bijou's self-hosted offline OpenAPI explorer without external CDNs."""
+    client = TestClient(app)
+
+    for route in ("/docs", "/redoc"):
+        resp = client.get(route)
+        assert resp.status_code == 200
+        assert "cdn.jsdelivr.net" not in resp.text
+        assert "https://" not in resp.text
+        assert "Offline OpenAPI Explorer" in resp.text
+
+    openapi_resp = client.get("/openapi.json")
+    assert openapi_resp.status_code == 200
+    assert "/api/v1/organizations" in openapi_resp.json()["paths"]
+
+
+def test_airgap_config_defaults_and_readonly_cwd_fallback(tmp_path: Path, monkeypatch) -> None:
+    """Verifies default port 8000, BIJOU_SERVER_URL SDK lookup, and writable DB fallback when CWD is locked."""
+    from bijou import config as config_mod
+    from bijou.sdk import AsyncBijouClient, BijouClient
+
+    monkeypatch.setenv("BIJOU_SERVER_URL", "http://127.0.0.1:9123/")
+    sync_client = BijouClient(app=app)
+    async_client = AsyncBijouClient(app=app)
+    assert sync_client.base_url == "http://127.0.0.1:9123"
+    assert async_client.base_url == "http://127.0.0.1:9123"
+
+    settings_default = config_mod.BijouSettings()
+    assert settings_default.bind_port == 8000
+
+    fake_home = tmp_path / "home"
+    fake_home.mkdir()
+    monkeypatch.setattr(config_mod, "_is_dir_writable", lambda _d: False)
+    monkeypatch.setattr(config_mod.Path, "home", classmethod(lambda cls: fake_home))
+
+    settings_ro = config_mod.BijouSettings()
+    expected_dir = (fake_home / ".bijou").resolve()
+    assert expected_dir.exists()
+    assert expected_dir.as_posix() in settings_ro.db_uri
+    assert str(expected_dir) in settings_ro.duckdb_path

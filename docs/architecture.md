@@ -62,6 +62,6 @@ Bijou does **not** depend on D3, Cytoscape, Sigma, vis.js, or any third-party Ja
 
 ## 4. Packaging & Air-Gapped Compliance
 
-- **Wheel Packaging**: `pyproject.toml` (`package-data`) and `MANIFEST.in` explicitly bundle `bijou/web/static/*` alongside Python modules so `pip install bijou` serves the complete UI cleanly with zero network access.
+- **Wheel Packaging**: `pyproject.toml` (`name = "bijou-portfolio"`, `package-data`) and `MANIFEST.in` explicitly bundle `bijou/web/static/*` alongside Python modules so `pip install bijou-portfolio` serves the complete UI cleanly with zero network access under the `bijou` import namespace.
 - **Path Traversal Guard**: [`validate_safe_path`](../src/bijou/sdk/ingest.py) prevents directory-escape attempts during batch file ingestion.
 - **No External CDN Calls**: Verified continuously by `tests/web/test_web_ui_offline_compliance.py`.

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bijou v2 | Offline OpenAPI Explorer</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <style>
+    body {
+      overflow: auto;
+      height: auto;
+      min-height: 100vh;
+    }
+
+    .docs-shell {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px 24px 48px;
+      width: 100%;
+    }
+
+    .docs-hero {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .docs-toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .docs-toolbar input {
+      flex: 1;
+      min-width: 240px;
+      background: var(--bg-secondary);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.9rem;
+    }
+
+    .docs-group {
+      margin-bottom: 18px;
+    }
+
+    .docs-group-title {
+      font-size: 0.95rem;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 4px;
+    }
+
+    .op-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+
+    .op-summary {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .op-summary:hover {
+      background: var(--bg-card-hover);
+    }
+
+    .method-badge {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      min-width: 66px;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .m-get { background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid #10b981; }
+    .m-post { background: rgba(59, 130, 246, 0.18); color: #60a5fa; border: 1px solid #3b82f6; }
+    .m-put, .m-patch { background: rgba(245, 158, 11, 0.18); color: #fbbf24; border: 1px solid #f59e0b; }
+    .m-delete { background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid #ef4444; }
+
+    .op-path {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .op-desc {
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      margin-left: auto;
+    }
+
+    .op-body {
+      border-top: 1px solid var(--border-subtle);
+      padding: 12px 14px;
+      background: var(--bg-primary);
+      display: none;
+      gap: 10px;
+      flex-direction: column;
+    }
+
+    .op-card.open .op-body {
+      display: flex;
+    }
+
+    .schema-pre {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 10px;
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: var(--text-main);
+      overflow-x: auto;
+      max-height: 280px;
+      white-space: pre-wrap;
+    }
+
+    .try-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .try-input {
+      background: var(--bg-secondary);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 5px;
+      padding: 6px 10px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      flex: 1;
+      min-width: 240px;
+    }
+
+    .try-textarea {
+      width: 100%;
+      min-height: 90px;
+      background: var(--bg-secondary);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+    }
+  </style>
+</head>
+
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-mark">B2</div>
+      <div>
+        <h1>BIJOU OPENAPI</h1>
+        <div class="brand-sub">Self-Hosted Air-Gapped API Explorer (Zero External CDN)</div>
+      </div>
+      <span class="badge-pill" id="docs-version-badge">OFFLINE SPEC</span>
+    </div>
+    <div class="header-controls">
+      <a class="btn btn-secondary btn-sm" href="/openapi.json">Raw /openapi.json</a>
+      <a class="btn btn-primary btn-sm" href="/">← Back to Bijou Web UI</a>
+    </div>
+  </header>
+
+  <main class="docs-shell">
+    <section class="docs-hero">
+      <div>
+        <h2 id="api-title">Bijou Strategic Orchestration API</h2>
+        <p id="api-description" class="mono-text">Loading /openapi.json...</p>
+      </div>
+      <span class="mono-badge" id="api-op-count">0 endpoints</span>
+    </section>
+
+    <div class="docs-toolbar">
+      <input type="search" id="docs-filter-input" placeholder="Filter endpoints by path, method, summary, or tag..." />
+    </div>
+
+    <div id="docs-operations"></div>
+  </main>
+
+  <script src="/static/api.js"></script>
+  <script>
+    (function () {
+      const container = document.getElementById("docs-operations");
+      const filterInput = document.getElementById("docs-filter-input");
+      let spec = null;
+
+      async function rawCall(method, path, bodyText) {
+        if (window.__BIJOU_BRIDGE__ || (window.pywebview && window.pywebview.api && window.pywebview.api.dispatch)) {
+          const bridge = window.__BIJOU_BRIDGE__ || window.pywebview.api;
+          const res = await bridge.dispatch(method, path, { "Content-Type": "application/json" }, bodyText || null);
+          return { status: res.status, text: JSON.stringify(res.data, null, 2) };
+        }
+        const opts = { method: method, headers: {} };
+        if (bodyText && method !== "GET" && method !== "DELETE") {
+          opts.headers["Content-Type"] = "application/json";
+          opts.body = bodyText;
+        }
+        const resp = await fetch(path, opts);
+        const text = await resp.text();
+        try {
+          return { status: resp.status, text: JSON.stringify(JSON.parse(text), null, 2) };
+        } catch (_err) {
+          return { status: resp.status, text: text };
+        }
+      }
+
+      function resolveRef(schema) {
+        if (!schema || !spec || !spec.components || !spec.components.schemas) return schema;
+        if (schema.$ref) {
+          const name = schema.$ref.split("/").pop();
+          return spec.components.schemas[name] || schema;
+        }
+        return schema;
+      }
+
+      function buildSampleFromSchema(schema) {
+        const resolved = resolveRef(schema);
+        if (!resolved || resolved.type !== "object" || !resolved.properties) return {};
+        const sample = {};
+        Object.entries(resolved.properties).forEach(([key, prop]) => {
+          const p = resolveRef(prop);
+          if (p.default !== undefined) sample[key] = p.default;
+          else if (p.type === "boolean") sample[key] = false;
+          else if (p.type === "integer" || p.type === "number") sample[key] = 0;
+          else if (p.type === "array") sample[key] = [];
+          else if (p.type === "object") sample[key] = {};
+          else sample[key] = "";
+        });
+        return sample;
+      }
+
+      function render(filterText) {
+        if (!spec) return;
+        const q = (filterText || "").trim().toLowerCase();
+        const groups = {};
+        let total = 0;
+
+        Object.entries(spec.paths || {}).forEach(([path, methods]) => {
+          Object.entries(methods).forEach(([method, op]) => {
+            const upper = method.toUpperCase();
+            const summary = op.summary || op.operationId || "";
+            const tags = (op.tags && op.tags.length) ? op.tags : ["General"];
+            const hay = `${upper} ${path} ${summary} ${tags.join(" ")}`.toLowerCase();
+            if (q && !hay.includes(q)) return;
+
+            total += 1;
+            const tag = tags[0];
+            if (!groups[tag]) groups[tag] = [];
+            groups[tag].push({ path, method: upper, op });
+          });
+        });
+
+        document.getElementById("api-op-count").textContent = `${total} endpoints`;
+        container.innerHTML = "";
+
+        Object.entries(groups).forEach(([tag, ops]) => {
+          const section = document.createElement("section");
+          section.className = "docs-group";
+
+          const h = document.createElement("h3");
+          h.className = "docs-group-title";
+          h.textContent = tag;
+          section.appendChild(h);
+
+          ops.forEach(({ path, method, op }) => {
+            const card = document.createElement("div");
+            card.className = "op-card";
+
+            const summary = document.createElement("div");
+            summary.className = "op-summary";
+            summary.innerHTML = `
+              <span class="method-badge m-${method.toLowerCase()}">${method}</span>
+              <span class="op-path">${path}</span>
+              <span class="op-desc">${op.summary || op.operationId || ""}</span>
+            `;
+            summary.addEventListener("click", () => card.classList.toggle("open"));
+
+            const body = document.createElement("div");
+            body.className = "op-body";
+
+            if (op.description) {
+              const p = document.createElement("p");
+              p.textContent = op.description;
+              body.appendChild(p);
+            }
+
+            if (op.parameters && op.parameters.length) {
+              const paramTitle = document.createElement("strong");
+              paramTitle.textContent = "Parameters";
+              body.appendChild(paramTitle);
+              const pre = document.createElement("pre");
+              pre.className = "schema-pre";
+              pre.textContent = JSON.stringify(op.parameters, null, 2);
+              body.appendChild(pre);
+            }
+
+            const reqSchema = op.requestBody &&
+              op.requestBody.content &&
+              op.requestBody.content["application/json"] &&
+              op.requestBody.content["application/json"].schema;
+
+            const tryRow = document.createElement("div");
+            tryRow.className = "try-row";
+            const pathInput = document.createElement("input");
+            pathInput.className = "try-input";
+            pathInput.value = path;
+
+            const runBtn = document.createElement("button");
+            runBtn.type = "button";
+            runBtn.className = "btn btn-primary btn-xs";
+            runBtn.textContent = `Send ${method}`;
+            tryRow.appendChild(pathInput);
+            tryRow.appendChild(runBtn);
+            body.appendChild(tryRow);
+
+            let bodyArea = null;
+            if (reqSchema) {
+              const reqLabel = document.createElement("strong");
+              reqLabel.textContent = "Request JSON Body";
+              body.appendChild(reqLabel);
+              bodyArea = document.createElement("textarea");
+              bodyArea.className = "try-textarea";
+              bodyArea.value = JSON.stringify(buildSampleFromSchema(reqSchema), null, 2);
+              body.appendChild(bodyArea);
+            }
+
+            const outPre = document.createElement("pre");
+            outPre.className = "schema-pre hidden";
+            body.appendChild(outPre);
+
+            runBtn.addEventListener("click", async () => {
+              outPre.classList.remove("hidden");
+              outPre.textContent = "Executing...";
+              try {
+                const res = await rawCall(method, pathInput.value.trim(), bodyArea ? bodyArea.value : null);
+                outPre.textContent = `HTTP ${res.status}\n${res.text}`;
+              } catch (err) {
+                outPre.textContent = `Error: ${err.message || err}`;
+              }
+            });
+
+            card.appendChild(summary);
+            card.appendChild(body);
+            section.appendChild(card);
+          });
+
+          container.appendChild(section);
+        });
+      }
+
+      async function boot() {
+        try {
+          const res = await rawCall("GET", "/openapi.json", null);
+          spec = JSON.parse(res.text);
+          document.getElementById("api-title").textContent = spec.info.title || "Bijou API";
+          document.getElementById("api-description").textContent = spec.info.description || "";
+          document.getElementById("docs-version-badge").textContent = `v${spec.info.version || "2.0.0"} · OFFLINE`;
+          render("");
+        } catch (err) {
+          document.getElementById("api-description").textContent = `Failed to load OpenAPI spec: ${err.message || err}`;
+        }
+      }
+
+      filterInput.addEventListener("input", () => render(filterInput.value));
+      boot();
+    })();
+  </script>
+</body>
+
+</html>
+

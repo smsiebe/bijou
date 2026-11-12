@@ -6,9 +6,8 @@ Complete technical reference for the **Bijou REST API** (`/api/v1/...`), self-ho
 
 ## 1. Self-Hosted OpenAPI & HTTP Conventions
 
-When running the Bijou server (`bijou --mode standalone --port 8000`), FastAPI exposes full interactive documentation automatically:
-- **Swagger UI**: `/docs`
-- **ReDoc**: `/redoc`
+When running the Bijou server (`bijou --mode standalone --port 8000`), FastAPI exposes full interactive documentation with **zero external CDN dependencies** (suitable for air-gapped networks):
+- **Offline Interactive API Explorer**: `/docs` (and `/redoc`) — pure Vanilla JS explorer backed directly by `/openapi.json`
 - **OpenAPI 3.1 JSON**: `/openapi.json` (also exported offline to [`docs/openapi.json`](openapi.json) via `scripts/export_openapi.py`)
 
 ### Conventions

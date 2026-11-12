@@ -16,7 +16,7 @@
 - **Efforts** (stateful capability programs with optional resource requirements, delivery risks, mitigators, and explicit or dependency-relative timing)
 - **6 Typed Relationships with Pedigree** (`OrgOrgEdge`, `OrgInterestEdge`, `InterestInterestEdge`, `OrgEffortEdge`, `EffortInterestEdge`, `EffortEffortEdge`)
 
-Bijou ships as a single Python package (`bijou`) bundling the FastAPI engine, SQLite + DuckDB stores, offline Vanilla JS/SVG Web UI, CLI entrypoints (`bijou`, `bijou-ingest`), and the integrated Python client SDK (`bijou.sdk`).
+Bijou ships as a single PyPI distribution (`bijou-portfolio`, import namespace `bijou`) bundling the FastAPI engine, SQLite + DuckDB stores, offline Vanilla JS/SVG Web UI, CLI entrypoints (`bijou`, `bijou-ingest`), and the integrated Python client SDK (`bijou.sdk`).
 
 ---
 
@@ -41,13 +41,29 @@ Bijou ships as a single Python package (`bijou`) bundling the FastAPI engine, SQ
 
 ### 1. Installation
 
-Install from source (or PyPI wheel once published):
+Install from PyPI (`pip install bijou-portfolio`) or from source:
 
 ```bash
+pip install bijou-portfolio
+# or from local source checkout:
 pip install -e ".[dev]"
 ```
 
-The single `bijou` wheel includes the backend API, CLI, Web UI static assets, and `bijou.sdk`.
+The single `bijou-portfolio` wheel includes the backend API, CLI, Web UI static assets (plus offline OpenAPI explorer), and `bijou.sdk` (keeping the `bijou` import namespace).
+
+#### Air-Gapped / Corporate Firewall Transfer
+
+When moving across a firewall into an internet-isolated network, gather platform-matched wheels (including compiled wheels such as `duckdb` and `pydantic-core`) on the connected side first:
+
+```bash
+# Example for Windows x64 + Python 3.12
+pip download bijou-portfolio -d ./wheelhouse --only-binary=:all: --platform win_amd64 --python-version 3.12
+
+# On the air-gapped target machine:
+pip install --no-index --find-links=./wheelhouse bijou-portfolio
+```
+
+Note for locked-down corporate hosts: if the current directory is read-only, Bijou automatically stores its SQLite and DuckDB files in `~/.bijou/`, or you can use `bijou --host 127.0.0.1` / `BijouDesktopBridge` to avoid Windows Firewall prompts.
 
 ### 2. Launch the Application
 
@@ -55,10 +71,9 @@ The single `bijou` wheel includes the backend API, CLI, Web UI static assets, an
 bijou --mode standalone --port 8000
 ```
 
-- **Web UI**: `http://0.0.0.0:8000/`
-- **Interactive OpenAPI (Swagger UI)**: `http://0.0.0.0:8000/docs`
-- **ReDoc**: `http://0.0.0.0:8000/redoc`
-- **OpenAPI 3.1 Schema**: `http://0.0.0.0:8000/openapi.json`
+- **Web UI**: `http://0.0.0.0:8000/` (or `http://localhost:8000/` in a local browser)
+- **Offline Interactive API Explorer**: `http://localhost:8000/docs` (also `/redoc`, zero external CDNs)
+- **OpenAPI 3.1 Schema**: `http://localhost:8000/openapi.json`
 
 ### 3. Ingest Reference Data
 

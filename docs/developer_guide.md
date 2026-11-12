@@ -4,7 +4,7 @@
 
 ## 1. Environment Setup
 
-Bijou ships as a single Python package (`bijou`) containing the server, CLI (`bijou`, `bijou-ingest`), offline Web UI (`bijou/web/static/`), and Python SDK (`bijou.sdk`).
+Bijou ships as a single PyPI distribution (`bijou-portfolio`, Python import namespace `bijou`) containing the server, CLI (`bijou`, `bijou-ingest`), offline Web UI (`bijou/web/static/`), and Python SDK (`bijou.sdk`).
 
 ```bash
 git clone https://github.com/smsiebe/bijou.git
@@ -92,4 +92,11 @@ Because `pyproject.toml` includes `[tool.setuptools.package-data]` (`bijou = ["w
 python -m build
 twine check dist/*
 # twine upload dist/*
+```
+
+For air-gapped environments, pre-collect all transitive platform wheels before crossing the firewall:
+
+```bash
+pip download bijou-portfolio -d ./wheelhouse --only-binary=:all: --platform win_amd64 --python-version 3.12
+pip install --no-index --find-links=./wheelhouse bijou-portfolio
 ```
