@@ -18,6 +18,9 @@
       this.getSnapshot = opts.getSnapshot; // () => { treeView, triView, zoom, canvasMode }
       this.onGraphMutated = opts.onGraphMutated;
       this.onInspectEntity = opts.onInspectEntity;
+      this.onFocusNode = opts.onFocusNode;
+      this.onResetGraph = opts.onResetGraph;
+      this.isFiltered = opts.isFiltered;
       this.onStageSlip = opts.onStageSlip;
       this.onOpenCart = opts.onOpenCart;
       this.onOpenStudio = opts.onOpenStudio;
@@ -71,19 +74,19 @@
             </div>
             <form id="graph-node-form" class="studio-form graph-modal-body">
               <div class="form-row-2">
-                <label>Entity Type
+                <label>What are you adding?
                   <select id="gm-node-kind">
-                    <option value="effort">Capability Effort</option>
-                    <option value="organization">Organization</option>
-                    <option value="interest">Interest / Priority</option>
+                    <option value="effort">Work Effort / Project</option>
+                    <option value="organization">Organization / Stakeholder</option>
+                    <option value="interest">Mission Goal / Topic</option>
                   </select>
                 </label>
-                <label>Entity ID
+                <label>Short Reference ID
                   <input type="text" id="gm-node-id" required placeholder="eff-new-item" />
                 </label>
               </div>
-              <label>Display Name
-                <input type="text" id="gm-node-name" required placeholder="Short descriptive title" />
+              <label>Title / Name
+                <input type="text" id="gm-node-name" required placeholder="Short clear title" />
               </label>
               <div id="gm-node-dynamic-fields" class="studio-form"></div>
               <label>Description / Scope
@@ -120,25 +123,25 @@
             <form id="graph-edge-form" class="studio-form graph-modal-body">
               <div class="edge-endpoints-bar" id="gm-edge-endpoints-bar"></div>
               <div id="gm-edge-manual-selectors" class="form-row-2 hidden">
-                <label>Source Entity
+                <label>First Item (A)
                   <select id="gm-edge-src-select"></select>
                 </label>
-                <label>Target Entity
+                <label>Second Item (B)
                   <select id="gm-edge-dst-select"></select>
                 </label>
               </div>
               <div id="gm-edge-norm-note" class="hint-banner hidden"></div>
               <div id="gm-edge-dynamic-fields" class="studio-form"></div>
               <div class="form-row-2">
-                <label>Pedigree Confidence
+                <label>How certain is this link?
                   <select id="gm-edge-conf">
-                    <option value="CONFIRMED">CONFIRMED</option>
-                    <option value="ASSESSED">ASSESSED</option>
-                    <option value="UNCONFIRMED">UNCONFIRMED</option>
+                    <option value="CONFIRMED">Confirmed (Verified / Documented)</option>
+                    <option value="ASSESSED">Likely (Analytical Judgment)</option>
+                    <option value="UNCONFIRMED">Draft / Unconfirmed Assumption</option>
                   </select>
                 </label>
-                <label>Provenance Note
-                  <input type="text" id="gm-edge-prov" placeholder="Source doc or assessment basis" />
+                <label>Source or Context Note (Optional)
+                  <input type="text" id="gm-edge-prov" placeholder="Document, meeting, or rationale" />
                 </label>
               </div>
               <div id="gm-edge-error" class="hint-banner warn hidden"></div>
@@ -391,14 +394,16 @@
 
     showCanvasMenu(clientX, clientY, worldPt) {
       const { escapeHtml } = global.BijouApi;
+      const filtered = this.isFiltered ? this.isFiltered() : false;
       this.menuEl.innerHTML = `
-        <div class="gcm-header">Graph Canvas Actions</div>
-        <button type="button" class="gcm-item" data-act="create" data-kind="effort">+ Create Effort Here</button>
+        <div class="gcm-header">Graph Actions</div>
+        <button type="button" class="gcm-item" data-act="create" data-kind="effort">+ Create Work Effort Here</button>
         <button type="button" class="gcm-item" data-act="create" data-kind="organization">+ Create Organization Here</button>
-        <button type="button" class="gcm-item" data-act="create" data-kind="interest">+ Create Interest Here</button>
+        <button type="button" class="gcm-item" data-act="create" data-kind="interest">+ Create Goal / Interest Here</button>
         <div class="gcm-divider"></div>
-        <button type="button" class="gcm-item" data-act="create-edge">+ Connect Two Entities...</button>
-        <div class="gcm-meta mono-text">World (${Math.round(worldPt.x)}, ${Math.round(worldPt.y)})</div>
+        <button type="button" class="gcm-item" data-act="create-edge">+ Connect Two Items...</button>
+        ${filtered ? '<button type="button" class="gcm-item" data-act="reset-graph">Reset Graph Filters &amp; Show All</button>' : ""}
+        <div class="gcm-meta mono-text">Canvas (${Math.round(worldPt.x)}, ${Math.round(worldPt.y)})</div>
       `;
 
       this.menuEl.querySelectorAll("[data-act='create']").forEach((btn) => {
@@ -417,6 +422,11 @@
         this.openEdgeModal(null, null);
       });
 
+      this.menuEl.querySelector("[data-act='reset-graph']")?.addEventListener("click", () => {
+        this.hideMenu();
+        this.onResetGraph?.();
+      });
+
       this.positionMenu(clientX, clientY);
       void escapeHtml;
     }
@@ -426,13 +436,19 @@
       const isEffort = entity.kind === "effort";
       this.menuEl.innerHTML = `
         <div class="gcm-header">${escapeHtml(entity.kind.toUpperCase())}: ${escapeHtml(entity.label)}</div>
+        <button type="button" class="gcm-item" data-act="focus">Isolate "${escapeHtml(entity.label)}" &amp; Connections</button>
         <button type="button" class="gcm-item" data-act="connect">Connect "${escapeHtml(entity.label)}" → Target...</button>
-        <button type="button" class="gcm-item" data-act="edit">Quick Edit Node</button>
-        <button type="button" class="gcm-item" data-act="inspect">Inspect Focal Dashboard</button>
-        ${isEffort ? '<div class="gcm-divider"></div><button type="button" class="gcm-item" data-act="stage-slip">Stage +30d Slip Shock in Cart</button>' : ""}
+        <button type="button" class="gcm-item" data-act="edit">Quick Edit</button>
+        <button type="button" class="gcm-item" data-act="inspect">Inspect Full Details</button>
+        ${isEffort ? '<div class="gcm-divider"></div><button type="button" class="gcm-item" data-act="stage-slip">Test +30d Delay in Cart</button>' : ""}
         <div class="gcm-divider"></div>
         <button type="button" class="gcm-item gcm-danger" data-act="delete">Delete "${escapeHtml(entity.label)}"</button>
       `;
+
+      this.menuEl.querySelector("[data-act='focus']")?.addEventListener("click", () => {
+        this.hideMenu();
+        this.onFocusNode?.(entity);
+      });
 
       this.menuEl.querySelector("[data-act='connect']")?.addEventListener("click", () => {
         this.hideMenu();
@@ -578,23 +594,23 @@
         if (k === "effort") {
           dyn.innerHTML = `
             <div class="form-row-2">
-              <label>State
+              <label>Current Status
                 <select id="gm-eff-state">
-                  <option value="COMPLETED">COMPLETED</option>
-                  <option value="IN_WORK">IN_WORK</option>
-                  <option value="BACKLOGGED">BACKLOGGED</option>
-                  <option value="PLANNED">PLANNED</option>
-                  <option value="DISCOVERY_PENDING">DISCOVERY_PENDING</option>
-                  <option value="CANCELLED">CANCELLED</option>
+                  <option value="COMPLETED">Completed / Done</option>
+                  <option value="IN_WORK">In Progress / Active</option>
+                  <option value="PLANNED">Planned / Future</option>
+                  <option value="BACKLOGGED">Backlogged / On Hold</option>
+                  <option value="DISCOVERY_PENDING">Needs Discovery / Scoping</option>
+                  <option value="CANCELLED">Cancelled</option>
                 </select>
               </label>
-              <label>Est. Duration (Days)
-                <input type="number" min="1" id="gm-eff-days" placeholder="Unknown" />
+              <label>Estimated Duration (Days)
+                <input type="number" min="1" id="gm-eff-days" placeholder="Optional / Unknown" />
               </label>
             </div>
             <div class="form-row-2">
               <label>Start Date (Optional) <input type="date" id="gm-eff-start" /></label>
-              <label>End Date (Optional) <input type="date" id="gm-eff-end" /></label>
+              <label>Target Finish Date (Optional) <input type="date" id="gm-eff-end" /></label>
             </div>
           `;
           document.getElementById("gm-eff-state").value = existingRecord?.state || "PLANNED";
@@ -840,20 +856,22 @@
         const dynEl = document.getElementById("gm-edge-dynamic-fields");
 
         const pillNames = {
-          org_org: "ORG → ORG (HIERARCHY / COLLABORATION)",
-          org_interest: "ORG → INTEREST (STANCE & PRIORITY)",
-          interest_interest: "INTEREST → INTEREST (TAXONOMY DAG)",
-          org_effort: "ORG → EFFORT (DIRECT RESOURCING)",
-          effort_interest: "EFFORT → INTEREST (CAPABILITY ALIGNMENT)",
-          effort_effort: "EFFORT → EFFORT (DEPENDENCY)",
+          org_org: "PARTNERSHIP OR HIERARCHY",
+          org_interest: "ORGANIZATION PRIORITY",
+          interest_interest: "GOAL / TOPIC RELATIONSHIP",
+          org_effort: "SUPPORT & RESOURCING",
+          effort_interest: "WORK TO GOAL ALIGNMENT",
+          effort_effort: "WORK DEPENDENCY",
         };
+        const friendlyKind = (k) =>
+          k === "organization" ? "Org" : k === "interest" ? "Goal" : "Effort";
         document.getElementById("edge-modal-pill").textContent = pillNames[edgeCategory];
-        document.getElementById("edge-modal-title").textContent = `${src.label} → ${dst.label}`;
+        document.getElementById("edge-modal-title").textContent = `Link: ${src.label} ↔ ${dst.label}`;
 
         barEl.innerHTML = `
-          <span class="endpoint-badge kind-${escapeHtml(src.kind)}">${escapeHtml(src.kind.toUpperCase())}: ${escapeHtml(src.label)}</span>
-          <span class="endpoint-arrow">→</span>
-          <span class="endpoint-badge kind-${escapeHtml(dst.kind)}">${escapeHtml(dst.kind.toUpperCase())}: ${escapeHtml(dst.label)}</span>
+          <span class="endpoint-badge kind-${escapeHtml(src.kind)}">${escapeHtml(friendlyKind(src.kind))}: ${escapeHtml(src.label)}</span>
+          <span class="endpoint-arrow">↔</span>
+          <span class="endpoint-badge kind-${escapeHtml(dst.kind)}">${escapeHtml(friendlyKind(dst.kind))}: ${escapeHtml(dst.label)}</span>
         `;
 
         if (note) {
@@ -863,7 +881,7 @@
           noteEl.classList.add("hidden");
         }
 
-        // Allow swap only on homogeneous edges
+        // Allow swapping ends on same-type edges for convenience
         if (src.kind === dst.kind) {
           swapBtn.classList.remove("hidden");
           swapBtn.onclick = () => {
@@ -876,17 +894,22 @@
 
         if (edgeCategory === "effort_effort") {
           dynEl.innerHTML = `
-            <div class="form-row-2">
-              <label>Blocking Mode
-                <select id="ge-blocking">
-                  <option value="BLOCKING">BLOCKING (Upstream gates Downstream)</option>
-                  <option value="NON_BLOCKING_INFORMS">NON_BLOCKING_INFORMS</option>
-                </select>
-              </label>
-              <label>Dependency Degree (0.0 – 1.0)
-                <input type="number" step="0.1" min="0" max="1" value="1.0" id="ge-degree" />
-              </label>
-            </div>
+            <label>How do these two efforts depend on each other?
+              <select id="ge-ee-choice">
+                <option value="AB|BLOCKING">"${escapeHtml(src.label)}" must finish before "${escapeHtml(dst.label)}" can complete (Blocking)</option>
+                <option value="BA|BLOCKING">"${escapeHtml(dst.label)}" must finish before "${escapeHtml(src.label)}" can complete (Blocking)</option>
+                <option value="AB|NON_BLOCKING_INFORMS">"${escapeHtml(src.label)}" shares useful insights with "${escapeHtml(dst.label)}" without delaying schedule</option>
+                <option value="BA|NON_BLOCKING_INFORMS">"${escapeHtml(dst.label)}" shares useful insights with "${escapeHtml(src.label)}" without delaying schedule</option>
+              </select>
+            </label>
+            <label>How strong is this dependency?
+              <select id="ge-degree">
+                <option value="1.0">Critical / Direct Handoff</option>
+                <option value="0.75">Strong Dependency</option>
+                <option value="0.5">Moderate Influence</option>
+                <option value="0.25">Light Advisory Input</option>
+              </select>
+            </label>
           `;
         } else if (edgeCategory === "org_effort") {
           const orgPools = cat.pools.filter((p) => p.org_id === src.id);
@@ -895,35 +918,35 @@
 
           dynEl.innerHTML = `
             <div class="form-row-2">
-              <label>Resource Pool (Color-of-Money)
+              <label>Funding / Resource Pool (Optional)
                 <select id="ge-pool">
-                  <option value="">Generic / Unmanaged Contribution</option>
+                  <option value="">General / Unspecified Support</option>
                   ${orgPools.map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)} (${p.capacity} ${escapeHtml(p.unit)})</option>`).join("")}
                 </select>
               </label>
-              <label>Target Requirement (Optional)
+              <label>Specific Need Filled (Optional)
                 <select id="ge-req">
-                  <option value="">General Effort Support</option>
+                  <option value="">General Support for this Work</option>
                   ${effReqs.map((r) => `<option value="${escapeHtml(r.id)}">${escapeHtml(r.label)} (${r.quantity} ${escapeHtml(r.unit)}${r.required_skill ? ` · ${escapeHtml(r.required_skill)}` : ""})</option>`).join("")}
                 </select>
               </label>
             </div>
             <div class="form-row-3">
-              <label>Category
+              <label>What is being provided?
                 <select id="ge-rtype">
-                  <option value="MONEY">MONEY</option>
-                  <option value="STAFF">STAFF</option>
-                  <option value="COMPUTE">COMPUTE</option>
-                  <option value="MATERIAL">MATERIAL</option>
-                  <option value="GENERIC_SUPPORT">GENERIC_SUPPORT</option>
+                  <option value="MONEY">Funding ($ Money)</option>
+                  <option value="STAFF">People / Staffing</option>
+                  <option value="COMPUTE">Compute / Servers</option>
+                  <option value="MATERIAL">Equipment / Material</option>
+                  <option value="GENERIC_SUPPORT">General Support</option>
                 </select>
               </label>
               <label>Amount <input type="number" step="any" min="0" value="100000" id="ge-amount" required /></label>
               <label>Unit <input type="text" value="USD" id="ge-unit" required /></label>
             </div>
             <div class="form-row-2">
-              <label>Assigned Skill / Spec <input type="text" id="ge-skill" placeholder="Optional skill tag" /></label>
-              <label>Slip Penalty (Days if Mismatch) <input type="number" min="0" id="ge-slip-penalty" placeholder="Default 30d" /></label>
+              <label>Assigned Specialty / Skill (Optional) <input type="text" id="ge-skill" placeholder="Optional specialty" /></label>
+              <label>Delay Estimate if Specialty Differs (Days) <input type="number" min="0" id="ge-slip-penalty" placeholder="Default 30 days" /></label>
             </div>
             <div id="ge-eligibility-hint" class="hint-banner hidden"></div>
           `;
@@ -948,10 +971,10 @@
                 const elig = new Set(pb.eligible_interest_ids || []);
                 const ok = (effNode.aligned_interest_ids || []).some((iid) => elig.has(iid));
                 if (ok) {
-                  hints.push(`Color-of-Money Eligible via ${pb.pool.name}`);
+                  hints.push(`Funding Rule Check: "${pb.pool.name}" is eligible for this effort.`);
                 } else {
                   warn = true;
-                  hints.push(`Color-of-Money Violation Warning: Effort does not align with ${pb.pool.name}'s earmarked Interests.`);
+                  hints.push(`Funding Rule Warning: "${pb.pool.name}" is earmarked for other goals (color-of-money mismatch).`);
                 }
               }
             }
@@ -960,7 +983,7 @@
               const assigned = skillInp.value.trim();
               if (req?.required_skill && assigned && req.required_skill.toLowerCase() !== assigned.toLowerCase()) {
                 warn = true;
-                hints.push(`Skill Mismatch: Requires "${req.required_skill}", assigning "${assigned}". Registers a Slip Risk.`);
+                hints.push(`Skill Mismatch Notice: Needs "${req.required_skill}", assigning "${assigned}". Adds a schedule risk.`);
               }
             }
 
@@ -995,57 +1018,71 @@
         } else if (edgeCategory === "effort_interest") {
           dynEl.innerHTML = `
             <div class="form-row-2">
-              <label>Alignment Relation
+              <label>How does "${escapeHtml(src.label)}" help "${escapeHtml(dst.label)}"?
                 <select id="ge-ei-rel">
-                  <option value="DIRECT_SOLUTION">DIRECT_SOLUTION</option>
-                  <option value="INDIRECT_ENABLER">INDIRECT_ENABLER</option>
-                  <option value="FUNDED_FOR">FUNDED_FOR</option>
-                  <option value="PARTIAL_ALIGNMENT">PARTIAL_ALIGNMENT</option>
+                  <option value="DIRECT_SOLUTION">Directly delivers or solves this goal</option>
+                  <option value="INDIRECT_ENABLER">Supports or enables progress toward it</option>
+                  <option value="FUNDED_FOR">Funded specifically to address it</option>
+                  <option value="PARTIAL_ALIGNMENT">Partially contributes / overlaps</option>
                 </select>
               </label>
-              <label>Impact Weight (0.0 – 1.0)
-                <input type="number" step="0.1" min="0" max="1" value="0.9" id="ge-ei-weight" />
+              <label>Contribution Impact
+                <select id="ge-ei-weight">
+                  <option value="1.0">Primary Driver (High Impact)</option>
+                  <option value="0.8">Major Contributor</option>
+                  <option value="0.5">Moderate Contributor</option>
+                  <option value="0.25">Minor Alignment</option>
+                </select>
               </label>
             </div>
           `;
         } else if (edgeCategory === "org_interest") {
           dynEl.innerHTML = `
             <div class="form-row-2">
-              <label>Org Stance
+              <label>What is "${escapeHtml(src.label)}"'s role on "${escapeHtml(dst.label)}"?
                 <select id="ge-oi-stance">
-                  <option value="MISSION_ALIGNED">MISSION_ALIGNED</option>
-                  <option value="RESPONSIBLE_OWNER">RESPONSIBLE_OWNER</option>
-                  <option value="DIRECT_INVESTOR">DIRECT_INVESTOR</option>
-                  <option value="BENEFICIARY">BENEFICIARY</option>
-                  <option value="PERCEIVED_GAP">PERCEIVED_GAP</option>
+                  <option value="MISSION_ALIGNED">Aligns with their mission</option>
+                  <option value="RESPONSIBLE_OWNER">Owns / is accountable for delivering it</option>
+                  <option value="DIRECT_INVESTOR">Directly funding or investing in it</option>
+                  <option value="BENEFICIARY">Benefits from progress (Customer / User)</option>
+                  <option value="PERCEIVED_GAP">Sees an unaddressed gap or need here</option>
                 </select>
               </label>
-              <label>Priority Rank (0.0 – 1.0)
-                <input type="number" step="0.05" min="0" max="1" value="0.8" id="ge-oi-prio" />
+              <label>How important is this to ${escapeHtml(src.label)}?
+                <select id="ge-oi-prio">
+                  <option value="1.0">Top / Critical Priority</option>
+                  <option value="0.8">High Priority</option>
+                  <option value="0.5">Medium Priority</option>
+                  <option value="0.25">Low / Watchlist</option>
+                </select>
               </label>
             </div>
             <label style="flex-direction:row;align-items:center;gap:8px">
-              <input type="checkbox" id="ge-oi-inherit" checked /> Allow Hierarchy Priority Inheritance
+              <input type="checkbox" id="ge-oi-inherit" checked /> Sub-teams should inherit this priority automatically
             </label>
           `;
         } else if (edgeCategory === "interest_interest") {
           dynEl.innerHTML = `
-            <label>Taxonomy Relation (Parent "${escapeHtml(src.label)}" → Child "${escapeHtml(dst.label)}")
-              <select id="ge-ii-rel">
-                <option value="SPECIALIZES">SPECIALIZES</option>
-                <option value="CONTRIBUTES_TO">CONTRIBUTES_TO</option>
-                <option value="RELATED_TO">RELATED_TO</option>
+            <label>How do these two goals or topics relate?
+              <select id="ge-ii-choice">
+                <option value="AB|SPECIALIZES">"${escapeHtml(src.label)}" is a broader category containing "${escapeHtml(dst.label)}"</option>
+                <option value="BA|SPECIALIZES">"${escapeHtml(dst.label)}" is a broader category containing "${escapeHtml(src.label)}"</option>
+                <option value="AB|CONTRIBUTES_TO">"${escapeHtml(src.label)}" helps advance "${escapeHtml(dst.label)}"</option>
+                <option value="BA|CONTRIBUTES_TO">"${escapeHtml(dst.label)}" helps advance "${escapeHtml(src.label)}"</option>
+                <option value="AB|RELATED_TO">"${escapeHtml(src.label)}" and "${escapeHtml(dst.label)}" are closely related topics</option>
               </select>
             </label>
           `;
         } else {
           dynEl.innerHTML = `
-            <label>Org Relationship Type
-              <select id="ge-oo-rel">
-                <option value="HIERARCHICAL_PARENT">HIERARCHICAL_PARENT</option>
-                <option value="FORMAL_SUPPORTING">FORMAL_SUPPORTING</option>
-                <option value="COLLABORATIVE_ADJACENT">COLLABORATIVE_ADJACENT</option>
-                <option value="CO_SPONSOR">CO_SPONSOR</option>
+            <label>How are "${escapeHtml(src.label)}" and "${escapeHtml(dst.label)}" connected?
+              <select id="ge-oo-choice">
+                <option value="AB|HIERARCHICAL_PARENT">"${escapeHtml(src.label)}" oversees / is parent organization of "${escapeHtml(dst.label)}"</option>
+                <option value="BA|HIERARCHICAL_PARENT">"${escapeHtml(dst.label)}" oversees / is parent organization of "${escapeHtml(src.label)}"</option>
+                <option value="AB|FORMAL_SUPPORTING">"${escapeHtml(src.label)}" formally supports "${escapeHtml(dst.label)}"</option>
+                <option value="BA|FORMAL_SUPPORTING">"${escapeHtml(dst.label)}" formally supports "${escapeHtml(src.label)}"</option>
+                <option value="AB|COLLABORATIVE_ADJACENT">"${escapeHtml(src.label)}" and "${escapeHtml(dst.label)}" collaborate closely</option>
+                <option value="AB|CO_SPONSOR">"${escapeHtml(src.label)}" and "${escapeHtml(dst.label)}" co-sponsor joint efforts</option>
               </select>
             </label>
           `;
@@ -1059,7 +1096,7 @@
         errEl.classList.add("hidden");
         const { src, dst, edgeCategory } = pairState;
         if (src.kind === dst.kind && src.id === dst.id) {
-          errEl.textContent = "Source and Target entities must be distinct.";
+          errEl.textContent = "Please select two different items to connect.";
           errEl.classList.remove("hidden");
           return;
         }
@@ -1071,11 +1108,14 @@
 
         try {
           if (edgeCategory === "effort_effort") {
+            const [dir, mode] = document.getElementById("ge-ee-choice").value.split("|");
+            const sId = dir === "BA" ? dst.id : src.id;
+            const dId = dir === "BA" ? src.id : dst.id;
             await global.BijouApi.upsertEffortEffortEdge({
               ...base,
-              source_effort_id: src.id,
-              target_effort_id: dst.id,
-              blocking_mode: document.getElementById("ge-blocking").value,
+              source_effort_id: sId,
+              target_effort_id: dId,
+              blocking_mode: mode,
               dependency_degree: parseFloat(document.getElementById("ge-degree").value || "1"),
             });
           } else if (edgeCategory === "org_effort") {
@@ -1115,22 +1155,28 @@
               allow_hierarchy_inheritance: Boolean(document.getElementById("ge-oi-inherit").checked),
             });
           } else if (edgeCategory === "interest_interest") {
+            const [dir, rel] = document.getElementById("ge-ii-choice").value.split("|");
+            const pId = dir === "BA" ? dst.id : src.id;
+            const cId = dir === "BA" ? src.id : dst.id;
             await global.BijouApi.upsertInterestInterestEdge({
               ...base,
-              parent_interest_id: src.id,
-              child_interest_id: dst.id,
-              relation_type: document.getElementById("ge-ii-rel").value,
+              parent_interest_id: pId,
+              child_interest_id: cId,
+              relation_type: rel,
             });
           } else {
+            const [dir, rel] = document.getElementById("ge-oo-choice").value.split("|");
+            const sId = dir === "BA" ? dst.id : src.id;
+            const dId = dir === "BA" ? src.id : dst.id;
             await global.BijouApi.upsertOrgOrgEdge({
               ...base,
-              source_org_id: src.id,
-              target_org_id: dst.id,
-              relation_type: document.getElementById("ge-oo-rel").value,
+              source_org_id: sId,
+              target_org_id: dId,
+              relation_type: rel,
             });
           }
 
-          this.notify?.(`Created relationship: ${src.label} → ${dst.label}`, "success");
+          this.notify?.(`Connected "${src.label}" and "${dst.label}".`, "success");
           this.closeEdgeModal();
           await this.onGraphMutated?.();
         } catch (err) {

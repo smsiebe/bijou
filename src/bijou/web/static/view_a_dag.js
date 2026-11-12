@@ -25,14 +25,29 @@
     worldEl,
     clusterBy = "state",
     impactedIds = [],
+    focusNodeKey = null,
     onSelectEffort,
   }) {
     const { escapeHtml, fmtUsd, fmtForecast } = global.BijouApi;
     svgEl.innerHTML = "";
     domEl.innerHTML = "";
 
-    const nodes = treeView?.nodes || [];
-    const edges = treeView?.effort_edges || [];
+    let nodes = treeView?.nodes || [];
+    let edges = treeView?.effort_edges || [];
+
+    if (focusNodeKey && focusNodeKey.startsWith("effort:")) {
+      const targetEid = focusNodeKey.slice(7);
+      if (nodes.some((n) => n.effort.id === targetEid)) {
+        const keepEffs = new Set([targetEid]);
+        edges.forEach((edge) => {
+          if (edge.source_effort_id === targetEid) keepEffs.add(edge.target_effort_id);
+          if (edge.target_effort_id === targetEid) keepEffs.add(edge.source_effort_id);
+        });
+        nodes = nodes.filter((n) => keepEffs.has(n.effort.id));
+        edges = edges.filter((e) => keepEffs.has(e.source_effort_id) && keepEffs.has(e.target_effort_id));
+      }
+    }
+
     if (!nodes.length) {
       domEl.innerHTML = '<div class="empty-state">No Efforts match the current filter criteria. Right-click canvas to create an Effort.</div>';
       worldEl.style.width = "100%";
@@ -142,7 +157,9 @@
 
         const eff = node.effort;
         const card = document.createElement("div");
-        card.className = `effort-card state-${escapeHtml(eff.state)}${impactedSet.has(eff.id) ? " impacted" : ""}`;
+        card.className = `effort-card state-${escapeHtml(eff.state)}${impactedSet.has(eff.id) ? " impacted" : ""}${
+          focusNodeKey === `effort:${eff.id}` ? " focus-root" : ""
+        }`;
         card.dataset.effortId = eff.id;
         card.dataset.nodeKey = `effort:${eff.id}`;
         card.dataset.entityKind = "effort";

@@ -2,6 +2,7 @@
    Bijou v2 Global Neural Graph View
    Free-Floating Force-Directed & Draggable Neural Topology
    Renders Organizations, Efforts, and Interests together with all 6 Typed Edges,
+   AABB Zero-Overlap Solver, Type/Entity Filtering, Focus Isolation,
    Hover Neighborhood Emphasis, Live Node Repositioning & Connect Ports
    ========================================================================== */
 
@@ -10,6 +11,10 @@
 
   const SVG_NS = "http://www.w3.org/2000/svg";
   const STORAGE_KEY = "bijou_neural_positions_v1";
+  const NODE_W = 196;
+  const NODE_H = 82;
+  const GAP_X = 24;
+  const GAP_Y = 22;
 
   const positionCache = new Map();
   const pinnedKeys = new Set();
@@ -47,7 +52,7 @@
   function setSpawnPosition(kind, id, x, y) {
     const prefix = kind === "organization" ? "org" : kind;
     const key = `${prefix}:${id}`;
-    positionCache.set(key, { x: Math.max(24, x - 96), y: Math.max(24, y - 36) });
+    positionCache.set(key, { x: Math.max(24, x - NODE_W / 2), y: Math.max(24, y - NODE_H / 2) });
     pinnedKeys.add(key);
     persistPositions();
   }
@@ -71,6 +76,67 @@
     return h >>> 0;
   }
 
+  function resolveOverlaps(coords, items, minW, minH) {
+    const keys = items.map((it) => it.key);
+    const reqX = minW;
+    const reqY = minH;
+
+    for (let pass = 0; pass < 36; pass += 1) {
+      let anyMoved = false;
+      for (let i = 0; i < keys.length; i += 1) {
+        const ka = keys[i];
+        const pa = coords.get(ka);
+        for (let j = i + 1; j < keys.length; j += 1) {
+          const kb = keys[j];
+          const pb = coords.get(kb);
+
+          const dx = pa.x - pb.x;
+          const dy = pa.y - pb.y;
+          const overlapX = reqX - Math.abs(dx);
+          const overlapY = reqY - Math.abs(dy);
+
+          if (overlapX > 0 && overlapY > 0) {
+            anyMoved = true;
+            const pinA = pinnedKeys.has(ka);
+            const pinB = pinnedKeys.has(kb);
+            // If user explicitly pinned both nodes side-by-side, respect manual placement on pass > 0
+            if (pinA && pinB) continue;
+
+            // Choose minimum separation axis; break dead-center ties deterministically
+            let pushX = 0;
+            let pushY = 0;
+            if (overlapX < overlapY) {
+              const dirX = dx === 0 ? (i % 2 === 0 ? 1 : -1) : Math.sign(dx);
+              pushX = dirX * (overlapX + 2);
+            } else {
+              const dirY = dy === 0 ? (j % 2 === 0 ? 1 : -1) : Math.sign(dy);
+              pushY = dirY * (overlapY + 2);
+            }
+
+            if (pinA && !pinB) {
+              pb.x -= pushX;
+              pb.y -= pushY;
+            } else if (!pinA && pinB) {
+              pa.x += pushX;
+              pa.y += pushY;
+            } else {
+              pa.x += pushX * 0.5;
+              pa.y += pushY * 0.5;
+              pb.x -= pushX * 0.5;
+              pb.y -= pushY * 0.5;
+            }
+
+            pa.x = Math.max(24, pa.x);
+            pa.y = Math.max(40, pa.y);
+            pb.x = Math.max(24, pb.x);
+            pb.y = Math.max(40, pb.y);
+          }
+        }
+      }
+      if (!anyMoved) break;
+    }
+  }
+
   function computeForceLayout(items, edges, width, height) {
     const coords = new Map();
     const n = items.length;
@@ -79,70 +145,62 @@
     const cx = width / 2;
     const cy = height / 2;
 
-    // Seed positions deterministically by ontology band + golden angle
+    // Seed positions deterministically by ontology sector + golden angle
     items.forEach((item, idx) => {
-      if (pinnedKeys.has(item.key) && positionCache.has(item.key)) {
-        coords.set(item.key, { ...positionCache.get(item.key) });
-        return;
-      }
       if (positionCache.has(item.key)) {
         coords.set(item.key, { ...positionCache.get(item.key) });
         return;
       }
       const golden = idx * 2.399963229728653;
       const jitter = (hashString(item.key) % 44) - 22;
-      let rx = Math.min(340, width * 0.33);
+      let rx = Math.min(340, width * 0.34);
       let ry = Math.min(210, height * 0.33);
       let baseAngle = golden;
       if (item.kind === "organization") {
-        rx = Math.min(360, width * 0.35);
+        rx = Math.min(380, width * 0.36);
         ry = Math.min(220, height * 0.34);
-        baseAngle = -Math.PI * 0.75 + (idx * 0.85);
+        baseAngle = -Math.PI * 0.78 + idx * 0.85;
       } else if (item.kind === "interest") {
-        rx = Math.min(360, width * 0.35);
+        rx = Math.min(380, width * 0.36);
         ry = Math.min(220, height * 0.34);
-        baseAngle = Math.PI * 0.25 + (idx * 0.85);
+        baseAngle = Math.PI * 0.22 + idx * 0.85;
       } else {
-        rx = 160 + (idx % 3) * 55;
-        ry = 115 + (idx % 2) * 50;
+        rx = 165 + (idx % 3) * 65;
+        ry = 120 + (idx % 2) * 55;
       }
       coords.set(item.key, {
-        x: Math.max(28, Math.min(width - 230, cx + Math.cos(baseAngle) * rx + jitter - 95)),
-        y: Math.max(36, Math.min(height - 110, cy + Math.sin(baseAngle) * ry + jitter - 38)),
+        x: Math.max(28, Math.min(width - NODE_W - 28, cx + Math.cos(baseAngle) * rx + jitter - NODE_W / 2)),
+        y: Math.max(40, Math.min(height - NODE_H - 36, cy + Math.sin(baseAngle) * ry + jitter - NODE_H / 2)),
       });
     });
 
     // Run lightweight Fruchterman-Reingold iterations on unpinned nodes
-    const nodeW = 200;
-    const nodeH = 88;
     const area = width * height;
-    const kDist = Math.sqrt(area / Math.max(n, 4)) * 0.88;
-    const iterations = 135;
+    const kDist = Math.sqrt(area / Math.max(n, 4)) * 0.92;
+    const iterations = 130;
 
     for (let iter = 0; iter < iterations; iter += 1) {
       const disp = new Map();
       items.forEach((it) => disp.set(it.key, { dx: 0, dy: 0 }));
 
-      // Pairwise repulsion + overlap box separation
       for (let i = 0; i < n; i += 1) {
         const a = items[i];
         const pa = coords.get(a.key);
         for (let j = i + 1; j < n; j += 1) {
           const b = items[j];
           const pb = coords.get(b.key);
-          let vx = pa.x - pb.x;
-          let vy = pa.y - pb.y;
+          const vx = pa.x - pb.x;
+          const vy = pa.y - pb.y;
           const dist = Math.hypot(vx, vy) || 0.01;
-          const rep = (kDist * kDist) / (dist * 1.1);
+          const rep = (kDist * kDist) / (dist * 1.05);
           const ux = vx / dist;
           const uy = vy / dist;
 
-          // Strong soft box separation when cards overlap
-          const overlapX = nodeW + 26 - Math.abs(vx);
-          const overlapY = nodeH + 22 - Math.abs(vy);
-          const boxPush = overlapX > 0 && overlapY > 0 ? Math.min(overlapX, overlapY) * 0.55 : 0;
+          const overlapX = NODE_W + GAP_X - Math.abs(vx);
+          const overlapY = NODE_H + GAP_Y - Math.abs(vy);
+          const boxPush = overlapX > 0 && overlapY > 0 ? Math.min(overlapX, overlapY) * 0.75 : 0;
 
-          const force = Math.min(48, rep * 0.08 + boxPush);
+          const force = Math.min(54, rep * 0.09 + boxPush);
           if (!pinnedKeys.has(a.key)) {
             disp.get(a.key).dx += ux * force;
             disp.get(a.key).dy += uy * force;
@@ -154,7 +212,6 @@
         }
       }
 
-      // Edge attraction
       edges.forEach((ed) => {
         const pa = coords.get(ed.a);
         const pb = coords.get(ed.b);
@@ -162,8 +219,8 @@
         const vx = pa.x - pb.x;
         const vy = pa.y - pb.y;
         const dist = Math.hypot(vx, vy) || 0.01;
-        const ideal = ed.kind === "indirect" ? kDist * 1.35 : kDist * 0.95;
-        const attr = ((dist - ideal) * 0.08) * (ed.kind === "indirect" ? 0.35 : 0.8);
+        const ideal = ed.kind === "indirect" ? kDist * 1.35 : kDist * 0.98;
+        const attr = (dist - ideal) * 0.07 * (ed.kind === "indirect" ? 0.3 : 0.75);
         const ux = vx / dist;
         const uy = vy / dist;
         if (!pinnedKeys.has(ed.a)) {
@@ -176,19 +233,42 @@
         }
       });
 
-      // Gentle gravity toward center
       items.forEach((it) => {
         if (pinnedKeys.has(it.key)) return;
         const p = coords.get(it.key);
         const d = disp.get(it.key);
-        d.dx += (cx - 98 - p.x) * 0.025;
-        d.dy += (cy - 42 - p.y) * 0.025;
+        d.dx += (cx - NODE_W / 2 - p.x) * 0.022;
+        d.dy += (cy - NODE_H / 2 - p.y) * 0.022;
 
         const maxStep = Math.max(4, 28 * (1 - iter / iterations));
         const mag = Math.hypot(d.dx, d.dy) || 1;
         const clamp = Math.min(mag, maxStep);
-        p.x = Math.max(28, Math.min(width - nodeW - 28, p.x + (d.dx / mag) * clamp));
-        p.y = Math.max(42, Math.min(height - nodeH - 32, p.y + (d.dy / mag) * clamp));
+        p.x = Math.max(24, p.x + (d.dx / mag) * clamp);
+        p.y = Math.max(40, p.y + (d.dy / mag) * clamp);
+      });
+    }
+
+    // Strict pairwise AABB collision pass to prevent card overlap cleanly
+    resolveOverlaps(coords, items, NODE_W + GAP_X, NODE_H + GAP_Y);
+
+    // If shifted slightly right/down off-screen, shift whole layout softly into positive margin
+    let minX = Infinity;
+    let minY = Infinity;
+    coords.forEach((p, key) => {
+      if (pinnedKeys.has(key)) return;
+      minX = Math.min(minX, p.x);
+      minY = Math.min(minY, p.y);
+    });
+    if (Number.isFinite(minX) && minX < 24) {
+      const shiftX = 24 - minX;
+      coords.forEach((p, key) => {
+        if (!pinnedKeys.has(key)) p.x += shiftX;
+      });
+    }
+    if (Number.isFinite(minY) && minY < 40) {
+      const shiftY = 40 - minY;
+      coords.forEach((p, key) => {
+        if (!pinnedKeys.has(key)) p.y += shiftY;
       });
     }
 
@@ -203,6 +283,12 @@
     worldEl,
     showStructural = true,
     showIndirect = true,
+    showOrgs = true,
+    showEfforts = true,
+    showInterests = true,
+    filterOrgIds = [],
+    filterInterestIds = [],
+    focusNodeKey = null,
     impactedIds = [],
     zoom = 1.0,
     onSelectEntity,
@@ -228,28 +314,28 @@
     const effName = Object.fromEntries(effortNodes.map((n) => [n.effort.id, n.effort.name]));
     const intrName = Object.fromEntries(interests.map((i) => [i.id, i.name]));
 
-    const items = [
+    const allItems = [
       ...orgs.map((o) => ({ key: `org:${o.id}`, kind: "organization", id: o.id, label: o.name, data: o })),
       ...effortNodes.map((n) => ({ key: `effort:${n.effort.id}`, kind: "effort", id: n.effort.id, label: n.effort.name, data: n })),
       ...interests.map((i) => ({ key: `interest:${i.id}`, kind: "interest", id: i.id, label: i.name, data: i })),
     ];
 
-    if (!items.length) {
+    if (!allItems.length) {
       domEl.innerHTML = '<div class="empty-state">No entities in graph yet. Right-click canvas to create an Organization, Interest, or Effort.</div>';
       worldEl.style.width = "1120px";
       worldEl.style.height = "680px";
       return;
     }
 
-    const linkPairs = [];
-    const connectionIndex = new Map();
+    const allLinks = [];
+    const fullConnIndex = new Map();
 
     function addLink(a, b, style) {
-      if (!connectionIndex.has(a)) connectionIndex.set(a, new Set());
-      if (!connectionIndex.has(b)) connectionIndex.set(b, new Set());
-      connectionIndex.get(a).add(b);
-      connectionIndex.get(b).add(a);
-      linkPairs.push({ a, b, ...style });
+      if (!fullConnIndex.has(a)) fullConnIndex.set(a, new Set());
+      if (!fullConnIndex.has(b)) fullConnIndex.set(b, new Set());
+      fullConnIndex.get(a).add(b);
+      fullConnIndex.get(b).add(a);
+      allLinks.push({ a, b, ...style });
     }
 
     (tree.org_effort_edges || []).forEach((e) =>
@@ -261,7 +347,7 @@
         kind: "org_effort",
         edgeCat: "org_effort_edge",
         edgeId: e.id,
-        label: `${orgName[e.org_id] || e.org_id} → ${effName[e.effort_id] || e.effort_id} (${e.resourcing_type}: ${e.allocation_amount} ${e.allocation_unit})`,
+        label: `${orgName[e.org_id] || e.org_id} resources ${effName[e.effort_id] || e.effort_id} (${e.resourcing_type}: ${e.allocation_amount} ${e.allocation_unit})`,
       })
     );
 
@@ -274,7 +360,7 @@
         kind: "eff_intr",
         edgeCat: "effort_interest_edge",
         edgeId: e.id,
-        label: `${effName[e.effort_id] || e.effort_id} → ${intrName[e.interest_id] || e.interest_id} (${e.relation_type})`,
+        label: `${effName[e.effort_id] || e.effort_id} advances ${intrName[e.interest_id] || e.interest_id} (${e.relation_type})`,
       })
     );
 
@@ -287,7 +373,7 @@
         kind: "eff_eff",
         edgeCat: "effort_effort_edge",
         edgeId: e.id,
-        label: `${effName[e.source_effort_id] || e.source_effort_id} → ${effName[e.target_effort_id] || e.target_effort_id} (${e.blocking_mode})`,
+        label: `${effName[e.source_effort_id] || e.source_effort_id} -> ${effName[e.target_effort_id] || e.target_effort_id} (${e.blocking_mode})`,
       })
     );
 
@@ -300,7 +386,7 @@
         kind: "org_intr",
         edgeCat: "org_interest_edge",
         edgeId: e.id,
-        label: `${orgName[e.org_id] || e.org_id} ↦ ${intrName[e.interest_id] || e.interest_id} (${e.stance})`,
+        label: `${orgName[e.org_id] || e.org_id} stance on ${intrName[e.interest_id] || e.interest_id} (${e.stance})`,
       })
     );
 
@@ -314,7 +400,7 @@
           kind: "org_org",
           edgeCat: "org_org_edge",
           edgeId: e.id,
-          label: `${orgName[e.source_org_id] || e.source_org_id} → ${orgName[e.target_org_id] || e.target_org_id} (${e.relation_type})`,
+          label: `${orgName[e.source_org_id] || e.source_org_id} -> ${orgName[e.target_org_id] || e.target_org_id} (${e.relation_type})`,
         })
       );
 
@@ -327,7 +413,7 @@
           kind: "intr_intr",
           edgeCat: "interest_interest_edge",
           edgeId: e.id,
-          label: `${intrName[e.parent_interest_id] || e.parent_interest_id} ⊃ ${intrName[e.child_interest_id] || e.child_interest_id} (${e.relation_type})`,
+          label: `${intrName[e.parent_interest_id] || e.parent_interest_id} contains ${intrName[e.child_interest_id] || e.child_interest_id}`,
         })
       );
     }
@@ -347,14 +433,73 @@
       );
     }
 
-    // Dynamic canvas sizing sized comfortably for laptop/desktop viewports
-    let worldW = Math.max(1140, 820 + items.length * 18);
-    let worldH = Math.max(620, 440 + items.length * 12);
-    const coords = computeForceLayout(items, linkPairs, worldW, worldH);
+    // Apply Focus Node + Org/Interest filters + Layer Visibility toggles
+    let allowedKeys = new Set(allItems.map((it) => it.key));
+
+    if (focusNodeKey && allItems.some((it) => it.key === focusNodeKey)) {
+      const fSet = new Set([focusNodeKey]);
+      (fullConnIndex.get(focusNodeKey) || new Set()).forEach((nb) => fSet.add(nb));
+      allowedKeys = fSet;
+    }
+
+    const orgF = (filterOrgIds || []).filter(Boolean);
+    const intrF = (filterInterestIds || []).filter(Boolean);
+
+    if (orgF.length > 0) {
+      const orgReach = new Set();
+      orgF.forEach((oid) => {
+        const k = `org:${oid}`;
+        orgReach.add(k);
+        (fullConnIndex.get(k) || new Set()).forEach((nb) => orgReach.add(nb));
+      });
+      allowedKeys = new Set([...allowedKeys].filter((k) => orgReach.has(k)));
+    }
+
+    if (intrF.length > 0) {
+      const intrReach = new Set();
+      intrF.forEach((iid) => {
+        const k = `interest:${iid}`;
+        intrReach.add(k);
+        (fullConnIndex.get(k) || new Set()).forEach((nb) => intrReach.add(nb));
+      });
+      allowedKeys = new Set([...allowedKeys].filter((k) => intrReach.has(k)));
+    }
+
+    const visibleItems = allItems.filter((it) => {
+      if (!allowedKeys.has(it.key)) return false;
+      if (it.kind === "organization" && !showOrgs) return false;
+      if (it.kind === "effort" && !showEfforts) return false;
+      if (it.kind === "interest" && !showInterests) return false;
+      return true;
+    });
+
+    if (!visibleItems.length) {
+      domEl.innerHTML =
+        '<div class="empty-state">All nodes filtered out by active toggles or focus filter. Click "Reset Graph" in the breadcrumb bar to restore.</div>';
+      worldEl.style.width = "1120px";
+      worldEl.style.height = "620px";
+      return;
+    }
+
+    const visibleSet = new Set(visibleItems.map((it) => it.key));
+    const linkPairs = allLinks.filter((lnk) => visibleSet.has(lnk.a) && visibleSet.has(lnk.b));
+
+    const connectionIndex = new Map();
+    linkPairs.forEach((lnk) => {
+      if (!connectionIndex.has(lnk.a)) connectionIndex.set(lnk.a, new Set());
+      if (!connectionIndex.has(lnk.b)) connectionIndex.set(lnk.b, new Set());
+      connectionIndex.get(lnk.a).add(lnk.b);
+      connectionIndex.get(lnk.b).add(lnk.a);
+    });
+
+    // Dynamic canvas sizing & overlap-free force layout
+    let worldW = Math.max(1140, 820 + visibleItems.length * 18);
+    let worldH = Math.max(640, 440 + visibleItems.length * 12);
+    const coords = computeForceLayout(visibleItems, linkPairs, worldW, worldH);
 
     coords.forEach((p) => {
-      worldW = Math.max(worldW, p.x + 260);
-      worldH = Math.max(worldH, p.y + 150);
+      worldW = Math.max(worldW, p.x + NODE_W + 64);
+      worldH = Math.max(worldH, p.y + NODE_H + 64);
     });
 
     worldEl.style.width = `${worldW}px`;
@@ -398,10 +543,10 @@
     }
 
     function computeCurveD(aPos, bPos, aEl, bEl, idxOffset) {
-      const aw = aEl?.offsetWidth || 196;
-      const ah = aEl?.offsetHeight || 78;
-      const bw = bEl?.offsetWidth || 196;
-      const bh = bEl?.offsetHeight || 78;
+      const aw = aEl?.offsetWidth || NODE_W;
+      const ah = aEl?.offsetHeight || NODE_H;
+      const bw = bEl?.offsetWidth || NODE_W;
+      const bh = bEl?.offsetHeight || NODE_H;
       const ax = aPos.x + aw / 2;
       const ay = aPos.y + ah / 2;
       const bx = bPos.x + bw / 2;
@@ -411,7 +556,7 @@
       const dist = Math.hypot(dx, dy) || 1;
       const nx = -dy / dist;
       const ny = dx / dist;
-      const curveBend = (idxOffset % 2 === 0 ? 1 : -1) * Math.min(48, 16 + (idxOffset * 10));
+      const curveBend = (idxOffset % 2 === 0 ? 1 : -1) * Math.min(48, 16 + idxOffset * 10);
       const mx = (ax + bx) / 2 + nx * curveBend;
       const my = (ay + by) / 2 + ny * curveBend;
       return `M ${ax.toFixed(1)} ${ay.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)}, ${bx.toFixed(1)} ${by.toFixed(1)}`;
@@ -427,11 +572,10 @@
       });
     }
 
-    // Create node cards first
-    items.forEach((item) => {
+    visibleItems.forEach((item) => {
       const pos = coords.get(item.key);
       const el = document.createElement("div");
-      el.className = `neural-node kind-${item.kind}`;
+      el.className = `neural-node kind-${item.kind}${focusNodeKey === item.key ? " focus-root" : ""}`;
       el.dataset.nodeKey = item.key;
       el.dataset.entityKind = item.kind;
       el.dataset.entityId = item.id;
@@ -477,7 +621,6 @@
         `;
       }
 
-      // Free-floating drag repositioning (left mouse button, excluding port handle)
       el.addEventListener("mousedown", (ev) => {
         if (ev.button !== 0 || ev.target.closest(".node-connect-port")) return;
         ev.stopPropagation();
@@ -533,7 +676,6 @@
       nodeEls.set(item.key, el);
     });
 
-    // Draw SVG curves after nodes are in DOM so dimensions are exact
     const pairCounters = new Map();
     const defs = document.createElementNS(SVG_NS, "defs");
     defs.innerHTML = `
@@ -580,4 +722,3 @@
     setSpawnPosition,
   };
 })(window);
-

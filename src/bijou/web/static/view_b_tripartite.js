@@ -17,8 +17,8 @@
     worldEl,
     showIndirect = true,
     showPartners = true,
+    focusNodeKey = null,
     impactedIds = [],
-    zoom = 1.0,
     onSelectEntity,
   }) {
     const { escapeHtml, fmtUsd, fmtForecast } = global.BijouApi;
@@ -31,15 +31,34 @@
       return;
     }
 
-    const scale = Number(zoom || 1) || 1;
     const impactedSet = new Set(impactedIds || []);
 
-    const orgs = tree.organizations || [];
-    const efforts = tree.nodes || [];
-    const interests = tree.interests || [];
+    let orgs = tree.organizations || [];
+    let efforts = tree.nodes || [];
+    let interests = tree.interests || [];
     const poolBalances = triView.pool_balances || [];
     const indirectBenefits = triView.indirect_benefits || [];
     const partnerships = triView.shared_interest_partnerships || [];
+
+    if (focusNodeKey) {
+      const fSet = new Set([focusNodeKey]);
+      const addNb = (a, b) => {
+        if (a === focusNodeKey) fSet.add(b);
+        if (b === focusNodeKey) fSet.add(a);
+      };
+      (tree.org_effort_edges || []).forEach((e) => addNb(`org:${e.org_id}`, `effort:${e.effort_id}`));
+      (tree.effort_interest_edges || []).forEach((e) => addNb(`effort:${e.effort_id}`, `interest:${e.interest_id}`));
+      (tree.org_interest_edges || []).forEach((e) => addNb(`org:${e.org_id}`, `interest:${e.interest_id}`));
+      (tree.effort_edges || tree.effort_effort_edges || []).forEach((e) => addNb(`effort:${e.source_effort_id}`, `effort:${e.target_effort_id}`));
+      (tree.org_org_edges || []).forEach((e) => addNb(`org:${e.source_org_id}`, `org:${e.target_org_id}`));
+      (tree.interest_interest_edges || []).forEach((e) => addNb(`interest:${e.parent_interest_id}`, `interest:${e.child_interest_id}`));
+      if (showIndirect) {
+        indirectBenefits.forEach((b) => addNb(`org:${b.beneficiary_org_id}`, `interest:${b.via_interest_id}`));
+      }
+      orgs = orgs.filter((o) => fSet.has(`org:${o.id}`));
+      efforts = efforts.filter((n) => fSet.has(`effort:${n.effort.id}`));
+      interests = interests.filter((i) => fSet.has(`interest:${i.id}`));
+    }
 
     const orgName = Object.fromEntries(orgs.map((o) => [o.id, o.name]));
     const effName = Object.fromEntries(efforts.map((n) => [n.effort.id, n.effort.name]));
@@ -64,7 +83,7 @@
       const opools = poolsByOrg[org.id] || [];
       const indCount = indirectBenefits.filter((b) => b.beneficiary_org_id === org.id).length;
       const el = document.createElement("div");
-      el.className = "tri-node kind-organization";
+      el.className = `tri-node kind-organization${focusNodeKey === `org:${org.id}` ? " focus-root" : ""}`;
       el.dataset.nodeKey = `org:${org.id}`;
       el.dataset.entityKind = "organization";
       el.dataset.entityId = org.id;
@@ -119,7 +138,7 @@
       .forEach((node) => {
         const eff = node.effort;
         const el = document.createElement("div");
-        el.className = `tri-node kind-effort${impactedSet.has(eff.id) ? " impacted" : ""}`;
+        el.className = `tri-node kind-effort${impactedSet.has(eff.id) ? " impacted" : ""}${focusNodeKey === `effort:${eff.id}` ? " focus-root" : ""}`;
         el.dataset.nodeKey = `effort:${eff.id}`;
         el.dataset.entityKind = "effort";
         el.dataset.entityId = eff.id;
@@ -160,7 +179,7 @@
     interests.forEach((intr) => {
       const parents = (childMap[intr.id] || []).map((pid) => intrName[pid] || pid);
       const el = document.createElement("div");
-      el.className = "tri-node kind-interest";
+      el.className = `tri-node kind-interest${focusNodeKey === `interest:${intr.id}` ? " focus-root" : ""}`;
       el.dataset.nodeKey = `interest:${intr.id}`;
       el.dataset.entityKind = "interest";
       el.dataset.entityId = intr.id;
@@ -294,16 +313,17 @@
 
     requestAnimationFrame(() => {
       const worldRect = worldEl.getBoundingClientRect();
+      const liveScale = (worldEl.offsetWidth ? worldRect.width / worldEl.offsetWidth : 1) || 1;
       const boxMap = new Map();
       domEl.querySelectorAll("[data-node-key]").forEach((el) => {
         const r = el.getBoundingClientRect();
         boxMap.set(el.dataset.nodeKey, {
-          left: (r.left - worldRect.left) / scale,
-          right: (r.right - worldRect.left) / scale,
-          top: (r.top - worldRect.top) / scale,
-          bottom: (r.bottom - worldRect.top) / scale,
-          cx: (r.left - worldRect.left + r.width / 2) / scale,
-          cy: (r.top - worldRect.top + r.height / 2) / scale,
+          left: (r.left - worldRect.left) / liveScale,
+          right: (r.right - worldRect.left) / liveScale,
+          top: (r.top - worldRect.top) / liveScale,
+          bottom: (r.bottom - worldRect.top) / liveScale,
+          cx: (r.left - worldRect.left + r.width / 2) / liveScale,
+          cy: (r.top - worldRect.top + r.height / 2) / liveScale,
         });
       });
 

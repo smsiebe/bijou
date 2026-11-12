@@ -94,6 +94,28 @@
             </label>
           </div>
           <div class="overlay-control hidden" id="view-neural-overlay-wrap">
+            <div class="type-toggle-group" aria-label="Visible Node Types">
+              <label class="toggle-chip type-pill-toggle" title="Show/Hide Organizations">
+                <input type="checkbox" id="neural-toggle-orgs" checked />
+                <span>Orgs</span>
+              </label>
+              <label class="toggle-chip type-pill-toggle" title="Show/Hide Work Efforts">
+                <input type="checkbox" id="neural-toggle-efforts" checked />
+                <span>Efforts</span>
+              </label>
+              <label class="toggle-chip type-pill-toggle" title="Show/Hide Interests & Goals">
+                <input type="checkbox" id="neural-toggle-interests" checked />
+                <span>Interests</span>
+              </label>
+            </div>
+            <div class="filter-popover-wrap" id="neural-org-filter-wrap">
+              <button type="button" class="btn btn-secondary btn-xs" id="btn-neural-org-filter">Orgs: All ▾</button>
+              <div class="filter-popover-menu hidden" id="neural-org-filter-menu"></div>
+            </div>
+            <div class="filter-popover-wrap" id="neural-intr-filter-wrap">
+              <button type="button" class="btn btn-secondary btn-xs" id="btn-neural-intr-filter">Interests: All ▾</button>
+              <div class="filter-popover-menu hidden" id="neural-intr-filter-menu"></div>
+            </div>
             <label class="toggle-chip">
               <input type="checkbox" id="view-neural-show-structural" checked />
               <span>Org &amp; Taxonomy Links</span>
@@ -103,7 +125,7 @@
               <span>Indirect Paths</span>
             </label>
             <button class="btn btn-secondary btn-xs" id="btn-neural-relayout"
-              title="Recompute force-directed layout">Re-Layout</button>
+              title="Recompute non-overlapping layout">Re-Layout</button>
           </div>
           <div class="zoom-controls">
             <button class="btn btn-secondary btn-xs" id="btn-zoom-out" title="Zoom Out">-</button>
@@ -118,20 +140,27 @@
 
       <div class="canvas-split-body">
         <div class="canvas-stage-wrap" id="canvas-stage-wrap">
-          <div class="canvas-legend" id="canvas-legend">
-            <span class="legend-item"><span class="dot dot-completed"></span> Completed</span>
-            <span class="legend-item"><span class="dot dot-inwork"></span> In Work</span>
-            <span class="legend-item"><span class="dot dot-planned"></span> Planned / Discovery</span>
-            <span class="legend-item"><span class="line-sample solid"></span> Blocking</span>
-            <span class="legend-item"><span class="line-sample dashed"></span> Informs / Indirect</span>
-            <span class="legend-item"><span class="spof-sample">SPOF</span> Bottleneck</span>
-            <span class="legend-item legend-tip">Right-click to create/edit · Drag ● handle to connect</span>
+          <div class="canvas-breadcrumb-bar hidden" id="canvas-breadcrumb-bar" aria-label="Graph Filter History">
+            <button type="button" class="btn btn-secondary btn-xs" id="btn-breadcrumb-back" disabled>← Back</button>
+            <div class="breadcrumb-trail" id="breadcrumb-trail"></div>
+            <button type="button" class="btn btn-danger-outline btn-xs" id="btn-breadcrumb-reset">Reset Graph</button>
           </div>
-          <div class="canvas-viewport" id="canvas-viewport">
-            <div class="canvas-world" id="canvas-world">
-              <svg class="canvas-svg-layer" id="canvas-svg-layer"></svg>
-              <div class="canvas-dom-layer" id="canvas-dom-layer"></div>
-              <svg class="canvas-drag-svg" id="canvas-drag-svg"></svg>
+          <div class="canvas-viewport-frame">
+            <div class="canvas-legend" id="canvas-legend">
+              <span class="legend-item"><span class="dot dot-completed"></span> Completed</span>
+              <span class="legend-item"><span class="dot dot-inwork"></span> In Work</span>
+              <span class="legend-item"><span class="dot dot-planned"></span> Planned / Discovery</span>
+              <span class="legend-item"><span class="line-sample solid"></span> Blocking</span>
+              <span class="legend-item"><span class="line-sample dashed"></span> Informs / Indirect</span>
+              <span class="legend-item"><span class="spof-sample">SPOF</span> Bottleneck</span>
+              <span class="legend-item legend-tip">Scroll to zoom · Right-click to create/isolate · Drag ● handle to connect</span>
+            </div>
+            <div class="canvas-viewport" id="canvas-viewport">
+              <div class="canvas-world" id="canvas-world">
+                <svg class="canvas-svg-layer" id="canvas-svg-layer"></svg>
+                <div class="canvas-dom-layer" id="canvas-dom-layer"></div>
+                <svg class="canvas-drag-svg" id="canvas-drag-svg"></svg>
+              </div>
             </div>
           </div>
         </div>

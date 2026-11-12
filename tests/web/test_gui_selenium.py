@@ -144,11 +144,71 @@ def test_gui_views_graph_native_editing_and_studio(live_gui_server: str, browser
     tri_nodes = driver.find_elements(By.CLASS_NAME, "tri-node")
     assert len(tri_nodes) >= 15
 
-    # 4. Switch to Global Neural Graph & verify free-floating nodes + node dragging
+    # 4. Switch to Global Neural Graph & verify non-overlapping free-floating nodes + wheel zoom + dragging
     driver.execute_script("document.getElementById('btn-mode-neural').click();")
     wait.until(EC.presence_of_element_located((By.CLASS_NAME, "neural-node")))
     neural_nodes = driver.find_elements(By.CLASS_NAME, "neural-node")
     assert len(neural_nodes) >= 15
+
+    # Verify zero bounding-box overlaps on rendered Global Neural Graph nodes
+    overlap_pairs = driver.execute_script(
+        "var els = Array.from(document.querySelectorAll('.neural-node'));"
+        "var rects = els.map(function(el){ return {id: el.dataset.entityId, r: el.getBoundingClientRect()}; });"
+        "var bad = [];"
+        "for (var i = 0; i < rects.length; i++) {"
+        "  for (var j = i + 1; j < rects.length; j++) {"
+        "    var a = rects[i].r, b = rects[j].r;"
+        "    if (a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top) {"
+        "      bad.push([rects[i].id, rects[j].id]);"
+        "    }"
+        "  }"
+        "}"
+        "return bad;"
+    )
+    assert overlap_pairs == [], f"Overlapping neural nodes found: {overlap_pairs}"
+
+    # Verify scroll-wheel zoom works smoothly on canvas viewport & Fit resets it
+    viewport = driver.find_element(By.ID, "canvas-viewport")
+    driver.execute_script(
+        "var r = arguments[0].getBoundingClientRect();"
+        "arguments[0].dispatchEvent(new WheelEvent('wheel', {bubbles:true, cancelable:true, deltaY:-120, clientX: r.left + 200, clientY: r.top + 200}));",
+        viewport,
+    )
+    wait.until(lambda d: d.find_element(By.ID, "zoom-level-label").text != "100%")
+    driver.execute_script("document.getElementById('btn-zoom-reset').click();")
+    wait.until(lambda d: d.find_element(By.ID, "zoom-level-label").text == "100%")
+
+    # Verify layer toggles (hide/show Interests) & breadcrumb Back/Reset
+    assert len(driver.find_elements(By.CSS_SELECTOR, ".neural-node.kind-interest")) >= 4
+    driver.execute_script("document.getElementById('neural-toggle-interests').click();")
+    wait.until(lambda d: len(d.find_elements(By.CSS_SELECTOR, ".neural-node.kind-interest")) == 0)
+    wait.until(lambda d: "hidden" not in d.find_element(By.ID, "canvas-breadcrumb-bar").get_attribute("class"))
+
+    # Verify Org multi-filter narrows visible graph, then Back & Reset Graph restore full graph
+    driver.execute_script("document.getElementById('btn-neural-org-filter').click();")
+    wait.until(lambda d: "hidden" not in d.find_element(By.ID, "neural-org-filter-menu").get_attribute("class"))
+    driver.execute_script("document.querySelector('#neural-org-filter-menu input[type=checkbox]').click();")
+    wait.until(lambda d: len(d.find_elements(By.CLASS_NAME, "crumb-btn")) >= 3)
+    driver.execute_script("document.getElementById('btn-breadcrumb-back').click();")
+    wait.until(lambda d: len(d.find_elements(By.CSS_SELECTOR, ".neural-node.kind-interest")) == 0)
+    driver.execute_script("document.getElementById('btn-breadcrumb-reset').click();")
+    wait.until(lambda d: len(d.find_elements(By.CSS_SELECTOR, ".neural-node.kind-interest")) >= 4)
+
+    # Verify right-click Node Isolation + Breadcrumb Reset
+    isolate_target = driver.find_element(By.CSS_SELECTOR, ".neural-node[data-entity-id='eff-optical-bench']")
+    total_before_isolate = len(driver.find_elements(By.CLASS_NAME, "neural-node"))
+    driver.execute_script(
+        "var r = arguments[0].getBoundingClientRect();"
+        "arguments[0].dispatchEvent(new MouseEvent('contextmenu', {bubbles:true, cancelable:true, button:2, clientX: r.left + 20, clientY: r.top + 20}));",
+        isolate_target,
+    )
+    wait.until(lambda d: "hidden" not in d.find_element(By.ID, "graph-context-menu").get_attribute("class"))
+    focus_btn = driver.find_element(By.CSS_SELECTOR, "#graph-context-menu [data-act='focus']")
+    driver.execute_script("arguments[0].click();", focus_btn)
+    wait.until(lambda d: len(d.find_elements(By.CSS_SELECTOR, ".neural-node.focus-root")) == 1)
+    assert len(driver.find_elements(By.CLASS_NAME, "neural-node")) < total_before_isolate
+    driver.execute_script("document.getElementById('btn-breadcrumb-reset').click();")
+    wait.until(lambda d: len(d.find_elements(By.CLASS_NAME, "neural-node")) == total_before_isolate)
 
     drag_node = driver.find_element(By.CSS_SELECTOR, ".neural-node[data-entity-id='eff-edge-correlator']")
     before_left = drag_node.value_of_css_property("left")
@@ -157,7 +217,6 @@ def test_gui_views_graph_native_editing_and_studio(live_gui_server: str, browser
     assert before_left != after_left
 
     # 5. Graph-native Right-click Canvas Context Menu -> Create Effort Modal
-    viewport = driver.find_element(By.ID, "canvas-viewport")
     driver.execute_script(
         "var r = arguments[0].getBoundingClientRect();"
         "arguments[0].dispatchEvent(new MouseEvent('contextmenu', {bubbles:true, cancelable:true, button:2, clientX: r.left + 40, clientY: r.top + 80}));",
@@ -173,7 +232,7 @@ def test_gui_views_graph_native_editing_and_studio(live_gui_server: str, browser
     wait.until(lambda d: "hidden" in d.find_element(By.ID, "graph-node-modal-backdrop").get_attribute("class"))
     wait.until(lambda d: len(d.find_elements(By.CSS_SELECTOR, ".neural-node[data-entity-id='eff-selenium-rapid-sensor-test']")) == 1)
 
-    # 6. Drag-to-connect from node connect port to another node -> Edge Creation Popup
+    # 6. Drag-to-connect from node connect port to another node -> Non-Technical Edge Creation Popup
     src_port = driver.find_element(
         By.CSS_SELECTOR,
         ".neural-node[data-entity-id='eff-edge-correlator'] .node-connect-port",
@@ -185,6 +244,9 @@ def test_gui_views_graph_native_editing_and_studio(live_gui_server: str, browser
     edge_count_before = len(driver.find_elements(By.CSS_SELECTOR, "#canvas-svg-layer path[data-edge-id]"))
     ActionChains(driver).click_and_hold(src_port).move_to_element(dst_node).release(dst_node).perform()
     wait.until(lambda d: "hidden" not in d.find_element(By.ID, "graph-edge-modal-backdrop").get_attribute("class"))
+    edge_modal_text = driver.find_element(By.ID, "graph-edge-modal").text
+    assert "NON_BLOCKING_INFORMS" not in edge_modal_text
+    assert "SPECIALIZES" not in edge_modal_text
     driver.find_element(By.ID, "gm-edge-save-btn").click()
     wait.until(lambda d: "hidden" in d.find_element(By.ID, "graph-edge-modal-backdrop").get_attribute("class"))
     wait.until(lambda d: len(d.find_elements(By.CSS_SELECTOR, "#canvas-svg-layer path[data-edge-id]")) > edge_count_before)

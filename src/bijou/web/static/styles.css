@@ -410,6 +410,131 @@ main.app-workspace {
   background-size: 24px 24px;
 }
 
+.canvas-viewport-frame {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Breadcrumb History & Filter Bar */
+.canvas-breadcrumb-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(17, 23, 34, 0.96);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+  z-index: 8;
+}
+
+.breadcrumb-trail {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  overflow-x: auto;
+}
+
+.crumb-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  border-radius: 5px;
+  padding: 3px 9px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.crumb-btn:hover {
+  color: var(--text-main);
+  border-color: var(--border-bright);
+}
+
+.crumb-btn.active {
+  background: rgba(250, 204, 21, 0.14);
+  border-color: #facc15;
+  color: #fef08a;
+}
+
+.crumb-sep {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+}
+
+/* Neural Layer Type Toggles & Multi-Filter Popovers */
+.type-toggle-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.type-pill-toggle {
+  padding: 3px 8px;
+  font-size: 0.72rem;
+}
+
+.filter-popover-wrap {
+  position: relative;
+}
+
+.filter-popover-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 60;
+  min-width: 248px;
+  max-width: 310px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-bright);
+  border-radius: 8px;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.65);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-popover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.69rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 5px;
+}
+
+.filter-popover-list {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filter-popover-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.74rem;
+  color: var(--text-main);
+  padding: 3px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.filter-popover-item:hover {
+  background: var(--bg-card);
+}
+
 .canvas-legend {
   position: absolute;
   top: 10px;
@@ -499,6 +624,13 @@ main.app-workspace {
 
 .effort-card.impacted {
   box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.75), 0 10px 24px rgba(249, 115, 22, 0.25);
+}
+
+.effort-card.focus-root,
+.tri-node.focus-root,
+.neural-node.focus-root {
+  border-color: #facc15 !important;
+  box-shadow: 0 0 0 2px #facc15, 0 0 22px rgba(250, 204, 21, 0.34) !important;
 }
 
 .effort-card.state-COMPLETED { border-left-color: var(--color-completed); }
@@ -1480,6 +1612,8 @@ aside.boe-dock {
   #lens-canvas,
   #lens-studio,
   .puck-backdrop,
+  .canvas-breadcrumb-bar,
+  .filter-popover-menu,
   .graph-context-menu,
   .graph-modal-backdrop,
   .connect-mode-banner,

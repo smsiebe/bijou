@@ -2,7 +2,8 @@
    Bijou v2 Application Controller
    Coordinates Lens Navigation, Canvas Switcher (Capability Tree / Tri-Partite /
    Global Neural Graph), Bill of Efforts Dock Drawer, Graph-Native Editing,
-   Perspective Seam, Pedigree Filters, Pan/Zoom, Entity Puck, Briefing & Studio
+   Layer Toggles, Multi-Entity Filters, Node Isolation + Breadcrumb History,
+   Scroll-Wheel Cursor Zoom, Perspective Seam, Entity Puck, Briefing & Studio
    ========================================================================== */
 
 (function (global) {
@@ -20,11 +21,21 @@
     showPartners: true,
     neuralShowStructural: true,
     neuralShowIndirect: true,
+    neuralShowOrgs: true,
+    neuralShowEfforts: true,
+    neuralShowInterests: true,
+    neuralFilterOrgIds: [],
+    neuralFilterInterestIds: [],
+    focusNodeKey: null,
+    focusLabel: "",
     zoom: 1.0,
     treeView: null,
     triView: null,
     simulationResult: null,
   };
+
+  let filterHistory = [];
+  let historyIndex = 0;
 
   function notify(message, type = "info") {
     const container = document.getElementById("toast-container");
@@ -54,9 +65,259 @@
     const label = document.getElementById("zoom-level-label");
     if (world) world.style.transform = `scale(${state.zoom.toFixed(2)})`;
     if (label) label.textContent = `${Math.round(state.zoom * 100)}%`;
-    if (state.canvasMode === "B") {
+  }
+
+  function captureFilterSnapshot() {
+    return {
+      canvasMode: state.canvasMode,
+      orgFilter: state.orgFilter,
+      focusNodeKey: state.focusNodeKey,
+      focusLabel: state.focusLabel,
+      neuralShowOrgs: state.neuralShowOrgs,
+      neuralShowEfforts: state.neuralShowEfforts,
+      neuralShowInterests: state.neuralShowInterests,
+      neuralFilterOrgIds: [...state.neuralFilterOrgIds],
+      neuralFilterInterestIds: [...state.neuralFilterInterestIds],
+    };
+  }
+
+  function snapshotsEqual(a, b) {
+    return (
+      a.canvasMode === b.canvasMode &&
+      a.orgFilter === b.orgFilter &&
+      a.focusNodeKey === b.focusNodeKey &&
+      a.neuralShowOrgs === b.neuralShowOrgs &&
+      a.neuralShowEfforts === b.neuralShowEfforts &&
+      a.neuralShowInterests === b.neuralShowInterests &&
+      a.neuralFilterOrgIds.length === b.neuralFilterOrgIds.length &&
+      a.neuralFilterOrgIds.every((v, i) => v === b.neuralFilterOrgIds[i]) &&
+      a.neuralFilterInterestIds.length === b.neuralFilterInterestIds.length &&
+      a.neuralFilterInterestIds.every((v, i) => v === b.neuralFilterInterestIds[i])
+    );
+  }
+
+  function isGraphFiltered() {
+    return Boolean(
+      state.focusNodeKey ||
+        state.orgFilter ||
+        !state.neuralShowOrgs ||
+        !state.neuralShowEfforts ||
+        !state.neuralShowInterests ||
+        state.neuralFilterOrgIds.length > 0 ||
+        state.neuralFilterInterestIds.length > 0
+    );
+  }
+
+  function syncFilterControlsFromState() {
+    const setChecked = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.checked = Boolean(val);
+    };
+    setChecked("neural-toggle-orgs", state.neuralShowOrgs);
+    setChecked("neural-toggle-efforts", state.neuralShowEfforts);
+    setChecked("neural-toggle-interests", state.neuralShowInterests);
+
+    const viewASel = document.getElementById("view-a-org-filter");
+    if (viewASel) viewASel.value = state.orgFilter;
+
+    document.querySelectorAll(".abc-btn").forEach((b) => {
+      b.classList.toggle("active", b.dataset.mode === state.canvasMode);
+    });
+
+    const orgMenu = document.getElementById("neural-org-filter-menu");
+    if (orgMenu) {
+      const selected = new Set(state.neuralFilterOrgIds);
+      orgMenu.querySelectorAll("input[type='checkbox']").forEach((cb) => {
+        cb.checked = selected.has(cb.value);
+      });
+    }
+    const intrMenu = document.getElementById("neural-intr-filter-menu");
+    if (intrMenu) {
+      const selected = new Set(state.neuralFilterInterestIds);
+      intrMenu.querySelectorAll("input[type='checkbox']").forEach((cb) => {
+        cb.checked = selected.has(cb.value);
+      });
+    }
+
+    const orgBtn = document.getElementById("btn-neural-org-filter");
+    if (orgBtn) {
+      orgBtn.textContent =
+        state.neuralFilterOrgIds.length > 0
+          ? `Orgs (${state.neuralFilterOrgIds.length}) ▾`
+          : "Orgs: All ▾";
+    }
+    const intrBtn = document.getElementById("btn-neural-intr-filter");
+    if (intrBtn) {
+      intrBtn.textContent =
+        state.neuralFilterInterestIds.length > 0
+          ? `Interests (${state.neuralFilterInterestIds.length}) ▾`
+          : "Interests: All ▾";
+    }
+  }
+
+  function renderBreadcrumbBar() {
+    const bar = document.getElementById("canvas-breadcrumb-bar");
+    const trail = document.getElementById("breadcrumb-trail");
+    const backBtn = document.getElementById("btn-breadcrumb-back");
+    if (!bar || !trail) return;
+
+    const showBar = isGraphFiltered() || historyIndex > 0;
+    bar.classList.toggle("hidden", !showBar);
+    if (backBtn) backBtn.disabled = historyIndex <= 0;
+
+    if (!showBar) {
+      trail.innerHTML = "";
+      return;
+    }
+
+    const { escapeHtml } = global.BijouApi;
+    trail.innerHTML = filterHistory
+      .map((entry, idx) => {
+        const sep = idx > 0 ? '<span class="crumb-sep">›</span>' : "";
+        const activeCls = idx === historyIndex ? " active" : "";
+        return `${sep}<button type="button" class="crumb-btn${activeCls}" data-crumb-idx="${idx}">${escapeHtml(entry.label)}</button>`;
+      })
+      .join("");
+
+    trail.querySelectorAll(".crumb-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = parseInt(btn.dataset.crumbIdx, 10);
+        if (!Number.isNaN(idx) && idx >= 0 && idx < filterHistory.length) {
+          jumpToHistoryIndex(idx);
+        }
+      });
+    });
+  }
+
+  function pushFilterHistory(label) {
+    const snap = captureFilterSnapshot();
+    if (filterHistory.length === 0) {
+      filterHistory = [{ label: "Full Graph", snapshot: snap }];
+      historyIndex = 0;
+    } else if (!snapshotsEqual(filterHistory[historyIndex].snapshot, snap)) {
+      filterHistory = filterHistory.slice(0, historyIndex + 1);
+      filterHistory.push({ label, snapshot: snap });
+      if (filterHistory.length > 24) {
+        filterHistory.shift();
+      }
+      historyIndex = filterHistory.length - 1;
+    }
+    syncFilterControlsFromState();
+    renderBreadcrumbBar();
+  }
+
+  async function jumpToHistoryIndex(idx) {
+    const entry = filterHistory[idx];
+    if (!entry) return;
+    historyIndex = idx;
+    const prevOrgFilter = state.orgFilter;
+    const snap = entry.snapshot;
+
+    state.canvasMode = snap.canvasMode;
+    state.orgFilter = snap.orgFilter;
+    state.focusNodeKey = snap.focusNodeKey;
+    state.focusLabel = snap.focusLabel;
+    state.neuralShowOrgs = snap.neuralShowOrgs;
+    state.neuralShowEfforts = snap.neuralShowEfforts;
+    state.neuralShowInterests = snap.neuralShowInterests;
+    state.neuralFilterOrgIds = [...snap.neuralFilterOrgIds];
+    state.neuralFilterInterestIds = [...snap.neuralFilterInterestIds];
+
+    syncFilterControlsFromState();
+    renderBreadcrumbBar();
+    if (prevOrgFilter !== state.orgFilter) {
+      await refreshAllData();
+    } else {
       renderCanvasStage();
     }
+  }
+
+  async function stepBackFilter() {
+    if (historyIndex > 0) {
+      await jumpToHistoryIndex(historyIndex - 1);
+    }
+  }
+
+  async function resetAllFilters() {
+    const hadOrgScope = Boolean(state.orgFilter);
+    state.orgFilter = "";
+    state.focusNodeKey = null;
+    state.focusLabel = "";
+    state.neuralShowOrgs = true;
+    state.neuralShowEfforts = true;
+    state.neuralShowInterests = true;
+    state.neuralFilterOrgIds = [];
+    state.neuralFilterInterestIds = [];
+
+    filterHistory = [{ label: "Full Graph", snapshot: captureFilterSnapshot() }];
+    historyIndex = 0;
+    syncFilterControlsFromState();
+    renderBreadcrumbBar();
+
+    if (hadOrgScope) {
+      await refreshAllData();
+    } else {
+      renderCanvasStage();
+    }
+    notify("Graph filters reset to full view.", "info");
+  }
+
+  function populateFilterPopovers(orgs, interests) {
+    const { escapeHtml } = global.BijouApi;
+
+    const buildMenu = (menuId, title, items, currentIds, onChange) => {
+      const menu = document.getElementById(menuId);
+      if (!menu) return;
+      const selected = new Set(currentIds);
+      const sorted = [...(items || [])].sort((a, b) => a.name.localeCompare(b.name));
+      menu.innerHTML = `
+        <div class="filter-popover-header">
+          <span>${escapeHtml(title)}</span>
+          <button type="button" class="btn btn-ghost btn-xs filter-clear-btn">Clear</button>
+        </div>
+        <div class="filter-popover-list">
+          ${sorted
+            .map(
+              (item) => `
+            <label class="filter-popover-item">
+              <input type="checkbox" value="${escapeHtml(item.id)}" ${selected.has(item.id) ? "checked" : ""} />
+              <span>${escapeHtml(item.name)}</span>
+            </label>`
+            )
+            .join("")}
+        </div>
+      `;
+
+      menu.querySelector(".filter-clear-btn")?.addEventListener("click", () => {
+        onChange([]);
+      });
+      menu.querySelectorAll("input[type='checkbox']").forEach((cb) => {
+        cb.addEventListener("change", () => {
+          const next = Array.from(menu.querySelectorAll("input[type='checkbox']:checked")).map((el) => el.value);
+          onChange(next);
+        });
+      });
+    };
+
+    buildMenu("neural-org-filter-menu", "Filter by Organization", orgs, state.neuralFilterOrgIds, (next) => {
+      state.neuralFilterOrgIds = next;
+      pushFilterHistory(next.length ? `Orgs (${next.length})` : "All Orgs");
+      renderCanvasStage();
+    });
+
+    buildMenu(
+      "neural-intr-filter-menu",
+      "Filter by Interest / Goal",
+      interests,
+      state.neuralFilterInterestIds,
+      (next) => {
+        state.neuralFilterInterestIds = next;
+        pushFilterHistory(next.length ? `Interests (${next.length})` : "All Interests");
+        renderCanvasStage();
+      }
+    );
+
+    syncFilterControlsFromState();
   }
 
   async function initPerspectiveDropdown() {
@@ -112,8 +373,8 @@
         worldEl,
         showIndirect: state.showIndirect,
         showPartners: state.showPartners,
+        focusNodeKey: state.focusNodeKey,
         impactedIds,
-        zoom: state.zoom,
         onSelectEntity: (kind, id) => puckController.open(kind, id, buildViewParams()),
       });
     } else if (state.canvasMode === "NEURAL") {
@@ -127,6 +388,12 @@
         worldEl,
         showStructural: state.neuralShowStructural,
         showIndirect: state.neuralShowIndirect,
+        showOrgs: state.neuralShowOrgs,
+        showEfforts: state.neuralShowEfforts,
+        showInterests: state.neuralShowInterests,
+        filterOrgIds: state.neuralFilterOrgIds,
+        filterInterestIds: state.neuralFilterInterestIds,
+        focusNodeKey: state.focusNodeKey,
         impactedIds,
         zoom: state.zoom,
         onSelectEntity: (kind, id) => puckController.open(kind, id, buildViewParams()),
@@ -141,6 +408,7 @@
         domEl,
         worldEl,
         clusterBy: state.clusterBy,
+        focusNodeKey: state.focusNodeKey,
         impactedIds,
         onSelectEffort: (effortId) => puckController.open("effort", effortId, buildViewParams()),
       });
@@ -170,11 +438,13 @@
       state.treeView = tree;
       state.triView = tri;
 
+      const orgs = tri.capability_tree?.organizations || tree.organizations || [];
+      const interests = tri.capability_tree?.interests || tree.interests || [];
+
       // Populate top Org Scope filter in View A
       const orgFilterSel = document.getElementById("view-a-org-filter");
       if (orgFilterSel) {
         const { escapeHtml } = global.BijouApi;
-        const orgs = tri.capability_tree?.organizations || tree.organizations || [];
         const prev = state.orgFilter;
         orgFilterSel.innerHTML =
           `<option value="">All Organizations</option>` +
@@ -183,6 +453,7 @@
         briefingController.setOrganizations(orgs);
       }
 
+      populateFilterPopovers(orgs, interests);
       dockController.setBaseline(tri.capability_tree || tree, tri.pool_balances || []);
       renderCanvasStage();
 
@@ -247,7 +518,39 @@
     });
   }
 
+  function setupWheelZoom() {
+    const viewport = document.getElementById("canvas-viewport");
+    if (!viewport) return;
+    viewport.addEventListener(
+      "wheel",
+      (ev) => {
+        if (ev.target.closest(".filter-popover-menu, .graph-context-menu")) return;
+        ev.preventDefault();
+        const oldZoom = state.zoom;
+        const factor = ev.deltaY < 0 ? 1.1 : 1 / 1.1;
+        const nextZoom = Math.min(2.0, Math.max(0.35, Number((oldZoom * factor).toFixed(3))));
+        if (Math.abs(nextZoom - oldZoom) < 0.001) return;
+
+        const rect = viewport.getBoundingClientRect();
+        const cursorX = ev.clientX - rect.left;
+        const cursorY = ev.clientY - rect.top;
+        const worldX = (viewport.scrollLeft + cursorX) / oldZoom;
+        const worldY = (viewport.scrollTop + cursorY) / oldZoom;
+
+        state.zoom = nextZoom;
+        applyZoom();
+
+        viewport.scrollLeft = Math.max(0, worldX * nextZoom - cursorX);
+        viewport.scrollTop = Math.max(0, worldY * nextZoom - cursorY);
+      },
+      { passive: false }
+    );
+  }
+
   async function boot() {
+    filterHistory = [{ label: "Full Graph", snapshot: captureFilterSnapshot() }];
+    historyIndex = 0;
+
     dockController = new global.BillOfEffortsDock({
       notify,
       onSimulationUpdated: (simRes) => {
@@ -295,6 +598,15 @@
         await refreshAllData();
       },
       onInspectEntity: (kind, id) => puckController.open(kind, id, buildViewParams()),
+      onFocusNode: (entity) => {
+        const prefix = entity.kind === "organization" ? "org" : entity.kind;
+        state.focusNodeKey = `${prefix}:${entity.id}`;
+        state.focusLabel = entity.label || entity.id;
+        pushFilterHistory(`Isolate: ${state.focusLabel}`);
+        renderCanvasStage();
+      },
+      onResetGraph: () => resetAllFilters(),
+      isFiltered: () => isGraphFiltered(),
       onStageSlip: (effortId, days) => {
         switchLens("canvas");
         dockController.stageSlipShock(effortId, days);
@@ -315,6 +627,28 @@
     // Wire Canvas View Switcher
     document.querySelectorAll(".abc-btn").forEach((btn) => {
       btn.addEventListener("click", () => switchCanvasMode(btn.dataset.mode));
+    });
+
+    // Wire Breadcrumb Back & Reset Controls
+    document.getElementById("btn-breadcrumb-back")?.addEventListener("click", () => stepBackFilter());
+    document.getElementById("btn-breadcrumb-reset")?.addEventListener("click", () => resetAllFilters());
+
+    // Wire Filter Popover Toggles
+    const orgMenu = document.getElementById("neural-org-filter-menu");
+    const intrMenu = document.getElementById("neural-intr-filter-menu");
+    document.getElementById("btn-neural-org-filter")?.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      intrMenu?.classList.add("hidden");
+      orgMenu?.classList.toggle("hidden");
+    });
+    document.getElementById("btn-neural-intr-filter")?.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      orgMenu?.classList.add("hidden");
+      intrMenu?.classList.toggle("hidden");
+    });
+    document.addEventListener("click", (ev) => {
+      if (!ev.target.closest("#neural-org-filter-wrap")) orgMenu?.classList.add("hidden");
+      if (!ev.target.closest("#neural-intr-filter-wrap")) intrMenu?.classList.add("hidden");
     });
 
     // Wire Perspective Switcher
@@ -352,6 +686,8 @@
     // Wire View Overlays
     document.getElementById("view-a-org-filter")?.addEventListener("change", (ev) => {
       state.orgFilter = ev.target.value;
+      const selectedName = ev.target.options[ev.target.selectedIndex]?.text || "All Organizations";
+      pushFilterHistory(state.orgFilter ? `Org: ${selectedName}` : "All Orgs");
       refreshAllData();
     });
 
@@ -370,6 +706,24 @@
       renderCanvasStage();
     });
 
+    document.getElementById("neural-toggle-orgs")?.addEventListener("change", (ev) => {
+      state.neuralShowOrgs = Boolean(ev.target.checked);
+      pushFilterHistory(state.neuralShowOrgs ? "Show Orgs" : "Hide Orgs");
+      renderCanvasStage();
+    });
+
+    document.getElementById("neural-toggle-efforts")?.addEventListener("change", (ev) => {
+      state.neuralShowEfforts = Boolean(ev.target.checked);
+      pushFilterHistory(state.neuralShowEfforts ? "Show Efforts" : "Hide Efforts");
+      renderCanvasStage();
+    });
+
+    document.getElementById("neural-toggle-interests")?.addEventListener("change", (ev) => {
+      state.neuralShowInterests = Boolean(ev.target.checked);
+      pushFilterHistory(state.neuralShowInterests ? "Show Interests" : "Hide Interests");
+      renderCanvasStage();
+    });
+
     document.getElementById("view-neural-show-structural")?.addEventListener("change", (ev) => {
       state.neuralShowStructural = Boolean(ev.target.checked);
       renderCanvasStage();
@@ -383,7 +737,7 @@
     document.getElementById("btn-neural-relayout")?.addEventListener("click", () => {
       global.BijouViewNeural.resetLayout();
       renderCanvasStage();
-      notify("Recomputed Global Neural Graph layout.", "info");
+      notify("Recomputed non-overlapping Global Neural Graph layout.", "info");
     });
 
     // Dock Toggle & Zoom
@@ -395,11 +749,11 @@
     });
 
     document.getElementById("btn-zoom-in")?.addEventListener("click", () => {
-      state.zoom = Math.min(1.8, state.zoom + 0.15);
+      state.zoom = Math.min(2.0, state.zoom + 0.15);
       applyZoom();
     });
     document.getElementById("btn-zoom-out")?.addEventListener("click", () => {
-      state.zoom = Math.max(0.55, state.zoom - 0.15);
+      state.zoom = Math.max(0.35, state.zoom - 0.15);
       applyZoom();
     });
     document.getElementById("btn-zoom-reset")?.addEventListener("click", () => {
@@ -408,6 +762,7 @@
     });
 
     setupPanning();
+    setupWheelZoom();
     await initPerspectiveDropdown();
     await refreshAllData();
   }
