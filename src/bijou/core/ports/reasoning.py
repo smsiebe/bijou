@@ -3,8 +3,8 @@
 from abc import ABC, abstractmethod
 
 from bijou.core.contracts.views import (
+    BillOfEffortsSimulationResponseDTO,
     PerspectiveBriefingDTO,
-    TradeoffProposalComparisonDTO,
 )
 
 
@@ -22,6 +22,6 @@ class IReasoningBroker(ABC):
     @abstractmethod
     def recommend_portfolio_tradeoff(
         self,
-        comparison: TradeoffProposalComparisonDTO,
+        simulation: BillOfEffortsSimulationResponseDTO,
     ) -> str:
-        """Provide strategic recommendation on portfolio funding trade-off proposals."""
+        """Provide strategic recommendation on simulated Bill of Efforts adjustments."""

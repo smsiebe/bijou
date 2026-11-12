@@ -1,4 +1,4 @@
-"""DuckDB embedded analytical sidecar store for Tier-2 operational telemetry."""
+"""DuckDB embedded analytical sidecar store for Tier-2 Effort telemetry."""
 
 import threading
 from datetime import datetime, timezone
@@ -6,16 +6,12 @@ from datetime import datetime, timezone
 import duckdb
 
 from bijou.core.contracts.enums import AccumulatorPattern
-from bijou.core.contracts.telemetry import EffectEventDTO, TelemetryRollupDTO
+from bijou.core.contracts.telemetry import EffortTelemetryEventDTO, TelemetryRollupDTO
 from bijou.core.ports.telemetry_store import ITelemetryStore
 
 
 class DuckDbTelemetryStore(ITelemetryStore):
-    """Embedded DuckDB analytical telemetry store.
-
-    Concurrency Model: Thread-safe columnar event storage; concurrent batch ingests and
-    analytical window queries guarded by thread-safe cursor locks.
-    """
+    """Thread-safe columnar telemetry store keyed by effort_id and source_org_id."""
 
     def __init__(self, db_path: str = ":memory:") -> None:
         self._db_path = db_path
@@ -26,10 +22,9 @@ class DuckDbTelemetryStore(ITelemetryStore):
     def _init_schema(self) -> None:
         with self._lock:
             self._conn.execute("""
-                CREATE TABLE IF NOT EXISTS effect_events (
+                CREATE TABLE IF NOT EXISTS effort_telemetry_events (
                     event_id VARCHAR PRIMARY KEY,
-                    thing_id VARCHAR NOT NULL,
-                    milestone_id VARCHAR,
+                    effort_id VARCHAR NOT NULL,
                     source_org_id VARCHAR NOT NULL,
                     causal_verb VARCHAR NOT NULL,
                     occurred_at TIMESTAMP NOT NULL,
@@ -40,7 +35,7 @@ class DuckDbTelemetryStore(ITelemetryStore):
                 );
             """)
             self._conn.execute("""
-                CREATE TABLE IF NOT EXISTS event_causal_links (
+                CREATE TABLE IF NOT EXISTS effort_event_causal_links (
                     parent_event_id VARCHAR NOT NULL,
                     child_event_id VARCHAR NOT NULL,
                     PRIMARY KEY (parent_event_id, child_event_id)
@@ -52,16 +47,15 @@ class DuckDbTelemetryStore(ITelemetryStore):
         with self._lock:
             self._conn.close()
 
-    def ingest_events(self, events: list[EffectEventDTO]) -> int:
-        """Batch ingest operational effect events using parameterized queries."""
+    def ingest_events(self, events: list[EffortTelemetryEventDTO]) -> int:
+        """Batch ingest operational Effort telemetry events using parameterized queries."""
         if not events:
             return 0
 
         event_rows = [
             (
                 e.event_id,
-                e.thing_id,
-                e.milestone_id,
+                e.effort_id,
                 e.source_org_id,
                 e.causal_verb,
                 e.occurred_at,
@@ -81,18 +75,18 @@ class DuckDbTelemetryStore(ITelemetryStore):
         with self._lock:
             self._conn.executemany(
                 """
-                INSERT OR REPLACE INTO effect_events (
-                    event_id, thing_id, milestone_id, source_org_id,
+                INSERT OR REPLACE INTO effort_telemetry_events (
+                    event_id, effort_id, source_org_id,
                     causal_verb, occurred_at, metric_name, metric_value,
                     confidence, raw_ref
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """,
                 event_rows,
             )
             if link_rows:
                 self._conn.executemany(
                     """
-                    INSERT OR IGNORE INTO event_causal_links (
+                    INSERT OR IGNORE INTO effort_event_causal_links (
                         parent_event_id, child_event_id
                     ) VALUES (?, ?);
                     """,
@@ -103,26 +97,25 @@ class DuckDbTelemetryStore(ITelemetryStore):
 
     def compute_rollup(
         self,
-        thing_id: str,
+        effort_id: str,
         metric_name: str,
         accumulator: AccumulatorPattern,
         window_start: datetime,
         window_end: datetime,
         sla_target: float | None = None,
     ) -> TelemetryRollupDTO:
-        """Execute analytical aggregation rollup over an event time window using parameterized bindings."""
+        """Execute analytical aggregation rollup over an event window using parameterized bindings."""
         with self._lock:
-            # 1. Base counts and filter
             row = self._conn.execute(
                 """
                 SELECT COUNT(*), COALESCE(SUM(metric_value), 0.0)
-                FROM effect_events
-                WHERE thing_id = ?
+                FROM effort_telemetry_events
+                WHERE effort_id = ?
                   AND metric_name = ?
                   AND occurred_at >= ?
                   AND occurred_at <= ?;
                 """,
-                [thing_id, metric_name, window_start, window_end],
+                [effort_id, metric_name, window_start, window_end],
             ).fetchone()
 
             event_count = row[0] if row else 0
@@ -133,167 +126,157 @@ class DuckDbTelemetryStore(ITelemetryStore):
 
             if accumulator == AccumulatorPattern.SUM:
                 agg_value = float(agg_sum)
-
             elif accumulator == AccumulatorPattern.SLA_THRESHOLD:
                 if event_count > 0 and sla_target is not None:
-                    # Quantile calculation
                     p95_row = self._conn.execute(
                         """
                         SELECT quantile_cont(metric_value, 0.95)
-                        FROM effect_events
-                        WHERE thing_id = ?
+                        FROM effort_telemetry_events
+                        WHERE effort_id = ?
                           AND metric_name = ?
                           AND occurred_at >= ?
                           AND occurred_at <= ?;
                         """,
-                        [thing_id, metric_name, window_start, window_end],
+                        [effort_id, metric_name, window_start, window_end],
                     ).fetchone()
                     p95_val = p95_row[0] if p95_row and p95_row[0] is not None else 999999.0
                     agg_value = 1.0 if p95_val <= sla_target else 0.0
-                else:
-                    agg_value = 0.0
-
             elif accumulator == AccumulatorPattern.CASCADE_DEPTH:
-                # Compute maximum depth via recursive CTE starting from root events
                 depth_row = self._conn.execute(
                     """
                     WITH RECURSIVE chain AS (
                         SELECT event_id AS current_id, 1 AS depth
-                        FROM effect_events
-                        WHERE thing_id = ?
+                        FROM effort_telemetry_events
+                        WHERE effort_id = ?
                           AND metric_name = ?
                           AND occurred_at >= ?
                           AND occurred_at <= ?
-                          AND event_id NOT IN (SELECT child_event_id FROM event_causal_links)
+                          AND event_id NOT IN (SELECT child_event_id FROM effort_event_causal_links)
                         UNION ALL
                         SELECT l.child_event_id, c.depth + 1
-                        FROM event_causal_links l
+                        FROM effort_event_causal_links l
                         JOIN chain c ON l.parent_event_id = c.current_id
                         WHERE c.depth < 20
                     )
                     SELECT COALESCE(MAX(depth), 1) FROM chain;
                     """,
-                    [thing_id, metric_name, window_start, window_end],
+                    [effort_id, metric_name, window_start, window_end],
                 ).fetchone()
                 max_depth = int(depth_row[0]) if depth_row and depth_row[0] is not None else 1
                 agg_value = float(max_depth)
-
             elif accumulator == AccumulatorPattern.YIELD_RATIO:
                 ratio_row = self._conn.execute(
                     """
                     SELECT
                         COUNT(*) FILTER (WHERE causal_verb IN ('CONFIRMED', 'SYNTHESIZED')) AS terminal_count,
                         COUNT(*) FILTER (WHERE causal_verb = 'COLLECTED') AS root_count
-                    FROM effect_events
-                    WHERE thing_id = ?
+                    FROM effort_telemetry_events
+                    WHERE effort_id = ?
                       AND metric_name = ?
                       AND occurred_at >= ?
                       AND occurred_at <= ?;
                     """,
-                    [thing_id, metric_name, window_start, window_end],
+                    [effort_id, metric_name, window_start, window_end],
                 ).fetchone()
                 terminal_count = ratio_row[0] if ratio_row else 0
                 root_count = ratio_row[1] if ratio_row else 0
                 agg_value = float(terminal_count) / float(root_count) if root_count > 0 else 0.0
 
             return TelemetryRollupDTO(
-                thing_id=thing_id,
+                effort_id=effort_id,
                 metric_name=metric_name,
                 accumulator=accumulator,
-                aggregated_value=round(agg_value, 4),
+                aggregated_value=agg_value,
                 event_count=event_count,
                 max_cascade_depth=max_depth,
                 window_start=window_start,
                 window_end=window_end,
             )
 
-    def list_metrics_for_thing(self, thing_id: str) -> list[str]:
-        """Return distinct metric names for a specific thing."""
+    def list_metrics_for_effort(self, effort_id: str) -> list[str]:
+        """List distinct metric names recorded for a specific Effort."""
         with self._lock:
             rows = self._conn.execute(
-                "SELECT DISTINCT metric_name FROM effect_events WHERE thing_id = ? ORDER BY metric_name;",
-                [thing_id],
+                """
+                SELECT DISTINCT metric_name
+                FROM effort_telemetry_events
+                WHERE effort_id = ?
+                ORDER BY metric_name;
+                """,
+                [effort_id],
             ).fetchall()
-            return [str(r[0]) for r in rows]
+            return [r[0] for r in rows]
 
     def trace_event_provenance(
         self,
         event_id: str,
         max_depth: int = 10,
-    ) -> list[EffectEventDTO]:
-        """Walk both upstream parents and downstream children using recursive CTE."""
+    ) -> list[EffortTelemetryEventDTO]:
+        """Walk causal lineage using parameterized recursive CTE."""
         with self._lock:
             rows = self._conn.execute(
                 """
-                WITH RECURSIVE
-                upstream AS (
-                    SELECT parent_event_id AS id, 1 AS depth
-                    FROM event_causal_links
+                WITH RECURSIVE anc AS (
+                    SELECT parent_event_id AS eid, 1 AS depth
+                    FROM effort_event_causal_links
                     WHERE child_event_id = ?
-                    UNION ALL
-                    SELECT l.parent_event_id, u.depth + 1
-                    FROM event_causal_links l
-                    JOIN upstream u ON l.child_event_id = u.id
-                    WHERE u.depth < ?
+                    UNION
+                    SELECT l.parent_event_id, anc.depth + 1
+                    FROM effort_event_causal_links l
+                    JOIN anc ON l.child_event_id = anc.eid
+                    WHERE anc.depth < ?
                 ),
-                downstream AS (
-                    SELECT child_event_id AS id, 1 AS depth
-                    FROM event_causal_links
+                desc_chain AS (
+                    SELECT child_event_id AS eid, 1 AS depth
+                    FROM effort_event_causal_links
                     WHERE parent_event_id = ?
-                    UNION ALL
-                    SELECT l.child_event_id, d.depth + 1
-                    FROM event_causal_links l
-                    JOIN downstream d ON l.parent_event_id = d.id
-                    WHERE d.depth < ?
+                    UNION
+                    SELECT l.child_event_id, desc_chain.depth + 1
+                    FROM effort_event_causal_links l
+                    JOIN desc_chain ON l.parent_event_id = desc_chain.eid
+                    WHERE desc_chain.depth < ?
                 ),
                 all_ids AS (
-                    SELECT ? AS id
+                    SELECT ? AS eid
                     UNION
-                    SELECT id FROM upstream
+                    SELECT eid FROM anc
                     UNION
-                    SELECT id FROM downstream
+                    SELECT eid FROM desc_chain
                 )
                 SELECT
-                    e.event_id, e.thing_id, e.milestone_id, e.source_org_id,
+                    e.event_id, e.effort_id, e.source_org_id,
                     e.causal_verb, e.occurred_at, e.metric_name, e.metric_value,
                     e.confidence, e.raw_ref
-                FROM effect_events e
-                JOIN all_ids a ON e.event_id = a.id
-                ORDER BY e.occurred_at;
+                FROM effort_telemetry_events e
+                JOIN all_ids a ON e.event_id = a.eid
+                ORDER BY e.occurred_at ASC;
                 """,
                 [event_id, max_depth, event_id, max_depth, event_id],
             ).fetchall()
 
-            # For each event, retrieve its parent IDs
-            results: list[EffectEventDTO] = []
+            results: list[EffortTelemetryEventDTO] = []
             for r in rows:
-                ev_id = r[0]
-                parents = [
-                    p[0]
-                    for p in self._conn.execute(
-                        "SELECT parent_event_id FROM event_causal_links WHERE child_event_id = ?;",
-                        [ev_id],
-                    ).fetchall()
-                ]
-                # Ensure occurred_at has timezone
-                occ_at = r[5]
-                if occ_at.tzinfo is None:
-                    occ_at = occ_at.replace(tzinfo=timezone.utc)
-
+                eid = r[0]
+                parent_rows = self._conn.execute(
+                    "SELECT parent_event_id FROM effort_event_causal_links WHERE child_event_id = ?;",
+                    [eid],
+                ).fetchall()
+                parents = [pr[0] for pr in parent_rows]
+                occ = r[4]
+                if occ.tzinfo is None:
+                    occ = occ.replace(tzinfo=timezone.utc)
                 results.append(
-                    EffectEventDTO(
-                        event_id=ev_id,
-                        thing_id=r[1],
-                        milestone_id=r[2],
-                        source_org_id=r[3],
-                        causal_verb=r[4],
-                        occurred_at=occ_at,
-                        metric_name=r[6],
-                        metric_value=float(r[7]),
-                        confidence=float(r[8]),
-                        raw_ref=r[9],
+                    EffortTelemetryEventDTO(
+                        event_id=eid,
+                        effort_id=r[1],
+                        source_org_id=r[2],
                         causal_parent_ids=parents,
+                        causal_verb=r[3],
+                        occurred_at=occ,
+                        metric_name=r[5],
+                        metric_value=r[6],
+                        confidence=r[7],
+                        raw_ref=r[8],
                     )
                 )
-
             return results

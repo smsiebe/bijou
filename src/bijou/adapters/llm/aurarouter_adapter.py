@@ -1,23 +1,20 @@
-"""Authentic AuraRouter LLM reasoning broker adapter."""
+"""Authentic AuraRouter LLM reasoning broker adapter for Bijou v2."""
 
+import json
 from typing import Any
 
 import httpx
 
 from bijou.core.contracts.views import (
+    BillOfEffortsSimulationResponseDTO,
     PerspectiveBriefingDTO,
-    TradeoffProposalComparisonDTO,
 )
 from bijou.core.ports.exceptions import ServiceUnavailableError
 from bijou.core.ports.reasoning import IReasoningBroker
 
 
 class AuraRouterAdapter(IReasoningBroker):
-    """Authentic AuraRouter LLM reasoning adapter.
-
-    Connects to AuraRouter via HTTP transport and synthesizes executive takeaways.
-    Raises ServiceUnavailableError when unconfigured or unreachable (Rule 10).
-    """
+    """Connects to AuraRouter via HTTP transport to synthesize executive briefings & recommendations."""
 
     def __init__(
         self,
@@ -38,7 +35,7 @@ class AuraRouterAdapter(IReasoningBroker):
         briefing: PerspectiveBriefingDTO,
         org_mission: str,
     ) -> tuple[str, list[str]]:
-        """Synthesize an executive narrative summary and identify strategic blind-spots."""
+        """Synthesize an executive narrative summary and identify strategic gaps."""
         if not self._url:
             raise ServiceUnavailableError("AuraRouter URL is not configured")
 
@@ -46,17 +43,10 @@ class AuraRouterAdapter(IReasoningBroker):
             "model": self._model,
             "mission_statement": org_mission,
             "subject_org_id": briefing.subject_org_id,
-            "perspective_org_id": briefing.perspective_org_id,
-            "portfolio_roi_score": briefing.portfolio_roi_score,
-            "total_committed_cost": briefing.total_committed_cost,
-            "supported_concerns": [
-                {
-                    "concern_id": c.concern_id,
-                    "name": c.concern_name,
-                    "coverage_score": c.coverage_score,
-                }
-                for c in briefing.supported_concerns
-            ],
+            "total_allocated_usd": briefing.total_allocated_usd,
+            "direct_efforts": [n.effort.name for n in briefing.directly_resourced_efforts],
+            "indirect_benefits_count": len(briefing.indirect_benefits),
+            "active_risks": [r.title for r in briefing.active_risks],
         }
 
         try:
@@ -72,7 +62,7 @@ class AuraRouterAdapter(IReasoningBroker):
                                 "Return JSON with keys 'executive_summary' (string) and 'strategic_gaps' (list of strings)."
                             ),
                         },
-                        {"role": "user", "content": str(prompt_payload)},
+                        {"role": "user", "content": json.dumps(prompt_payload)},
                     ],
                     "response_format": {"type": "json_object"},
                 },
@@ -86,24 +76,27 @@ class AuraRouterAdapter(IReasoningBroker):
                 raise ServiceUnavailableError("AuraRouter response missing choices")
 
             content = choices[0].get("message", {}).get("content", "{}")
-            import json
             parsed = json.loads(content)
-            narrative = parsed.get("executive_summary", "")
-            gaps = parsed.get("strategic_gaps", [])
-            return narrative, gaps
+            return parsed.get("executive_summary", ""), parsed.get("strategic_gaps", [])
 
         except (httpx.HTTPError, OSError) as err:
             raise ServiceUnavailableError(f"AuraRouter connection to '{self._url}' failed: {err}") from err
 
     def recommend_portfolio_tradeoff(
         self,
-        comparison: TradeoffProposalComparisonDTO,
+        simulation: BillOfEffortsSimulationResponseDTO,
     ) -> str:
-        """Provide strategic recommendation on portfolio funding trade-off proposals."""
+        """Provide strategic recommendation on simulated Bill of Efforts adjustments."""
         if not self._url:
             raise ServiceUnavailableError("AuraRouter URL is not configured")
 
         try:
+            summary = {
+                "impacted_efforts": simulation.impacted_effort_ids,
+                "total_cost_delta": simulation.total_cost_delta,
+                "net_risk_count_delta": simulation.net_risk_count_delta,
+                "skill_warnings": [w.message for w in simulation.skill_mismatch_warnings],
+            }
             resp = self._client.post(
                 f"{self._url.rstrip('/')}/v1/chat/completions",
                 json={
@@ -111,9 +104,9 @@ class AuraRouterAdapter(IReasoningBroker):
                     "messages": [
                         {
                             "role": "system",
-                            "content": "You are a portfolio optimization advisor. Provide a 2-sentence funding recommendation.",
+                            "content": "You are a portfolio optimization advisor. Provide a concise 2-sentence recommendation.",
                         },
-                        {"role": "user", "content": comparison.model_dump_json()},
+                        {"role": "user", "content": json.dumps(summary)},
                     ],
                 },
             )

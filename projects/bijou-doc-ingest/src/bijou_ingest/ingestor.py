@@ -67,4 +67,4 @@ class ManifestIngestor:
 
         resp = self.client._request("POST", "/api/v1/telemetry/events", json=events)
         res_data = resp.json()
-        return res_data.get("ingested_count", len(events))
+        return res_data.get("ingested", res_data.get("ingested_count", len(events)))

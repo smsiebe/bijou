@@ -1,4 +1,4 @@
-"""Core graph entity and causal gate DTOs for Bijou."""
+"""Core domain entities and typed graph edge DTOs for Bijou v2."""
 
 import uuid
 from datetime import date, datetime, timezone
@@ -8,151 +8,355 @@ from pydantic import Field, model_validator
 
 from bijou.core.contracts.base import BijouBaseModel
 from bijou.core.contracts.enums import (
-    AccumulatorPattern,
-    CausalMechanismType,
-    EffectTier,
-    LifecycleStatus,
-    MilestoneStatus,
-    RelationshipType,
+    BlockingMode,
+    ConfidenceLevel,
+    EffortInterestRelationType,
+    EffortState,
+    EffortTimingMode,
+    InterestInterestRelationType,
+    InterestKind,
+    OrgInterestStance,
+    OrgOrgRelationType,
+    ResourceCategory,
+    RiskSeverity,
+    RiskStatus,
 )
 
 
-class ConcernSatisfactionLinkDTO(BijouBaseModel):
-    """Link defining an Effect's contribution to satisfying a Concern."""
-
-    concern_id: str = Field(..., alias="concern_id", description="Target Concern ID")
-    weight: float = Field(..., alias="weight", ge=0.0, le=1.0, description="Satisfaction weight")
-    confidence: float = Field(default=1.0, alias="confidence", ge=0.0, le=1.0, description="Confidence score")
-
-
 class OrganizationDTO(BijouBaseModel):
-    """Organization echelon node representing a command, agency, or team."""
+    """Organization node representing a command, agency, or team (managed or modeled)."""
 
-    id: str = Field(..., alias="id", description="Organization ID")
-    name: str = Field(..., alias="name", description="Organization name")
-    echelon_level: int = Field(..., alias="echelon_level", ge=0, description="Echelon level")
-    mission_statement: str = Field(..., alias="mission_statement", description="Mission statement")
-    parent_org_id: str | None = Field(default=None, alias="parent_org_id", description="Parent organization ID")
-    peer_org_ids: list[str] = Field(default_factory=list, alias="peer_org_ids", description="Peer organization IDs")
-    tags: list[str] = Field(default_factory=list, alias="tags", description="Tags")
-
-
-class ConcernDTO(BijouBaseModel):
-    """Strategic intent, requirement, or mission thread owned by an organization."""
-
-    id: str = Field(..., alias="id", description="Concern ID")
-    name: str = Field(..., alias="name", description="Concern name")
-    description: str = Field(..., alias="description", description="Concern description")
-    owner_org_id: str = Field(..., alias="owner_org_id", description="Owner organization ID")
-    parent_concern_id: str | None = Field(default=None, alias="parent_concern_id", description="Parent concern ID")
-    priority: float = Field(..., alias="priority", ge=0.0, le=1.0, description="Priority score between 0.0 and 1.0")
-    target_metric_sla: float | None = Field(default=None, alias="target_metric_sla", description="Target metric SLA")
+    id: str = Field(..., alias="id", description="Unique organization identifier")
+    name: str = Field(..., alias="name", description="Organization display name")
+    description: str = Field(default="", alias="description", description="Organization mission or scope")
+    echelon_level: int = Field(default=1, alias="echelon_level", ge=0, description="Organizational tier level")
+    is_managed: bool = Field(
+        default=False,
+        alias="is_managed",
+        description="Whether an owner actively manages resource inventories for this org",
+    )
+    tags: list[str] = Field(default_factory=list, alias="tags", description="Classification tags")
 
 
-class MilestoneDTO(BijouBaseModel):
-    """Phased temporal evolution of a Thing unlocking capabilities."""
+class ResourcePoolDTO(BijouBaseModel):
+    """Inventory or designated budget pool owned by an Organization."""
 
-    id: str = Field(..., alias="id", description="Milestone ID")
-    thing_id: str = Field(..., alias="thing_id", description="Parent Thing ID")
-    sequence_index: int = Field(..., alias="sequence_index", ge=0, description="Sequence index")
-    name: str = Field(..., alias="name", description="Milestone name")
-    description: str = Field(..., alias="description", description="Milestone description")
-    target_date: date = Field(..., alias="target_date", description="Target completion date")
-    actual_date: date | None = Field(default=None, alias="actual_date", description="Actual completion date")
-    status: MilestoneStatus = Field(..., alias="status", description="Milestone status")
-    cost_delta: float = Field(default=0.0, alias="cost_delta", ge=0.0, description="Cost delta")
-    lane: str = Field(..., alias="lane", description="Domain swimlane")
-    trl: int = Field(..., alias="trl", ge=1, le=9, description="Technology Readiness Level (1-9)")
-
-
-class ThingDTO(BijouBaseModel):
-    """Deliverable, program, proposal, or software/hardware asset."""
-
-    id: str = Field(..., alias="id", description="Thing ID")
-    name: str = Field(..., alias="name", description="Thing name")
-    description: str = Field(..., alias="description", description="Thing description")
-    lifecycle: LifecycleStatus = Field(..., alias="lifecycle", description="Lifecycle status")
-    owner_org_id: str = Field(..., alias="owner_org_id", description="Owner organization ID")
-    estimated_cost: float = Field(..., alias="estimated_cost", ge=0.0, description="Estimated total cost")
-    risk_factor: float = Field(..., alias="risk_factor", ge=1.0, le=10.0, description="Risk factor (1.0 to 10.0)")
-    milestones: list[MilestoneDTO] = Field(default_factory=list, alias="milestones", description="Phased milestones")
+    id: str = Field(..., alias="id", description="Unique resource pool identifier")
+    org_id: str = Field(..., alias="org_id", description="Owning organization ID")
+    name: str = Field(..., alias="name", description="Pool display name (e.g. 'FY27 Resiliency Funds')")
+    category: ResourceCategory = Field(..., alias="category", description="Resource category")
+    capacity: float = Field(..., alias="capacity", ge=0.0, description="Total pool capacity")
+    unit: str = Field(default="USD", alias="unit", description="Capacity unit (USD, FTE, GPU_HRS, UNITS)")
+    skill_tag: str | None = Field(
+        default=None,
+        alias="skill_tag",
+        description="Optional non-transferable skill or compute hardware tag",
+    )
+    restricted_interest_ids: list[str] = Field(
+        default_factory=list,
+        alias="restricted_interest_ids",
+        description="Color-of-money Interest IDs (inherited down Interest DAG)",
+    )
+    description: str = Field(default="", alias="description", description="Pool description or appropriation notes")
 
 
-class CausalContributorDTO(BijouBaseModel):
-    """Contribution from a Thing and optional Milestone to a Causal Gate."""
+class InterestDTO(BijouBaseModel):
+    """Strategic concept, mission goal, NIPF priority, gap, threat vector, or stakeholder interest."""
 
-    thing_id: str = Field(..., alias="thing_id", description="Contributing Thing ID")
-    milestone_id: str | None = Field(default=None, alias="milestone_id", description="Required Milestone ID")
-    contribution_weight: float = Field(default=1.0, alias="contribution_weight", ge=0.0, le=1.0, description="Contribution weight")
-
-
-class CausalGateDTO(BijouBaseModel):
-    """Gate combining contributions from multiple Things/Milestones."""
-
-    id: str = Field(..., alias="id", description="Causal Gate ID")
-    name: str = Field(..., alias="name", description="Gate name")
-    mechanism: CausalMechanismType = Field(..., alias="mechanism", description="Causal mechanism type")
-    threshold_k: int | None = Field(default=None, alias="threshold_k", ge=1, description="Threshold K for THRESHOLD_K_OF_N")
-    contributors: list[CausalContributorDTO] = Field(default_factory=list, alias="contributors", description="List of contributors")
+    id: str = Field(..., alias="id", description="Unique interest identifier")
+    name: str = Field(..., alias="name", description="Interest name")
+    description: str = Field(default="", alias="description", description="Detailed description")
+    interest_kind: InterestKind = Field(
+        default=InterestKind.STRATEGIC_CONCEPT,
+        alias="interest_kind",
+        description="Categorical classification",
+    )
+    start_date: date | None = Field(default=None, alias="start_date", description="Optional effective start date")
+    end_date: date | None = Field(default=None, alias="end_date", description="Optional effective end date")
 
     @model_validator(mode="after")
-    def validate_threshold(self) -> Self:
-        """Ensure threshold_k is specified when mechanism is THRESHOLD_K_OF_N."""
-        if self.mechanism == CausalMechanismType.THRESHOLD_K_OF_N and self.threshold_k is None:
-            raise ValueError("threshold_k is required when mechanism is THRESHOLD_K_OF_N")
+    def _validate_dates(self) -> Self:
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValueError("Interest end_date cannot precede start_date")
         return self
 
 
-class FederationSpecDTO(BijouBaseModel):
-    """Specification for querying external federated telemetry endpoints."""
+class ResourceRequirementDTO(BijouBaseModel):
+    """Optional one-to-many resource requirement attached to an Effort or Mitigator."""
 
-    connector_id: str = Field(..., alias="connector_id", description="Connector ID")
-    query_template: str = Field(..., alias="query_template", description="Query template")
-    params: dict[str, str | int | float] = Field(default_factory=dict, alias="params", description="Query parameters")
-    accumulator: AccumulatorPattern = Field(..., alias="accumulator", description="Accumulator pattern")
-    sla_target: float | None = Field(default=None, alias="sla_target", description="SLA target")
-    cache_ttl_seconds: int = Field(default=300, alias="cache_ttl_seconds", ge=0, description="Cache TTL in seconds")
+    id: str = Field(default_factory=lambda: f"req-{uuid.uuid4().hex[:8]}", alias="id", description="Requirement ID")
+    category: ResourceCategory = Field(..., alias="category", description="Required resource category")
+    label: str = Field(..., alias="label", description="Requirement title or role name")
+    quantity: float = Field(default=1.0, alias="quantity", ge=0.0, description="Required quantity")
+    unit: str = Field(default="USD", alias="unit", description="Unit of measure (USD, FTE, GPU_HRS, etc.)")
+    required_skill: str | None = Field(
+        default=None,
+        alias="required_skill",
+        description="Specific non-transferable skill or compute class required",
+    )
+    estimated_cost_usd: float | None = Field(
+        default=None,
+        alias="estimated_cost_usd",
+        ge=0.0,
+        description="Optional monetary valuation in USD",
+    )
+    is_generic: bool = Field(
+        default=True,
+        alias="is_generic",
+        description="True when modeled generically without specific skill/pool constraints",
+    )
 
 
-class EffectDTO(BijouBaseModel):
-    """Observable outcome evaluated against target strategic Concerns."""
+class RiskDTO(BijouBaseModel):
+    """Delivery, technical, or resource mismatch risk associated with an Effort."""
 
-    id: str = Field(..., alias="id", description="Effect ID")
-    name: str = Field(..., alias="name", description="Effect name")
-    description: str = Field(..., alias="description", description="Effect description")
-    tier: EffectTier = Field(..., alias="tier", description="Effect tier")
-    causal_gate_id: str | None = Field(default=None, alias="causal_gate_id", description="Causal gate ID")
-    accumulator: AccumulatorPattern = Field(default=AccumulatorPattern.SUM, alias="accumulator", description="Accumulator pattern")
-    observed_value: float | None = Field(default=None, alias="observed_value", description="Observed metric value")
-    target_threshold: float | None = Field(default=None, alias="target_threshold", description="Target metric threshold")
-    satisfies_concerns: list[ConcernSatisfactionLinkDTO] = Field(default_factory=list, alias="satisfies_concerns", description="Concerns satisfied")
-    federation_spec: FederationSpecDTO | None = Field(default=None, alias="federation_spec", description="Federation specification if virtual")
+    id: str = Field(default_factory=lambda: f"risk-{uuid.uuid4().hex[:8]}", alias="id", description="Unique risk ID")
+    effort_id: str = Field(..., alias="effort_id", description="Parent Effort ID")
+    title: str = Field(..., alias="title", description="Short risk title")
+    description: str = Field(default="", alias="description", description="Risk factor description")
+    severity: RiskSeverity = Field(default=RiskSeverity.MEDIUM, alias="severity", description="Severity tier")
+    likelihood: float = Field(default=0.5, alias="likelihood", ge=0.0, le=1.0, description="Probability (0.0 to 1.0)")
+    potential_slip_days: int = Field(
+        default=0,
+        alias="potential_slip_days",
+        ge=0,
+        description="Potential schedule slip in days if realized",
+    )
+    is_skill_mismatch_risk: bool = Field(
+        default=False,
+        alias="is_skill_mismatch_risk",
+        description="True when generated or flagged due to non-transferable skill mismatch",
+    )
+    status: RiskStatus = Field(default=RiskStatus.ACTIVE, alias="status", description="Current risk status")
+    related_requirement_id: str | None = Field(
+        default=None,
+        alias="related_requirement_id",
+        description="Optional linked ResourceRequirement ID",
+    )
 
 
-class GraphEdgeDTO(BijouBaseModel):
-    """Typed relationship edge between nodes in the Bijou graph."""
+class MitigatorDTO(BijouBaseModel):
+    """Actionable mitigation option (exercised or unexercised) offsetting Risk/slip on an Effort."""
 
-    id: str = Field(..., alias="id", description="Edge ID")
-    source_id: str = Field(..., alias="source_id", description="Source entity ID")
-    target_id: str = Field(..., alias="target_id", description="Target entity ID")
-    relationship: RelationshipType = Field(..., alias="relationship", description="Relationship type")
-    weight: float = Field(default=1.0, alias="weight", ge=0.0, le=1.0, description="Edge weight")
-    source_milestone_id: str | None = Field(default=None, alias="source_milestone_id", description="Source milestone anchor ID")
-    target_milestone_id: str | None = Field(default=None, alias="target_milestone_id", description="Target milestone anchor ID")
-    effective_start: date | None = Field(default=None, alias="effective_start", description="Effective start date")
-    effective_end: date | None = Field(default=None, alias="effective_end", description="Effective end date")
+    id: str = Field(default_factory=lambda: f"mit-{uuid.uuid4().hex[:8]}", alias="id", description="Unique mitigator ID")
+    effort_id: str = Field(..., alias="effort_id", description="Target Effort ID")
+    risk_id: str | None = Field(default=None, alias="risk_id", description="Optional target Risk ID")
+    name: str = Field(..., alias="name", description="Mitigator action title")
+    description: str = Field(default="", alias="description", description="Mitigation rationale and action")
+    is_exercised: bool = Field(
+        default=False,
+        alias="is_exercised",
+        description="True if mitigation option has been committed/exercised",
+    )
+    slip_reduction_days: int = Field(
+        default=0,
+        alias="slip_reduction_days",
+        ge=0,
+        description="Schedule slip days recovered when exercised",
+    )
+    risk_reduction_factor: float = Field(
+        default=0.5,
+        alias="risk_reduction_factor",
+        ge=0.0,
+        le=1.0,
+        description="Fractional risk severity/likelihood reduction (0.0 to 1.0)",
+    )
+    additional_requirements: list[ResourceRequirementDTO] = Field(
+        default_factory=list,
+        alias="additional_requirements",
+        description="Additional resource inputs needed to exercise this mitigator",
+    )
+
+
+class EffortDTO(BijouBaseModel):
+    """Work item, capability program, or discovery activity inside the progression tree."""
+
+    id: str = Field(..., alias="id", description="Unique effort identifier")
+    name: str = Field(..., alias="name", description="Effort display title")
+    description: str = Field(default="", alias="description", description="Scope and deliverable summary")
+    state: EffortState = Field(default=EffortState.PLANNED, alias="state", description="Execution state")
+    start_date: date | None = Field(default=None, alias="start_date", description="Explicit start date if known")
+    end_date: date | None = Field(default=None, alias="end_date", description="Explicit end date if known")
+    estimated_duration_days: int | None = Field(
+        default=None,
+        alias="estimated_duration_days",
+        ge=1,
+        description="Relative duration in days when explicit dates are unavailable",
+    )
+    resource_requirements: list[ResourceRequirementDTO] = Field(
+        default_factory=list,
+        alias="resource_requirements",
+        description="Required resources (personnel, compute, money, material)",
+    )
+    risks: list[RiskDTO] = Field(default_factory=list, alias="risks", description="Known delivery risks")
+    mitigators: list[MitigatorDTO] = Field(
+        default_factory=list,
+        alias="mitigators",
+        description="Available or exercised mitigation options",
+    )
+
+    @property
+    def timing_mode(self) -> EffortTimingMode:
+        """Infer timing certainty tier from explicit dates and duration."""
+        if self.end_date is not None or (self.start_date is not None and self.estimated_duration_days is not None):
+            return EffortTimingMode.EXPLICIT_DATES
+        if self.estimated_duration_days is not None:
+            return EffortTimingMode.DURATION_ONLY
+        return EffortTimingMode.UNKNOWN
+
+    @model_validator(mode="after")
+    def _validate_dates(self) -> Self:
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValueError("Effort end_date cannot precede start_date")
+        return self
+
+
+# --- Six Typed Relationship Edges with Intelligence Pedigree ---
+
+
+class PedigreeEdgeBase(BijouBaseModel):
+    """Base contract carrying intelligence confidence, provenance, and optional temporality."""
+
+    id: str = Field(default_factory=lambda: f"edge-{uuid.uuid4().hex[:8]}", alias="id", description="Edge ID")
+    confidence: ConfidenceLevel = Field(
+        default=ConfidenceLevel.CONFIRMED,
+        alias="confidence",
+        description="Intelligence certainty tier",
+    )
+    provenance_note: str | None = Field(
+        default=None,
+        alias="provenance_note",
+        description="Source attribution or analytical basis",
+    )
+    effective_start: date | None = Field(default=None, alias="effective_start", description="Optional start date")
+    effective_end: date | None = Field(default=None, alias="effective_end", description="Optional end date")
+
+
+class OrgOrgEdgeDTO(PedigreeEdgeBase):
+    """Relationship between two Organizations (hierarchical, formal support, or collaborative)."""
+
+    source_org_id: str = Field(..., alias="source_org_id", description="Source/Parent/Supporting Org ID")
+    target_org_id: str = Field(..., alias="target_org_id", description="Target/Child/Supported Org ID")
+    relation_type: OrgOrgRelationType = Field(..., alias="relation_type", description="Relationship nature")
+
+
+class OrgInterestEdgeDTO(PedigreeEdgeBase):
+    """Many-to-many link expressing an Organization's stance and priority toward an Interest."""
+
+    org_id: str = Field(..., alias="org_id", description="Organization ID")
+    interest_id: str = Field(..., alias="interest_id", description="Interest ID")
+    stance: OrgInterestStance = Field(
+        default=OrgInterestStance.MISSION_ALIGNED,
+        alias="stance",
+        description="Role/stance toward the interest",
+    )
+    priority_rank: float = Field(
+        default=0.5,
+        alias="priority_rank",
+        ge=0.0,
+        le=1.0,
+        description="Org-defined normalized priority (0.0 to 1.0)",
+    )
+    allow_hierarchy_inheritance: bool = Field(
+        default=True,
+        alias="allow_hierarchy_inheritance",
+        description="Whether visualization tools may inherit this priority down org hierarchy",
+    )
+
+
+class InterestInterestEdgeDTO(PedigreeEdgeBase):
+    """Directed edge in the Interest taxonomy DAG (generic category -> specific interest)."""
+
+    parent_interest_id: str = Field(..., alias="parent_interest_id", description="Broader/parent Interest ID")
+    child_interest_id: str = Field(..., alias="child_interest_id", description="Specific/child Interest ID")
+    relation_type: InterestInterestRelationType = Field(
+        default=InterestInterestRelationType.SPECIALIZES,
+        alias="relation_type",
+        description="Taxonomy edge type",
+    )
+
+
+class OrgEffortEdgeDTO(PedigreeEdgeBase):
+    """Direct resourcing link from an Organization (or ResourcePool) into an Effort."""
+
+    org_id: str = Field(..., alias="org_id", description="Resourcing Organization ID")
+    effort_id: str = Field(..., alias="effort_id", description="Target Effort ID")
+    resourcing_type: ResourceCategory = Field(
+        default=ResourceCategory.GENERIC_SUPPORT,
+        alias="resourcing_type",
+        description="Type of resource contributed",
+    )
+    resource_pool_id: str | None = Field(
+        default=None,
+        alias="resource_pool_id",
+        description="Optional linked ResourcePool ID for managed org tracking",
+    )
+    requirement_id: str | None = Field(
+        default=None,
+        alias="requirement_id",
+        description="Optional satisfied ResourceRequirement ID",
+    )
+    allocation_amount: float = Field(default=0.0, alias="allocation_amount", ge=0.0, description="Allocated amount")
+    allocation_unit: str = Field(default="UNITS", alias="allocation_unit", description="Allocation unit")
+    assigned_skill: str | None = Field(
+        default=None,
+        alias="assigned_skill",
+        description="Actual assigned skill or compute tag",
+    )
+    is_generic: bool = Field(
+        default=True,
+        alias="is_generic",
+        description="True when modeled without explicit managed pool assignment",
+    )
+
+
+class EffortInterestEdgeDTO(PedigreeEdgeBase):
+    """Many-to-many link describing how an Effort aligns with or satisfies an Interest."""
+
+    effort_id: str = Field(..., alias="effort_id", description="Effort ID")
+    interest_id: str = Field(..., alias="interest_id", description="Interest ID")
+    relation_type: EffortInterestRelationType = Field(
+        default=EffortInterestRelationType.DIRECT_SOLUTION,
+        alias="relation_type",
+        description="Contribution alignment type",
+    )
+    impact_weight: float = Field(
+        default=1.0,
+        alias="impact_weight",
+        ge=0.0,
+        le=1.0,
+        description="Contribution weight (0.0 to 1.0)",
+    )
+
+
+class EffortEffortEdgeDTO(PedigreeEdgeBase):
+    """Causal dependency between an upstream Effort and a downstream Effort."""
+
+    source_effort_id: str = Field(..., alias="source_effort_id", description="Upstream predecessor Effort ID")
+    target_effort_id: str = Field(..., alias="target_effort_id", description="Downstream dependent Effort ID")
+    blocking_mode: BlockingMode = Field(
+        default=BlockingMode.BLOCKING,
+        alias="blocking_mode",
+        description="Whether upstream blocks downstream schedule or informs it non-blocking",
+    )
+    dependency_degree: float = Field(
+        default=1.0,
+        alias="dependency_degree",
+        ge=0.0,
+        le=1.0,
+        description="Strength of technical/operational coupling (0.0 to 1.0)",
+    )
 
 
 class DecisionLogEntryDTO(BijouBaseModel):
-    """Audit ledger entry tracking decision provenance, milestone shifts, and rationale."""
+    """Audit ledger entry tracking portfolio simulations, risk overrides, and rationale."""
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), alias="id", description="Unique decision entry ID")
-    target_milestone_id: str = Field(..., alias="target_milestone_id", description="Target milestone ID")
-    author: str = Field(..., alias="author", description="Author or decision maker identifier")
+    target_effort_id: str = Field(..., alias="target_effort_id", description="Target Effort ID")
+    author: str = Field(..., alias="author", description="Decision maker or analyst perspective")
     justification: str = Field(..., alias="justification", description="Strategic justification or rationale")
     timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         alias="timestamp",
-        description="Timestamp when decision was logged",
+        description="UTC timestamp when decision was recorded",
     )
-

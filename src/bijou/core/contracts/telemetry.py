@@ -1,4 +1,4 @@
-"""Tier-2 high-volume operational event telemetry DTOs."""
+"""Tier-2 high-volume operational event telemetry DTOs for Bijou v2."""
 
 from datetime import datetime
 from typing import Literal
@@ -9,14 +9,15 @@ from bijou.core.contracts.base import BijouBaseModel
 from bijou.core.contracts.enums import AccumulatorPattern
 
 
-class EffectEventDTO(BijouBaseModel):
-    """High-volume operational event record in the provenance DAG."""
+class EffortTelemetryEventDTO(BijouBaseModel):
+    """High-volume operational telemetry event tied to an Effort."""
 
     event_id: str = Field(..., alias="event_id", description="Unique event ID")
-    thing_id: str = Field(..., alias="thing_id", description="Producing Thing ID")
-    milestone_id: str | None = Field(default=None, alias="milestone_id", description="Associated Milestone ID")
+    effort_id: str = Field(..., alias="effort_id", description="Producing Effort ID")
     source_org_id: str = Field(..., alias="source_org_id", description="Source Organization ID")
-    causal_parent_ids: list[str] = Field(default_factory=list, alias="causal_parent_ids", description="Causal parent event IDs")
+    causal_parent_ids: list[str] = Field(
+        default_factory=list, alias="causal_parent_ids", description="Causal parent event IDs"
+    )
     causal_verb: Literal["COLLECTED", "DETECTED", "SYNTHESIZED", "TRIGGERED", "CONFIRMED"] = Field(
         ..., alias="causal_verb", description="Causal action verb"
     )
@@ -28,9 +29,9 @@ class EffectEventDTO(BijouBaseModel):
 
 
 class TelemetryRollupDTO(BijouBaseModel):
-    """Analytical rollup of Tier-2 events over a time window."""
+    """Analytical rollup of Tier-2 Effort telemetry over a time window."""
 
-    thing_id: str = Field(..., alias="thing_id", description="Target Thing ID")
+    effort_id: str = Field(..., alias="effort_id", description="Target Effort ID")
     metric_name: str = Field(..., alias="metric_name", description="Aggregated metric name")
     accumulator: AccumulatorPattern = Field(..., alias="accumulator", description="Accumulator pattern applied")
     aggregated_value: float = Field(..., alias="aggregated_value", description="Computed aggregate value")

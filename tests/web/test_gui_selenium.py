@@ -1,10 +1,13 @@
-"""End-to-End Headless Browser GUI Tests for Bijou Web Interface using Selenium.
+"""End-to-End Headless Browser GUI Tests for Bijou v2 Web Interface using Selenium.
 
-Exercises the live application shell across all 4 decision-support lenses:
-1. 4X Stratified Tech Tree & What-If Slip Simulation Drawer
-2. Executive Multi-Perspective 1-Slide Briefing (4 Quadrants)
-3. Single-Thing Focal Dashboard & Live Portfolio Trade-Off Matrix
-4. Manifest JSON Studio & Quick Entity Administration
+Verifies:
+1. View A: Stateful Capability Progression DAG + Pedigree/Perspective controls
+2. View B: Tri-Partite Architectural Flow + Indirect Shared-Interest Paths
+3. View C: Live Decision Workbench + Bill of Efforts Cart (mitigator toggle & skill mismatch alert)
+4. Contextual Entity Puck Inspector
+5. Lens 2: Executive Briefing (Landscape 1-slide)
+6. Lens 3: Entity & Graph Studio + Pre-Flight Diagnostics
+7. Zero SEVERE JavaScript console errors
 """
 
 import shutil
@@ -16,18 +19,19 @@ from pathlib import Path
 
 import pytest
 import uvicorn
-from bijou_ingest import ManifestIngestor
-from bijou_sdk import BijouClient
+
 pytest.importorskip("selenium")
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.ui import Select, WebDriverWait
 
 from bijou.api.app import create_app
 from bijou.config import BijouSettings
+from bijou_ingest import ManifestIngestor
+from bijou_sdk import BijouClient
 
 
 def find_free_port() -> int:
@@ -45,17 +49,13 @@ def run_test_server(app, host: str, port: int, server_holder: dict) -> None:
 
 @pytest.fixture(scope="module")
 def live_gui_server():
-    """Module-scoped fixture starting an isolated Bijou server with ingested datasets."""
     root_dir = Path(__file__).resolve().parent.parent.parent
-    tmp_dir = tempfile.mkdtemp(prefix="bijou_sel_")
+    tmp_dir = tempfile.mkdtemp(prefix="bijou_sel_v2_")
     tmp_path = Path(tmp_dir)
 
-    db_file = tmp_path / "gui_test.db"
-    duckdb_file = tmp_path / "gui_telemetry.duckdb"
-
     settings = BijouSettings(
-        db_uri=f"sqlite:///{db_file}",
-        duckdb_path=str(duckdb_file),
+        db_uri=f"sqlite:///{tmp_path}/gui_v2.db",
+        duckdb_path=str(tmp_path / "gui_v2.duckdb"),
         enable_reasoning=False,
     )
     app = create_app(settings)
@@ -78,34 +78,29 @@ def live_gui_server():
         except OSError:
             time.sleep(0.1)
 
-    # Ingest reference datasets into live running server over HTTP
     datasets_dir = root_dir / "datasets"
-    yaml_path = datasets_dir / "joint_isr_architecture.yaml"
-    jsonl_path = datasets_dir / "satellite_cascade_telemetry.jsonl"
-
     with BijouClient(base_url=base_url) as sdk_client:
-        ingestor = ManifestIngestor(client=sdk_client)
-        ingestor.ingest_manifest_file(yaml_path, base_dir=datasets_dir)
-        ingestor.ingest_telemetry_file(jsonl_path, base_dir=datasets_dir)
+        ing = ManifestIngestor(client=sdk_client)
+        ing.ingest_manifest_file("joint_isr_architecture.json", base_dir=datasets_dir, replace_all=True)
+        ing.ingest_telemetry_file("satellite_cascade_telemetry.jsonl", base_dir=datasets_dir)
 
     yield base_url
 
     if "server" in server_holder:
         server_holder["server"].should_exit = True
-    time.sleep(0.5)
-
+    time.sleep(0.4)
     shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 @pytest.fixture(scope="module")
 def browser_driver():
-    """Module-scoped headless Chrome driver."""
     chrome_options = Options()
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--window-size=1440,940")
+    chrome_options.set_capability("goog:loggingPrefs", {"browser": "SEVERE"})
 
     driver = webdriver.Chrome(options=chrome_options)
     yield driver
@@ -115,167 +110,61 @@ def browser_driver():
         pass
 
 
-def test_gui_full_lens_workflows_and_interactions(live_gui_server: str, browser_driver: webdriver.Chrome) -> None:
-    """Verifies all 4 lenses and drawer workflows in headless Chrome."""
+def test_gui_abc_modes_bill_of_efforts_briefing_and_studio(live_gui_server: str, browser_driver: webdriver.Chrome) -> None:
     driver = browser_driver
     wait = WebDriverWait(driver, 10)
     driver.get(live_gui_server)
 
-    # 1. Shell & Header Verification
     assert "Bijou" in driver.title
-    brand_el = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "brand")))
-    assert "BIJOU" in brand_el.text
+    wait.until(EC.presence_of_element_located((By.CLASS_NAME, "effort-card")))
 
-    # 2. Lens 1: Tech Tree & SVG Connectors
-    wait.until(EC.presence_of_element_located((By.CLASS_NAME, "node-card")))
-    node_cards = driver.find_elements(By.CLASS_NAME, "node-card")
-    assert len(node_cards) >= 10
+    # 1. View A renders 6 Effort cards & SVG connectors
+    effort_cards = driver.find_elements(By.CLASS_NAME, "effort-card")
+    assert len(effort_cards) == 6
+    svg_paths = driver.find_elements(By.CSS_SELECTOR, "#canvas-svg-layer path")
+    assert len(svg_paths) >= 5
 
-    # Verify SVG overlay contains drawn paths
-    svg_overlay = driver.find_element(By.CLASS_NAME, "tech-tree-svg-overlay")
-    assert svg_overlay is not None
-    edge_paths = svg_overlay.find_elements(By.TAG_NAME, "path")
-    assert len(edge_paths) > 0
+    # 2. Contextual Effort Puck opens cleanly
+    first_card = driver.find_element(By.CSS_SELECTOR, ".effort-card[data-effort-id='eff-edge-correlator']")
+    driver.execute_script("arguments[0].click();", first_card)
+    wait.until(lambda d: "hidden" not in d.find_element(By.ID, "puck-backdrop").get_attribute("class"))
+    wait.until(lambda d: "Correlator" in d.find_element(By.ID, "puck-title").text)
+    driver.execute_script("document.getElementById('btn-close-puck').click();")
 
-    # 3. What-If Slip Simulation Drawer (via Thing Detail Puck HUD)
-    target_card = driver.find_element(By.CSS_SELECTOR, ".node-card[data-milestone-id='ms-space-chamber-proto']")
-    driver.execute_script("arguments[0].click();", target_card)
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#thing-detail-puck.visible")))
+    # 3. Switch to View B: Tri-Partite Architectural Flow
+    driver.execute_script("document.getElementById('btn-mode-b').click();")
+    wait.until(EC.presence_of_element_located((By.CLASS_NAME, "tripartite-grid")))
+    tri_nodes = driver.find_elements(By.CLASS_NAME, "tri-node")
+    assert len(tri_nodes) >= 15
 
-    # Launch Slip Simulator from Puck HUD (wait for async puck telemetry load)
-    puck_slip_btn = wait.until(EC.presence_of_element_located((By.ID, "puck-quick-slip-btn")))
-    driver.execute_script("arguments[0].click();", puck_slip_btn)
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#slip-drawer.open")))
-    time.sleep(0.4)
+    # 4. Switch to View C: Live Decision Workbench & Bill of Efforts Dock
+    driver.execute_script("document.getElementById('btn-mode-c').click();")
+    wait.until(lambda d: "hidden" not in d.find_element(By.ID, "bill-of-efforts-dock").get_attribute("class"))
 
-    drawer_title = driver.find_element(By.ID, "drawer-milestone-title").text
-    assert "Thermal Vacuum Chamber Test" in drawer_title or len(drawer_title) > 0
+    # Toggle a mitigator inside BoE dock and trigger live simulation
+    mit_cb = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".boe-mit-toggle")))
+    driver.execute_script("arguments[0].click();", mit_cb)
+    wait.until(lambda d: int(d.find_element(By.ID, "cart-badge-count").text) >= 1)
 
-    days_slider = driver.find_element(By.ID, "slip-days-slider")
-    driver.execute_script("arguments[0].value = 90;", days_slider)
+    # 5. Switch Perspective Switcher to Managed Org Owner
+    persp_select = Select(driver.find_element(By.ID, "perspective-select"))
+    if len(persp_select.options) > 1:
+        persp_select.select_by_index(1)
 
-    apply_btn = driver.find_element(By.ID, "apply-slip-btn")
-    driver.execute_script("arguments[0].click();", apply_btn)
+    # 6. Lens 2: Executive Briefing
+    driver.execute_script("document.getElementById('nav-lens-briefing').click();")
+    wait.until(EC.presence_of_element_located((By.CLASS_NAME, "briefing-quadrants")))
+    quads = driver.find_elements(By.CLASS_NAME, "quadrant-box")
+    assert len(quads) == 4
 
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#slip-simulation-results div")))
-    results_text = driver.find_element(By.ID, "slip-simulation-results").text
-    assert "Impacted Nodes" in results_text
-    assert "ROI Delta" in results_text
+    # 7. Lens 3: Entity & Graph Studio + Diagnostics
+    driver.execute_script("document.getElementById('nav-lens-studio').click();")
+    wait.until(EC.presence_of_element_located((By.ID, "st-org-form")))
+    diag_tab = driver.find_element(By.CSS_SELECTOR, ".studio-tab[data-tab='diagnostics']")
+    driver.execute_script("arguments[0].click();", diag_tab)
+    wait.until(EC.presence_of_element_located((By.ID, "st-manifest-json")))
 
-    # Test Decision Provenance Ledger (REC-019)
-    author_input = driver.find_element(By.ID, "decision-author")
-    just_input = driver.find_element(By.ID, "decision-justification")
-    commit_btn = driver.find_element(By.ID, "commit-decision-btn")
-    author_input.send_keys("Chief Architect")
-    just_input.send_keys("Accelerated thermal testing to mitigate sensor payload delivery risk.")
-    driver.execute_script("arguments[0].click();", commit_btn)
-    time.sleep(0.5)
-
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#drawer-decision-logs div")))
-    logs_text = driver.find_element(By.ID, "drawer-decision-logs").text
-    assert "Chief Architect" in logs_text
-    assert "Accelerated thermal testing" in logs_text
-
-    close_btn = driver.find_element(By.ID, "close-drawer-btn")
-    driver.execute_script("arguments[0].click();", close_btn)
-    puck_close = driver.find_element(By.ID, "puck-close-btn")
-    driver.execute_script("arguments[0].click();", puck_close)
-    time.sleep(0.3)
-
-    # 4. Lens 2: Executive Perspective Briefing
-    briefing_tab = driver.find_element(By.CSS_SELECTOR, "button[data-lens='briefing-one-pager']")
-    briefing_tab.click()
-
-    wait.until(EC.presence_of_element_located((By.CLASS_NAME, "briefing-slide")))
-    briefing_slide = driver.find_element(By.CLASS_NAME, "briefing-slide")
-    assert "Executive Perspective Briefing" in briefing_slide.text
-
-    # Verify 4 quadrants
-    quadrants = driver.find_elements(By.CLASS_NAME, "quadrant-card")
-    assert len(quadrants) >= 4
-    quadrant_texts = [q.text for q in quadrants]
-    assert any("Supported Concerns" in t for t in quadrant_texts)
-    assert any("Owned Things" in t for t in quadrant_texts)
-    assert any("Cross-Org Dependencies" in t for t in quadrant_texts)
-    assert any("Committed Cost" in t for t in quadrant_texts)
-
-    # 5. Lens 3: Single-Thing Focal Dashboard & Trade-Off Matrix
-    focal_tab = driver.find_element(By.CSS_SELECTOR, "button[data-lens='focal-dashboard']")
-    focal_tab.click()
-
-    # Select thing known to have operational telemetry events
-    thing_select = wait.until(EC.presence_of_element_located((By.ID, "focal-thing-select")))
-    driver.execute_script("arguments[0].value = 'thing-hypersonic-sensor-constellation';", thing_select)
-
-    inspect_btn = wait.until(EC.element_to_be_clickable((By.ID, "focal-refresh-btn")))
-    inspect_btn.click()
-
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#focal-dashboard-target .quadrant-card")))
-    focal_target = driver.find_element(By.ID, "focal-dashboard-target")
-    assert "Milestone Progression" in focal_target.text
-    assert "Direct Causal Linkages" in focal_target.text
-
-    # Verify 2-Hop Radial Ego-Network HTML5 Canvas (REC-013)
-    canvas = driver.find_element(By.ID, "ego-network-canvas")
-    assert canvas is not None
-
-    # Verify Telemetry Rollups with inline SVG Sparklines (REC-014)
-    sparklines = driver.find_elements(By.CLASS_NAME, "telemetry-sparkline")
-    assert len(sparklines) > 0
-
-    # Verify Pareto Frontier Optimizer (REC-008)
-    pareto_btn = driver.find_element(By.ID, "compute-pareto-btn")
-    driver.execute_script("arguments[0].click();", pareto_btn)
-    time.sleep(0.6)
-
-    pareto_wrapper = driver.find_element(By.ID, "pareto-scatterplot-wrapper")
-    assert pareto_wrapper.is_displayed()
-    pareto_svg = driver.find_element(By.ID, "pareto-scatter-svg")
-    assert pareto_svg is not None
-
-    # Check candidate boxes and run tradeoff
-    checkboxes = driver.find_elements(By.CLASS_NAME, "tradeoff-candidate-checkbox")
-    assert len(checkboxes) >= 2
-    for cb in checkboxes[:2]:
-        if not cb.is_selected():
-            driver.execute_script("arguments[0].click();", cb)
-
-    tradeoff_btn = driver.find_element(By.ID, "run-tradeoff-btn")
-    driver.execute_script("arguments[0].click();", tradeoff_btn)
-
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#tradeoff-results-target h4")))
-    tradeoff_results = driver.find_element(By.ID, "tradeoff-results-target").text
-    assert "Trade-Off Evaluation Results" in tradeoff_results
-    assert "Aggregate ROI" in tradeoff_results
-
-    # 6. Lens 4: Manifest JSON Studio, Diagnostics & Direct Manipulation Workbench
-    crud_tab = driver.find_element(By.CSS_SELECTOR, "button[data-lens='crud-studio']")
-    crud_tab.click()
-
-    manifest_subtab = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-crud-tab='panel-manifest']")))
-    manifest_subtab.click()
-
-    export_btn = wait.until(EC.element_to_be_clickable((By.ID, "crud-export-btn")))
-    export_btn.click()
-    time.sleep(0.8)
-
-    json_textarea = driver.find_element(By.ID, "crud-manifest-json")
-    exported_val = json_textarea.get_attribute("value")
-    assert "organizations" in exported_val
-    assert "things" in exported_val
-    assert "causal_gates" in exported_val
-
-    # Verify Pre-Flight Diagnostics Linter HUD (REC-017)
-    validate_btn = driver.find_element(By.ID, "crud-validate-btn")
-    driver.execute_script("arguments[0].click();", validate_btn)
-    time.sleep(0.6)
-
-    hud = driver.find_element(By.ID, "crud-diagnostic-hud")
-    assert hud.is_displayed()
-    assert "CRITICAL TOPOLOGICAL BLOCKERS" in hud.text or "ALL PRE-FLIGHT CHECKS PASSED" in hud.text or "Zero blockers" in hud.text
-
-    # Verify Visual Entity Direct Manipulation Workbench (REC-016)
-    visual_cards = driver.find_elements(By.CLASS_NAME, "visual-card")
-    assert len(visual_cards) > 0
-    visual_lanes = driver.find_elements(By.CLASS_NAME, "visual-lane")
-    assert len(visual_lanes) == 4
+    # Verify zero SEVERE JS console errors across entire journey
+    logs = driver.get_log("browser")
+    severe = [entry for entry in logs if entry.get("level") == "SEVERE"]
+    assert not severe, f"SEVERE JS console errors detected: {severe}"

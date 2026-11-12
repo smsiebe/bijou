@@ -1,771 +1,315 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bijou | Strategic Tech-Tree & Causal Orchestrator</title>
-  <link rel="stylesheet" href="/static/styles.css?v=2.2.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bijou v2 | Strategic Capability &amp; Investment Orchestration</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
-  <!-- Header Bar -->
   <header class="app-header">
     <div class="brand">
-      <h1>BIJOU</h1>
-      <span class="badge-pill">4X CAUSAL ENGINE</span>
+      <div class="brand-mark">B2</div>
+      <div>
+        <h1>BIJOU</h1>
+        <div class="brand-sub">Organizations · Interests · Stateful Efforts</div>
+      </div>
+      <span class="badge-pill" id="engine-health-badge">OFFLINE ENGINE</span>
     </div>
-    <nav class="lens-bar">
-      <button class="lens-btn active" data-lens="tech-tree-canvas">4X Tech Tree</button>
-      <button class="lens-btn" data-lens="briefing-one-pager">Executive Briefing</button>
-      <button class="lens-btn" data-lens="focal-dashboard">Focal Dashboard</button>
-      <button class="lens-btn" data-lens="crud-studio">Entity & Graph Studio</button>
-      <button class="lens-btn" data-lens="spheres-canvas-view">Spheres of Ownership</button>
+
+    <nav class="lens-bar" aria-label="Primary Lenses">
+      <button class="lens-btn active" data-lens="canvas" id="nav-lens-canvas">Primary Canvas (A / B / C)</button>
+      <button class="lens-btn" data-lens="briefing" id="nav-lens-briefing">Executive Briefing</button>
+      <button class="lens-btn" data-lens="studio" id="nav-lens-studio">Entity &amp; Graph Studio</button>
     </nav>
+
+    <div class="header-controls">
+      <div class="control-chip">
+        <label for="perspective-select">Perspective</label>
+        <select id="perspective-select" title="Switch active organizational perspective">
+          <option value="GLOBAL_ANALYST">Global Analyst (Read/Model All)</option>
+        </select>
+      </div>
+      <div class="control-chip">
+        <label for="pedigree-select">Pedigree</label>
+        <select id="pedigree-select" title="Minimum confidence tier rendered on graph">
+          <option value="">All (Unconfirmed+)</option>
+          <option value="ASSESSED">Assessed+</option>
+          <option value="CONFIRMED">Confirmed Only</option>
+        </select>
+      </div>
+      <label class="toggle-chip" title="Inherit Org-Interest priority ranks down Org hierarchy">
+        <input type="checkbox" id="hierarchy-priority-toggle" checked />
+        <span>Org Priority Rollup</span>
+      </label>
+      <div class="control-chip">
+        <label for="as-of-date-input">As-Of</label>
+        <input type="date" id="as-of-date-input" />
+      </div>
+      <button class="btn btn-secondary btn-sm" id="btn-global-refresh" title="Refresh active graph state">Refresh</button>
+    </div>
   </header>
 
-  <!-- Workspace Container -->
-  <main class="workspace">
-    <!-- Lens 1: 4X Tech Tree Canvas -->
-    <section id="tech-tree-canvas" class="lens-view active">
-      <div class="tech-tree-container">
-        <div class="tech-tree-controls">
-          <div style="display: flex; gap: 16px; align-items: center;">
-            <label style="font-size: 0.85rem; font-weight: 600;">Stratification:</label>
-            <select id="stratification-mode-select">
-              <option value="TRL_TIERS">TRL Maturity Tiers</option>
-              <option value="FISCAL_ERA">Fiscal Era</option>
-              <option value="TOPOLOGICAL_DEPTH">Topological Depth</option>
-            </select>
+  <main class="app-workspace">
+    <!-- LENS 1: PRIMARY CANVAS (A / B / C SWITCHER) -->
+    <section class="lens-panel active" id="lens-canvas">
+      <div class="canvas-toolbar">
+        <div class="abc-switcher" role="tablist" aria-label="Canvas Visualization Modes">
+          <button class="abc-btn active" data-mode="A" id="btn-mode-a">
+            <span class="abc-tag">A</span> Capability Progression Tree
+          </button>
+          <button class="abc-btn" data-mode="B" id="btn-mode-b">
+            <span class="abc-tag">B</span> Tri-Partite Architectural Flow
+          </button>
+          <button class="abc-btn" data-mode="C" id="btn-mode-c">
+            <span class="abc-tag">C</span> Decision Workbench &amp; Bill of Efforts
+          </button>
+        </div>
 
-            <label style="font-size: 0.85rem; font-weight: 600; margin-left: 10px;">Filter Org:</label>
-            <select id="tech-tree-org-filter">
+        <div class="toolbar-overlays" id="toolbar-overlays">
+          <div class="overlay-control" id="view-a-overlay-wrap">
+            <label for="view-a-org-filter">Org Scope</label>
+            <select id="view-a-org-filter">
               <option value="">All Organizations</option>
             </select>
-            <button id="reset-canvas-btn" class="btn-primary" style="padding: 4px 10px; font-size: 0.75rem; background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-muted);">Reset Pan/Zoom</button>
-          </div>
-          <div>
-            <span style="font-size: 0.8rem; color: var(--text-dim); font-family: var(--font-mono);">Drag to Pan | Wheel to Zoom | Click node for Slip Simulator</span>
-          </div>
-        </div>
-
-        <div class="tech-tree-canvas-wrapper">
-          <div id="tech-tree-grid-target" class="tech-tree-grid">
-            <!-- Rendered by tech_tree.js -->
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Lens 2: Multi-Perspective 1-Slide Printable Briefing -->
-    <section id="briefing-one-pager" class="lens-view">
-      <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;" class="no-print">
-        <div style="display: flex; gap: 16px; align-items: center;">
-          <label style="font-size: 0.85rem; font-weight: 600;">Subject Org:</label>
-          <select id="briefing-subject-org"></select>
-
-          <label style="font-size: 0.85rem; font-weight: 600;">Observed Via:</label>
-          <select id="briefing-perspective-org"></select>
-
-          <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer;">
-            <input type="checkbox" id="briefing-descendants-toggle" checked />
-            <span>Include Sub-Orgs</span>
-          </label>
-
-          <button id="briefing-refresh-btn" class="btn-primary" style="padding: 6px 12px; font-size: 0.8rem;">Refresh</button>
-        </div>
-        <div>
-          <button id="briefing-print-btn" class="btn-primary" style="background: var(--accent-cyan); color: #0a0e14;">Export PDF (Print)</button>
-        </div>
-      </div>
-
-      <div id="briefing-slide-target">
-        <!-- Rendered by views.js -->
-      </div>
-    </section>
-
-    <!-- Lens 3: Single-Thing Focal Dashboard & Trade-Off Matrix -->
-    <section id="focal-dashboard" class="lens-view">
-      <div class="focal-dashboard-container">
-        <!-- Sidebar Controls -->
-        <div style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 18px; display: flex; flex-direction: column; gap: 20px;">
-          <div>
-            <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 8px;">Select Focus Thing:</label>
-            <select id="focal-thing-select" style="width: 100%;"></select>
-            <button id="focal-refresh-btn" class="btn-primary" style="margin-top: 8px; width: 100%;">Inspect Thing</button>
-          </div>
-
-          <div style="border-top: 1px solid var(--border-subtle); padding-top: 16px;">
-            <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 8px;">Trade-Off Candidates:</label>
-            <div id="tradeoff-candidates-container" style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 4px 0;">
-              <!-- Populated by app.js -->
-            </div>
-            <button id="run-tradeoff-btn" class="btn-primary" style="margin-top: 10px; width: 100%; background: var(--color-ready); color: #0a0e14;">Evaluate Trade-Off</button>
-
-            <!-- Pareto Frontier Optimizer (REC-008) -->
-            <div style="margin-top: 14px; border-top: 1px solid var(--border-subtle); padding-top: 12px;">
-              <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Pareto Budget Ceiling ($M):</label>
-              <div style="display: flex; gap: 8px; align-items: center;">
-                <input type="number" id="pareto-budget-ceiling" value="100" min="5" max="1000" step="5" style="flex: 1; padding: 6px 8px; font-size: 0.85rem;" />
-                <button id="compute-pareto-btn" class="btn-primary" style="padding: 6px 12px; font-size: 0.8rem; background: var(--accent-cyan); color: #0a0e14; font-weight: 700;">Compute Pareto</button>
-              </div>
-            </div>
-
-            <div id="pareto-scatterplot-wrapper" style="margin-top: 14px; display: none;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <h4 style="font-size: 0.85rem; color: #f59e0b; font-weight: 700;">Pareto Frontier</h4>
-                <span id="pareto-frontier-count" class="badge-pill" style="font-size: 0.7rem; color: #f59e0b; border-color: rgba(245,158,11,0.3);">0 Portfolios</span>
-              </div>
-              <div style="background: var(--bg-card); border-radius: 6px; padding: 8px; border: 1px solid var(--border-subtle); position: relative;">
-                <svg id="pareto-scatter-svg" width="100%" height="200" viewBox="0 0 320 200" style="overflow: visible; font-family: var(--font-mono);"></svg>
-                <div id="pareto-tooltip" class="pareto-tooltip" style="display: none;"></div>
-              </div>
-            </div>
-          </div>
-
-          <div id="tradeoff-results-target">
-            <!-- Results populated by views.js -->
-          </div>
-        </div>
-
-        <!-- Main Focal Detail View -->
-        <div id="focal-dashboard-target">
-          <div style="color: var(--text-muted); padding: 40px; text-align: center;">Select a Thing and click Inspect Thing.</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Lens 4: Admin CRUD & Manifest Import/Export -->
-    <section id="crud-studio" class="lens-view">
-      <!-- CRUD Studio Sub-Navigation -->
-      <div class="crud-studio-header">
-        <div class="crud-nav-tabs">
-          <button class="crud-tab-btn active" data-crud-tab="panel-things">Things Management</button>
-          <button class="crud-tab-btn" data-crud-tab="panel-concerns">Strategic Concerns</button>
-          <button class="crud-tab-btn" data-crud-tab="panel-edges">Relationships & Graph Edges</button>
-          <button class="crud-tab-btn" data-crud-tab="panel-orgs">Organizations</button>
-          <button class="crud-tab-btn" data-crud-tab="panel-manifest">Manifest JSON & Diagnostics</button>
-        </div>
-      </div>
-
-      <div class="crud-tab-content-container">
-        <!-- Tab 1: Things Studio -->
-        <div id="crud-panel-things" class="crud-tab-panel active">
-          <div class="crud-panel-layout">
-            <!-- Form Card -->
-            <div class="crud-form-card">
-              <div class="crud-form-title">
-                <span id="thing-form-title">Register New Thing</span>
-                <button id="thing-form-clear-btn" class="action-pill-btn" style="font-size: 0.72rem;">Clear Form</button>
-              </div>
-              <div>
-                <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Thing Identifier (ID):</label>
-                <input type="text" id="thing-form-id" placeholder="thing-hypersonic-sensor-constellation" style="width: 100%;" />
-              </div>
-              <div>
-                <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Thing Name:</label>
-                <input type="text" id="thing-form-name" placeholder="Hypersonic Sensor Constellation" style="width: 100%;" />
-              </div>
-              <div>
-                <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Operational Description:</label>
-                <textarea id="thing-form-desc" placeholder="Resilient space-based sensing constellation..." style="width: 100%; min-height: 56px; resize: vertical;"></textarea>
-              </div>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <div>
-                  <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Owner Organization:</label>
-                  <select id="thing-form-org" style="width: 100%;"></select>
-                </div>
-                <div>
-                  <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Lifecycle State:</label>
-                  <select id="thing-form-lifecycle" style="width: 100%;">
-                    <option value="PROPOSED">PROPOSED</option>
-                    <option value="ACTIVE" selected>ACTIVE</option>
-                    <option value="DELIVERED">DELIVERED</option>
-                    <option value="DEPRECATED">DEPRECATED</option>
-                    <option value="CANCELLED">CANCELLED</option>
-                    <option value="RETIRED">RETIRED</option>
-                  </select>
-                </div>
-              </div>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <div>
-                  <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">TRL Maturity (1-9):</label>
-                  <input type="number" id="thing-form-trl" value="6" min="1" max="9" style="width: 100%;" />
-                </div>
-                <div>
-                  <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Estimated Cost ($):</label>
-                  <input type="number" id="thing-form-cost" value="250000" min="0" step="5000" style="width: 100%;" />
-                </div>
-              </div>
-              <div>
-                <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Risk Factor Multiplier (1.0 - 10.0):</label>
-                <input type="number" id="thing-form-risk" value="1.0" min="1.0" max="10.0" step="0.1" style="width: 100%;" />
-              </div>
-              <button id="thing-form-submit-btn" class="btn-primary" style="margin-top: 6px;">Save Thing Specification</button>
-            </div>
-
-            <!-- Inventory Card -->
-            <div class="crud-inventory-card">
-              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                <div>
-                  <h3 style="margin: 0; font-size: 0.95rem; color: var(--text-main);">Things Inventory</h3>
-                  <span id="thing-inventory-count" style="font-size: 0.75rem; color: var(--text-dim); font-family: var(--font-mono);">0 Things registered</span>
-                </div>
-                <input type="text" id="thing-table-search" placeholder="Filter Things by name or ID..." style="font-size: 0.78rem; padding: 5px 10px; width: 220px;" />
-              </div>
-              <div class="entity-table-wrapper">
-                <table class="entity-table" id="things-inventory-table">
-                  <thead>
-                    <tr>
-                      <th>Thing</th>
-                      <th>Owner Organization</th>
-                      <th>Lifecycle</th>
-                      <th>TRL</th>
-                      <th>Cost</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody id="things-table-tbody">
-                    <!-- Populated by views.js -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tab 2: Strategic Concerns Studio -->
-        <div id="crud-panel-concerns" class="crud-tab-panel">
-          <div class="crud-panel-layout">
-            <!-- Form Card -->
-            <div class="crud-form-card">
-              <div class="crud-form-title">
-                <span id="concern-form-title">Register Strategic Concern</span>
-                <button id="concern-form-clear-btn" class="action-pill-btn" style="font-size: 0.72rem;">Clear Form</button>
-              </div>
-              <div>
-                <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Concern Identifier (ID):</label>
-                <input type="text" id="concern-form-id" placeholder="concern-orbital-early-warning" style="width: 100%;" />
-              </div>
-              <div>
-                <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Concern Name:</label>
-                <input type="text" id="concern-form-name" placeholder="Orbital Early Warning & Tracking" style="width: 100%;" />
-              </div>
-              <div>
-                <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Strategic Intent & Scope:</label>
-                <textarea id="concern-form-desc" placeholder="Continuous multi-azimuth orbital tracking..." style="width: 100%; min-height: 56px; resize: vertical;"></textarea>
-              </div>
-              <div>
-                <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Owner Organization:</label>
-                <select id="concern-form-org" style="width: 100%;"></select>
-              </div>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <div>
-                  <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Priority Weight (0.0 - 1.0):</label>
-                  <input type="number" id="concern-form-priority" value="0.9" min="0.0" max="1.0" step="0.05" style="width: 100%;" />
-                </div>
-                <div>
-                  <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Target Metric SLA (%):</label>
-                  <input type="number" id="concern-form-sla" value="99.5" min="0" max="100" step="0.1" style="width: 100%;" />
-                </div>
-              </div>
-              <button id="concern-form-submit-btn" class="btn-primary" style="margin-top: 6px;">Save Concern</button>
-
-              <!-- Sub-Action: Assign Concern to Thing -->
-              <div style="margin-top: 14px; border-top: 1px solid var(--border-subtle); padding-top: 12px;">
-                <h4 style="font-size: 0.85rem; color: var(--accent-cyan); margin: 0 0 10px 0;">Assign Concern to Thing</h4>
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                  <div>
-                    <label style="font-size: 0.75rem; color: var(--text-dim);">Target Thing:</label>
-                    <select id="assign-concern-thing-select" style="width: 100%; font-size: 0.8rem;"></select>
-                  </div>
-                  <div>
-                    <label style="font-size: 0.75rem; color: var(--text-dim);">Serviced Concern:</label>
-                    <select id="assign-concern-target-select" style="width: 100%; font-size: 0.8rem;"></select>
-                  </div>
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                    <div>
-                      <label style="font-size: 0.75rem; color: var(--text-dim);">Relation:</label>
-                      <select id="assign-concern-rel-type" style="width: 100%; font-size: 0.8rem;">
-                        <option value="SATISFIES">SATISFIES</option>
-                        <option value="IMPACTS">IMPACTS</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style="font-size: 0.75rem; color: var(--text-dim);">Weight (0-1):</label>
-                      <input type="number" id="assign-concern-weight" value="1.0" min="0.1" max="1.0" step="0.1" style="width: 100%; font-size: 0.8rem;" />
-                    </div>
-                  </div>
-                  <button id="assign-concern-submit-btn" class="btn-primary" style="font-size: 0.78rem; padding: 6px; background: var(--accent-blue); color: #fff;">Establish Concern Link</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Inventory Card -->
-            <div class="crud-inventory-card">
-              <div>
-                <h3 style="margin: 0; font-size: 0.95rem; color: var(--text-main);">Registered Strategic Concerns</h3>
-                <span id="concern-inventory-count" style="font-size: 0.75rem; color: var(--text-dim); font-family: var(--font-mono);">0 Concerns</span>
-              </div>
-              <div class="entity-table-wrapper">
-                <table class="entity-table" id="concerns-inventory-table">
-                  <thead>
-                    <tr>
-                      <th>Concern</th>
-                      <th>Owner Organization</th>
-                      <th>Priority</th>
-                      <th>Target SLA</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody id="concerns-table-tbody">
-                    <!-- Populated by views.js -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tab 3: Relationships & Dependency Edges Studio -->
-        <div id="crud-panel-edges" class="crud-tab-panel">
-          <div class="crud-panel-layout">
-            <!-- Form Card -->
-            <div class="crud-form-card">
-              <div class="crud-form-title">
-                <span>Connect Dependency Edge</span>
-              </div>
-              <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0;">Link two Things or Entities to form causal dependencies, cross-organizational interoperability, or tactical support lines.</p>
-              <div>
-                <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Source Entity / Prerequisite:</label>
-                <select id="edge-form-source" style="width: 100%;"></select>
-              </div>
-              <div>
-                <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Relationship Vector Type:</label>
-                <select id="edge-form-rel" style="width: 100%;">
-                  <option value="DEPENDS_ON">DEPENDS_ON (Target requires Source)</option>
-                  <option value="SUPPORTS">SUPPORTS (Source supports Target)</option>
-                  <option value="SATISFIES">SATISFIES (Fulfills capability)</option>
-                  <option value="IMPACTS">IMPACTS (Causal impact)</option>
-                  <option value="COLLABORATES_WITH">COLLABORATES_WITH (Joint coalition)</option>
-                  <option value="PEER_OF">PEER_OF (Horizontal peer)</option>
-                  <option value="CONFLICTS_WITH">CONFLICTS_WITH (Resource contention)</option>
-                  <option value="REPLACES">REPLACES (Succession / Obsolescence)</option>
-                </select>
-              </div>
-              <div>
-                <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Target Entity / Dependent:</label>
-                <select id="edge-form-target" style="width: 100%;"></select>
-              </div>
-              <div>
-                <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Edge Weight (0.1 - 1.0):</label>
-                <input type="number" id="edge-form-weight" value="1.0" min="0.1" max="1.0" step="0.1" style="width: 100%;" />
-              </div>
-              <button id="edge-form-submit-btn" class="btn-primary" style="margin-top: 6px;">Create Dependency Vector</button>
-            </div>
-
-            <!-- Inventory Card -->
-            <div class="crud-inventory-card">
-              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                <div>
-                  <h3 style="margin: 0; font-size: 0.95rem; color: var(--text-main);">Active Graph Edges</h3>
-                  <span id="edge-inventory-count" style="font-size: 0.75rem; color: var(--text-dim); font-family: var(--font-mono);">0 Edges</span>
-                </div>
-                <input type="text" id="edge-table-search" placeholder="Filter edges..." style="font-size: 0.78rem; padding: 5px 10px; width: 200px;" />
-              </div>
-              <div class="entity-table-wrapper">
-                <table class="entity-table" id="edges-inventory-table">
-                  <thead>
-                    <tr>
-                      <th>Source Entity</th>
-                      <th>Relationship</th>
-                      <th>Target Entity</th>
-                      <th>Cross-Org?</th>
-                      <th>Weight</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody id="edges-table-tbody">
-                    <!-- Populated by views.js -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tab 4: Organizations Studio -->
-        <div id="crud-panel-orgs" class="crud-tab-panel">
-          <div class="crud-panel-layout">
-            <!-- Left Form -->
-            <div class="crud-form-card">
-              <div class="crud-form-title">
-                <span>Register Organization</span>
-              </div>
-              <div>
-                <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Organization ID:</label>
-                <input type="text" id="crud-org-id" placeholder="org-tactical-alpha" style="width: 100%;" />
-              </div>
-              <div>
-                <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Organization Name:</label>
-                <input type="text" id="crud-org-name" placeholder="Tactical Strike Command" style="width: 100%;" />
-              </div>
-              <div>
-                <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Echelon Level (1-5):</label>
-                <input type="number" id="crud-org-echelon" value="1" min="1" max="5" style="width: 100%;" />
-              </div>
-              <div>
-                <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Mission Statement:</label>
-                <input type="text" id="crud-org-mission" placeholder="Provide strategic multi-domain support" style="width: 100%;" />
-              </div>
-              <button id="crud-create-org-btn" class="btn-primary" style="margin-top: 8px;">Create Organization</button>
-            </div>
-
-            <!-- Right Inventory -->
-            <div class="crud-inventory-card">
-              <div>
-                <h3 style="margin: 0; font-size: 0.95rem; color: var(--text-main);">Organizations Roster</h3>
-                <span id="org-inventory-count" style="font-size: 0.75rem; color: var(--text-dim); font-family: var(--font-mono);">0 Organizations</span>
-              </div>
-              <div class="entity-table-wrapper">
-                <table class="entity-table" id="orgs-inventory-table">
-                  <thead>
-                    <tr>
-                      <th>Organization</th>
-                      <th>Echelon</th>
-                      <th>Mission Statement</th>
-                      <th>Owned Things</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody id="orgs-table-tbody">
-                    <!-- Populated by views.js -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tab 5: Manifest JSON Studio & Direct Manipulation -->
-        <div id="crud-panel-manifest" class="crud-tab-panel">
-          <div style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 18px; display: flex; flex-direction: column; gap: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-              <h3 style="font-size: 1rem; color: var(--accent-cyan); margin: 0;">Manifest JSON Studio & Direct Manipulation</h3>
-              <div style="display: flex; gap: 8px; align-items: center;">
-                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
-                  <input type="checkbox" id="crud-replace-all-checkbox" />
-                  <span>Replace All (Atomic Swap)</span>
-                </label>
-                <button id="crud-validate-btn" class="btn-primary" style="background: #0284c7;">Pre-Flight Diagnostics</button>
-                <button id="crud-export-btn" class="btn-primary" style="background: #334155;">Export Manifest</button>
-                <button id="crud-import-btn" class="btn-primary">Import Manifest</button>
-              </div>
-            </div>
-
-            <!-- Diagnostic HUD (REC-017) -->
-            <div id="crud-diagnostic-hud" class="diagnostic-hud" style="display: none;"></div>
-
-            <textarea id="crud-manifest-json" style="flex: 1; min-height: 260px; font-family: var(--font-mono); font-size: 0.8rem; padding: 12px; resize: vertical;" placeholder="Paste Bijou manifest JSON here or click Export Manifest..."></textarea>
-
-            <!-- Direct Manipulation Visual Entity Workbench (REC-016) -->
-            <div id="crud-visual-entities-wrapper" style="border-top: 1px solid var(--border-subtle); padding-top: 12px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <h4 style="font-size: 0.85rem; color: var(--accent-cyan); font-weight: 700; margin: 0;">Visual Entity Cards (Drag-and-Drop Lifecycle Workbench)</h4>
-                <span style="font-size: 0.75rem; color: var(--text-muted);">Drag cards between lifecycle states to update manifest directly</span>
-              </div>
-              <div id="crud-visual-lanes" class="visual-lanes-container"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Lens 5: Clustered Spheres of Ownership & Cross-Cutting Graph -->
-    <section id="spheres-canvas-view" class="lens-view">
-      <div class="spheres-view-container">
-        <div class="spheres-controls-bar">
-          <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
-            <label style="font-size: 0.85rem; font-weight: 600;">Filter Sphere:</label>
-            <select id="spheres-org-filter">
-              <option value="">All Organization Spheres</option>
+            <label for="view-a-cluster-by">Accent By</label>
+            <select id="view-a-cluster-by">
+              <option value="state">Execution State</option>
+              <option value="org">Primary Resourcing Org</option>
+              <option value="interest">Primary Aligned Interest</option>
             </select>
-
-            <label style="font-size: 0.85rem; font-weight: 600; margin-left: 10px;">Projection Mode:</label>
-            <select id="spheres-view-mode-toggle">
-              <option value="things">Thing-to-Thing with Org Spheres</option>
-              <option value="macro_orgs">Org-to-Org Macro Rollup</option>
-            </select>
-
-            <button id="spheres-reset-pan-zoom" class="btn-primary" style="padding: 4px 10px; font-size: 0.75rem; background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-muted);">Reset Pan/Zoom</button>
           </div>
-          <div>
-            <span style="font-size: 0.8rem; color: var(--text-dim); font-family: var(--font-mono);">
-              Drag to Pan | Wheel to Zoom | Click Thing for Puck HUD | Golden Arcs = Cross-Cutting
-            </span>
+          <div class="overlay-control hidden" id="view-b-overlay-wrap">
+            <label class="toggle-chip">
+              <input type="checkbox" id="view-b-show-indirect" checked />
+              <span>Indirect Shared-Interest Paths</span>
+            </label>
+            <label class="toggle-chip">
+              <input type="checkbox" id="view-b-show-partners" checked />
+              <span>Partnership Candidates</span>
+            </label>
           </div>
-        </div>
-
-        <div id="spheres-canvas-wrapper" class="spheres-canvas-wrapper">
-          <div id="spheres-graph-target" class="spheres-graph-canvas">
-            <!-- Rendered by spheres.js -->
+          <div class="zoom-controls">
+            <button class="btn btn-secondary btn-xs" id="btn-zoom-out" title="Zoom Out">-</button>
+            <span class="mono-badge" id="zoom-level-label">100%</span>
+            <button class="btn btn-secondary btn-xs" id="btn-zoom-in" title="Zoom In">+</button>
+            <button class="btn btn-secondary btn-xs" id="btn-zoom-reset" title="Reset View">Fit</button>
           </div>
+          <button class="btn btn-accent btn-sm" id="btn-toggle-dock">Bill of Efforts Cart <span class="badge-count" id="cart-badge-count">0</span></button>
         </div>
       </div>
+
+      <div class="canvas-split-body">
+        <div class="canvas-stage-wrap" id="canvas-stage-wrap">
+          <div class="canvas-legend" id="canvas-legend">
+            <span class="legend-item"><span class="dot dot-completed"></span> Completed</span>
+            <span class="legend-item"><span class="dot dot-inwork"></span> In Work</span>
+            <span class="legend-item"><span class="dot dot-planned"></span> Planned / Discovery</span>
+            <span class="legend-item"><span class="line-sample solid"></span> Blocking</span>
+            <span class="legend-item"><span class="line-sample dashed"></span> Non-Blocking Informs</span>
+            <span class="legend-item"><span class="spof-sample">SPOF</span> Bottleneck</span>
+          </div>
+          <div class="canvas-viewport" id="canvas-viewport">
+            <div class="canvas-world" id="canvas-world">
+              <svg class="canvas-svg-layer" id="canvas-svg-layer"></svg>
+              <div class="canvas-dom-layer" id="canvas-dom-layer"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PERSISTENT BILL OF EFFORTS SCENARIO CART DOCK (MODE C / SLIDE DOCK) -->
+        <aside class="boe-dock hidden" id="bill-of-efforts-dock" aria-label="Bill of Efforts Scenario Dock">
+          <div class="dock-header">
+            <div>
+              <h2>Bill of Efforts</h2>
+              <div class="dock-subtitle" id="boe-mode-subtitle">Transient Scenario Workbench</div>
+            </div>
+            <button class="btn btn-ghost btn-xs" id="btn-close-dock" title="Collapse Cart Dock">×</button>
+          </div>
+
+          <div class="dock-kpis" id="boe-kpis">
+            <div class="kpi-box">
+              <span class="kpi-label">Cost Delta</span>
+              <span class="kpi-val" id="boe-cost-delta">$0</span>
+            </div>
+            <div class="kpi-box">
+              <span class="kpi-label">Net Risk Delta</span>
+              <span class="kpi-val" id="boe-risk-delta">0</span>
+            </div>
+            <div class="kpi-box">
+              <span class="kpi-label">Impacted Efforts</span>
+              <span class="kpi-val" id="boe-impacted-count">0</span>
+            </div>
+          </div>
+
+          <div class="dock-scroll-body">
+            <!-- Skill Mismatch Alerts -->
+            <div class="dock-section hidden" id="boe-mismatch-section">
+              <h3 class="section-warn-title">Skill Mismatch Risk Alerts</h3>
+              <div id="boe-mismatch-list" class="stack-sm"></div>
+            </div>
+
+            <!-- Managed Resource Pool Balances -->
+            <div class="dock-section">
+              <h3>Resource Pool Balances &amp; Color-of-Money</h3>
+              <div id="boe-pool-balances" class="stack-sm"></div>
+            </div>
+
+            <!-- Stage Mitigators -->
+            <div class="dock-section">
+              <h3>Mitigator Options</h3>
+              <div id="boe-mitigator-list" class="stack-sm"></div>
+            </div>
+
+            <!-- Stage Resource Allocation -->
+            <div class="dock-section">
+              <h3>Stage Resource Allocation</h3>
+              <form id="boe-alloc-form" class="compact-form">
+                <div class="form-row-2">
+                  <label>Org
+                    <select id="boe-alloc-org" required></select>
+                  </label>
+                  <label>Pool (Optional)
+                    <select id="boe-alloc-pool">
+                      <option value="">Generic / Unmanaged</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="form-row-2">
+                  <label>Target Effort
+                    <select id="boe-alloc-effort" required></select>
+                  </label>
+                  <label>Requirement (Optional)
+                    <select id="boe-alloc-req">
+                      <option value="">General Effort Support</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="form-row-3">
+                  <label>Category
+                    <select id="boe-alloc-cat">
+                      <option value="MONEY">MONEY</option>
+                      <option value="STAFF">STAFF</option>
+                      <option value="COMPUTE">COMPUTE</option>
+                      <option value="MATERIAL">MATERIAL</option>
+                      <option value="GENERIC_SUPPORT">GENERIC</option>
+                    </select>
+                  </label>
+                  <label>Amount
+                    <input type="number" step="any" min="0" id="boe-alloc-amount" value="1" required />
+                  </label>
+                  <label>Unit
+                    <input type="text" id="boe-alloc-unit" value="USD" required />
+                  </label>
+                </div>
+                <div class="form-row-2">
+                  <label>Assigned Skill / Spec
+                    <input type="text" id="boe-alloc-skill" placeholder="Optional skill tag" />
+                  </label>
+                  <label>Slip Penalty (Days, if Mismatch)
+                    <input type="number" min="0" id="boe-alloc-slip-penalty" placeholder="Default 30d" />
+                  </label>
+                </div>
+                <div id="boe-alloc-eligibility-hint" class="hint-banner hidden"></div>
+                <button type="submit" class="btn btn-secondary btn-sm full-width">+ Stage Allocation</button>
+              </form>
+              <div id="boe-staged-allocations" class="stack-xs mt-2"></div>
+            </div>
+
+            <!-- Stage Slip Shock / Cancellation -->
+            <div class="dock-section">
+              <h3>Schedule Slip &amp; Cancellation Shocks</h3>
+              <form id="boe-shock-form" class="compact-form">
+                <div class="form-row-2">
+                  <label>Effort
+                    <select id="boe-shock-effort"></select>
+                  </label>
+                  <label>Direct Slip (+Days)
+                    <input type="number" min="0" value="30" id="boe-shock-days" />
+                  </label>
+                </div>
+                <div class="btn-row-2">
+                  <button type="submit" class="btn btn-secondary btn-sm">+ Add Slip Shock</button>
+                  <button type="button" class="btn btn-danger-outline btn-sm" id="btn-boe-cancel-effort">Toggle Cancel Effort</button>
+                </div>
+              </form>
+              <div id="boe-staged-shocks" class="stack-xs mt-2"></div>
+            </div>
+
+            <!-- Impacted Efforts Delta Summary -->
+            <div class="dock-section">
+              <h3>Projected Forecast Impacts</h3>
+              <div id="boe-impacted-list" class="stack-xs"></div>
+            </div>
+          </div>
+
+          <div class="dock-footer">
+            <button class="btn btn-secondary btn-sm" id="btn-boe-reset">Reset</button>
+            <button class="btn btn-primary btn-sm" id="btn-boe-simulate">Simulate Live</button>
+            <button class="btn btn-success btn-sm" id="btn-boe-commit" title="Persist simulated changes to database">Commit Scenario</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- LENS 2: EXECUTIVE BRIEFING (PRINTABLE 1-SLIDE) -->
+    <section class="lens-panel" id="lens-briefing">
+      <div class="briefing-controls-bar no-print">
+        <div class="control-group">
+          <label for="briefing-org-select">Briefing Organization</label>
+          <select id="briefing-org-select"></select>
+        </div>
+        <div class="control-group">
+          <button class="btn btn-primary btn-sm" id="btn-print-briefing">Print / Export Landscape Slide</button>
+        </div>
+      </div>
+
+      <div id="briefing-one-pager">
+        <div class="briefing-slide" id="briefing-slide-content">
+          <div class="empty-state">Select an Organization to render Executive Briefing...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LENS 3: ENTITY & GRAPH STUDIO -->
+    <section class="lens-panel" id="lens-studio">
+      <div class="studio-subnav">
+        <button class="studio-tab active" data-tab="orgs">Organizations &amp; Pools</button>
+        <button class="studio-tab" data-tab="interests">Interests &amp; Taxonomy</button>
+        <button class="studio-tab" data-tab="efforts">Efforts, Timing, Risks &amp; Mitigators</button>
+        <button class="studio-tab" data-tab="edges">6 Typed Relationships &amp; Pedigree</button>
+        <button class="studio-tab" data-tab="diagnostics">Diagnostics &amp; Manifest JSON</button>
+      </div>
+      <div class="studio-body" id="studio-body"></div>
     </section>
   </main>
 
-  <!-- What-If Slip Simulator Drawer -->
-  <aside id="slip-drawer" class="slip-drawer">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-      <h3 style="font-size: 1.1rem; color: var(--accent-cyan); font-weight: 700;">What-If Slip Simulator</h3>
-      <button id="close-drawer-btn" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem;">&times;</button>
+  <!-- CONTEXTUAL ENTITY PUCK HUD -->
+  <div class="puck-backdrop hidden" id="puck-backdrop" aria-hidden="true">
+    <div class="puck-drawer" id="puck-drawer" role="dialog" aria-labelledby="puck-title">
+      <div class="puck-header">
+        <div>
+          <div class="puck-kind-pill" id="puck-kind-pill">EFFORT</div>
+          <h2 id="puck-title">Entity Details</h2>
+          <div class="puck-id mono-text" id="puck-id"></div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btn-close-puck" aria-label="Close Inspector">×</button>
+      </div>
+      <div class="puck-content" id="puck-content"></div>
     </div>
+  </div>
 
-    <div style="display: flex; flex-direction: column; gap: 16px;">
-      <div>
-        <label style="font-size: 0.8rem; color: var(--text-muted);">Target Milestone:</label>
-        <div id="drawer-milestone-title" style="font-weight: 700; margin-top: 2px;">-</div>
-        <div id="drawer-thing-name" style="font-size: 0.85rem; color: var(--accent-blue);">-</div>
-      </div>
+  <!-- TOAST NOTIFICATION AREA -->
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
-      <div>
-        <label style="font-size: 0.8rem; color: var(--text-muted);">Current State:</label>
-        <div id="drawer-current-state" class="badge-pill" style="display: inline-block; margin-top: 4px;">-</div>
-      </div>
-
-      <div>
-        <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Simulated Slip (Days):</label>
-        <input type="number" id="slip-days-slider" value="60" min="1" max="730" style="width: 100%;" />
-      </div>
-
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <input type="checkbox" id="simulate-cancellation-checkbox" />
-        <label for="simulate-cancellation-checkbox" style="font-size: 0.85rem; cursor: pointer;">Simulate Full Cancellation</label>
-      </div>
-
-      <button id="apply-slip-btn" class="btn-primary" style="margin-top: 10px;">Compute Cascade Delta</button>
-
-      <div id="slip-simulation-results">
-        <!-- Rendered by tech_tree.js -->
-      </div>
-
-      <!-- Decision Provenance Ledger (REC-019) -->
-      <div style="margin-top: 14px; border-top: 1px solid var(--border-subtle); padding-top: 12px;">
-        <h4 style="font-size: 0.85rem; color: var(--accent-cyan); font-weight: 700; margin-bottom: 8px;">Log Strategic Decision (Provenance Ledger)</h4>
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-          <input type="text" id="decision-author" placeholder="Author / Decision Maker ID" style="font-size: 0.8rem; padding: 6px;" />
-          <textarea id="decision-justification" placeholder="Strategic justification for this milestone shift..." style="font-size: 0.8rem; min-height: 48px; padding: 6px; resize: vertical;"></textarea>
-          <button id="commit-decision-btn" class="btn-primary" style="font-size: 0.8rem; padding: 6px;">Commit Decision to Ledger</button>
-        </div>
-        <div id="drawer-decision-logs" style="margin-top: 10px; max-height: 130px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;"></div>
-      </div>
-    </div>
-  </aside>
-
-  <!-- Omnibar Command Palette Overlay (Ctrl+K) -->
-  <dialog id="omnibar-dialog" class="omnibar-dialog">
-    <div class="omnibar-wrapper">
-      <div class="omnibar-search-row">
-        <svg class="omnibar-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
-        <input type="text" id="omnibar-input" placeholder="Search Things, Concerns, or switch lenses (Ctrl+K)..." autocomplete="off" />
-        <span class="omnibar-hint">ESC to close</span>
-      </div>
-      <div id="omnibar-results" class="omnibar-results"></div>
-    </div>
-  </dialog>
-
-  <!-- Floating Contextual Thing Detail Puck (HUD) -->
-  <aside id="thing-detail-puck" class="thing-puck">
-    <div class="thing-puck-header">
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span class="puck-drag-indicator">⋮⋮</span>
-        <div>
-          <div style="display: flex; align-items: center; gap: 6px;">
-            <span style="font-size: 0.62rem; background: rgba(56, 189, 248, 0.2); color: var(--accent-cyan); padding: 1px 5px; border-radius: 3px; font-weight: 700; letter-spacing: 0.5px;">SYSTEM THING</span>
-            <div id="puck-thing-title" class="puck-header-title">-</div>
-          </div>
-          <div id="puck-thing-subtitle" class="puck-header-subtitle">-</div>
-        </div>
-      </div>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span id="puck-lifecycle-badge" class="badge-pill">-</span>
-        <button id="puck-pin-btn" class="puck-icon-btn" title="Pin HUD in place">📌</button>
-        <button id="puck-close-btn" class="puck-icon-btn" title="Close HUD">&times;</button>
-      </div>
-    </div>
-
-    <!-- Contextual Focused Milestone Banner -->
-    <div id="puck-context-milestone" style="display: none; padding: 6px 14px; background: rgba(56, 189, 248, 0.08); border-bottom: 1px solid rgba(56, 189, 248, 0.2); font-size: 0.75rem; align-items: center; justify-content: space-between;">
-      <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
-        <span style="color: var(--accent-cyan); font-weight: 700; font-size: 0.68rem; letter-spacing: 0.5px; white-space: nowrap;">SELECTED MILESTONE:</span>
-        <span id="puck-milestone-name" style="font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
-      </div>
-      <span id="puck-milestone-badge" class="badge-pill">-</span>
-    </div>
-
-    <div class="puck-tabs-bar">
-      <button class="puck-tab-btn active" data-puck-tab="tactical">Tactical (A)</button>
-      <button class="puck-tab-btn" data-puck-tab="relational">Relational (B)</button>
-      <button class="puck-tab-btn" data-puck-tab="telemetry">Telemetry (C)</button>
-      <button class="puck-tab-btn" data-puck-tab="tools">Tools Hub</button>
-    </div>
-
-    <div class="puck-body">
-      <div id="puck-panel-tactical" class="puck-tab-panel active" data-puck-tab="tactical"></div>
-      <div id="puck-panel-relational" class="puck-tab-panel" data-puck-tab="relational"></div>
-      <div id="puck-panel-telemetry" class="puck-tab-panel" data-puck-tab="telemetry"></div>
-      <div id="puck-panel-tools" class="puck-tab-panel" data-puck-tab="tools"></div>
-    </div>
-  </aside>
-
-  <!-- In-Canvas Clustered Spheres Modal Overlay (A/B Test View) -->
-  <dialog id="spheres-modal" class="spheres-modal-dialog">
-    <div class="spheres-modal-wrapper">
-      <div class="spheres-modal-header">
-        <div>
-          <h3 style="font-size: 1.1rem; color: var(--accent-cyan); font-weight: 700; margin: 0;">Clustered Spheres of Ownership</h3>
-          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Cross-Cutting Organizational Graph Overlay</div>
-        </div>
-        <button id="spheres-modal-close-btn" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.4rem;">&times;</button>
-      </div>
-      <div id="spheres-modal-canvas-wrapper" class="spheres-canvas-wrapper" style="height: 580px;">
-        <div id="spheres-modal-graph-target" class="spheres-graph-canvas"></div>
-      </div>
-    </div>
-  </dialog>
-
-  <!-- Scripts: Strictly Local & Offline -->
-  <script src="/static/api.js?v=2.2.0"></script>
-  <script src="/static/thing_puck.js?v=2.2.0"></script>
-  <script src="/static/spheres.js?v=2.2.0"></script>
-  <script src="/static/tech_tree.js?v=2.2.0"></script>
-  <script src="/static/views.js?v=2.2.0"></script>
-  <script src="/static/app.js?v=2.2.0"></script>
-
-  <!-- Quick Modal: Thing Editor & Lifecycle Modifier -->
-  <dialog id="modal-thing-editor" class="bijou-dialog">
-    <div class="bijou-dialog-wrapper">
-      <div class="bijou-dialog-header">
-        <h3 id="modal-thing-title">Edit Thing Specification</h3>
-        <button id="modal-thing-close-btn" class="puck-icon-btn">&times;</button>
-      </div>
-      <div class="bijou-dialog-body">
-        <input type="hidden" id="modal-thing-id" />
-        <div>
-          <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Thing Name:</label>
-          <input type="text" id="modal-thing-name" style="width: 100%;" />
-        </div>
-        <div>
-          <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Operational Description:</label>
-          <textarea id="modal-thing-desc" style="width: 100%; min-height: 56px; resize: vertical;"></textarea>
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-          <div>
-            <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Owner Organization:</label>
-            <select id="modal-thing-org" style="width: 100%;"></select>
-          </div>
-          <div>
-            <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Lifecycle State:</label>
-            <select id="modal-thing-lifecycle" style="width: 100%;">
-              <option value="PROPOSED">PROPOSED</option>
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="DELIVERED">DELIVERED</option>
-              <option value="DEPRECATED">DEPRECATED</option>
-              <option value="CANCELLED">CANCELLED</option>
-              <option value="RETIRED">RETIRED</option>
-            </select>
-          </div>
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-          <div>
-            <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">TRL (1-9):</label>
-            <input type="number" id="modal-thing-trl" min="1" max="9" style="width: 100%;" />
-          </div>
-          <div>
-            <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Estimated Cost ($):</label>
-            <input type="number" id="modal-thing-cost" min="0" step="5000" style="width: 100%;" />
-          </div>
-        </div>
-        <div>
-          <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Risk Multiplier (1.0 - 10.0):</label>
-          <input type="number" id="modal-thing-risk" min="1.0" max="10.0" step="0.1" style="width: 100%;" />
-        </div>
-      </div>
-      <div class="bijou-dialog-footer">
-        <button id="modal-thing-retire-btn" class="action-pill-btn retire-btn" style="padding: 6px 14px;">Retire Thing</button>
-        <button id="modal-thing-cancel-btn" class="btn-primary" style="background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border-subtle);">Cancel</button>
-        <button id="modal-thing-save-btn" class="btn-primary">Save Changes</button>
-      </div>
-    </div>
-  </dialog>
-
-  <!-- Quick Modal: Dependency Edge Linker -->
-  <dialog id="modal-edge-linker" class="bijou-dialog">
-    <div class="bijou-dialog-wrapper">
-      <div class="bijou-dialog-header">
-        <h3>Establish Dependency Link</h3>
-        <button id="modal-edge-close-btn" class="puck-icon-btn">&times;</button>
-      </div>
-      <div class="bijou-dialog-body">
-        <div>
-          <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Source Entity (Prerequisite):</label>
-          <select id="modal-edge-source" style="width: 100%;"></select>
-        </div>
-        <div>
-          <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Relationship Type:</label>
-          <select id="modal-edge-rel" style="width: 100%;">
-            <option value="DEPENDS_ON">DEPENDS_ON (Target requires Source)</option>
-            <option value="SUPPORTS">SUPPORTS (Source supports Target)</option>
-            <option value="SATISFIES">SATISFIES (Fulfills capability)</option>
-            <option value="IMPACTS">IMPACTS (Causal impact)</option>
-            <option value="COLLABORATES_WITH">COLLABORATES_WITH (Joint coalition)</option>
-          </select>
-        </div>
-        <div>
-          <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Target Entity (Dependent):</label>
-          <select id="modal-edge-target" style="width: 100%;"></select>
-        </div>
-        <div>
-          <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Weight (0.1 - 1.0):</label>
-          <input type="number" id="modal-edge-weight" value="1.0" min="0.1" max="1.0" step="0.1" style="width: 100%;" />
-        </div>
-      </div>
-      <div class="bijou-dialog-footer">
-        <button id="modal-edge-cancel-btn" class="btn-primary" style="background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border-subtle);">Cancel</button>
-        <button id="modal-edge-save-btn" class="btn-primary">Connect Edge</button>
-      </div>
-    </div>
-  </dialog>
-
-  <!-- Quick Modal: Concern Linker -->
-  <dialog id="modal-concern-linker" class="bijou-dialog">
-    <div class="bijou-dialog-wrapper">
-      <div class="bijou-dialog-header">
-        <h3>Link Strategic Concern</h3>
-        <button id="modal-concern-close-btn" class="puck-icon-btn">&times;</button>
-      </div>
-      <div class="bijou-dialog-body">
-        <div>
-          <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Thing:</label>
-          <select id="modal-concern-thing" style="width: 100%;"></select>
-        </div>
-        <div>
-          <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Strategic Concern to Satisfy:</label>
-          <select id="modal-concern-select" style="width: 100%;"></select>
-        </div>
-        <div>
-          <label style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Coverage / Weight (0.1 - 1.0):</label>
-          <input type="number" id="modal-concern-weight" value="1.0" min="0.1" max="1.0" step="0.1" style="width: 100%;" />
-        </div>
-      </div>
-      <div class="bijou-dialog-footer">
-        <button id="modal-concern-cancel-btn" class="btn-primary" style="background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border-subtle);">Cancel</button>
-        <button id="modal-concern-save-btn" class="btn-primary">Link Concern</button>
-      </div>
-    </div>
-  </dialog>
-
+  <script src="/static/api.js"></script>
+  <script src="/static/view_a_dag.js"></script>
+  <script src="/static/view_b_tripartite.js"></script>
+  <script src="/static/view_c_dock.js"></script>
+  <script src="/static/entity_puck.js"></script>
+  <script src="/static/studio.js"></script>
+  <script src="/static/briefing.js"></script>
+  <script src="/static/app.js"></script>
 </body>
 </html>

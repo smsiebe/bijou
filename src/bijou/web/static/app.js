@@ -1,279 +1,358 @@
-/**
- * Bijou Application Entry Point & Lens Coordinator.
- * Strictly offline-first, relative paths, zero CDN dependencies.
- */
+/* ==========================================================================
+   Bijou v2 Application Controller
+   Coordinates Lens Navigation, A/B/C Canvas Switcher, Perspective Seam,
+   Pedigree Filters, Pan/Zoom, Entity Puck, Briefing, and Studio
+   ========================================================================== */
 
-document.addEventListener("DOMContentLoaded", async () => {
-  // 1. Setup Lens Navigation Switching
-  const lensButtons = document.querySelectorAll(".lens-btn");
-  const lensViews = document.querySelectorAll(".lens-view");
+(function (global) {
+  "use strict";
 
-  function switchLens(targetId) {
-    if (window.ThingPuck && typeof window.ThingPuck.close === "function") {
-      window.ThingPuck.close();
-    }
-    lensButtons.forEach(btn => {
-      if (btn.dataset.lens === targetId) {
-        btn.classList.add("active");
-      } else {
-        btn.classList.remove("active");
-      }
-    });
+  const state = {
+    activeLens: "canvas",
+    canvasMode: "A", // "A" | "B" | "C"
+    minConfidence: "",
+    includeHierarchyPriorities: true,
+    asOfDate: "",
+    orgFilter: "",
+    clusterBy: "state",
+    showIndirect: true,
+    showPartners: true,
+    zoom: 1.0,
+    treeView: null,
+    triView: null,
+    simulationResult: null,
+  };
 
-    lensViews.forEach(view => {
-      if (view.id === targetId) {
-        view.classList.add("active");
-      } else {
-        view.classList.remove("active");
-      }
-    });
-
-    if (targetId === "briefing-one-pager") {
-      ViewsManager.refreshBriefing();
-    } else if (targetId === "focal-dashboard") {
-      ViewsManager.refreshFocal();
-    } else if (targetId === "tech-tree-canvas") {
-      TechTreeManager.refresh();
-    } else if (targetId === "spheres-canvas-view") {
-      if (window.SpheresManager) SpheresManager.refresh();
-    } else if (targetId === "crud-studio") {
-      if (window.ViewsManager && typeof window.ViewsManager.refreshCrudStudio === "function") {
-        window.ViewsManager.refreshCrudStudio();
-      }
-    }
+  function notify(message, type = "info") {
+    const container = document.getElementById("toast-container");
+    if (!container) return;
+    const toast = document.createElement("div");
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.remove();
+    }, 4500);
   }
 
-  lensButtons.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const target = btn.dataset.lens;
-      if (target) switchLens(target);
-    });
-  });
-
-  // 2. Populate Dropdowns (Organizations & Things)
-  try {
-    const orgs = await BijouAPI.getOrganizations();
-    const things = await BijouAPI.getThings();
-
-    // Populate Briefing Org Dropdowns
-    const subjectSelect = document.getElementById("briefing-subject-org");
-    const perspSelect = document.getElementById("briefing-perspective-org");
-    const techTreeOrgFilter = document.getElementById("tech-tree-org-filter");
-
-    if (subjectSelect) {
-      subjectSelect.innerHTML = orgs.map(o => `<option value="${o.id}">${o.name} (Echelon ${o.echelon_level})</option>`).join("");
-    }
-    if (perspSelect) {
-      perspSelect.innerHTML = `<option value="">Self (Unfiltered Sovereign)</option>` +
-        orgs.map(o => `<option value="${o.id}">${o.name} (Echelon ${o.echelon_level})</option>`).join("");
-    }
-    if (techTreeOrgFilter) {
-      techTreeOrgFilter.innerHTML = `<option value="">All Organizations</option>` +
-        orgs.map(o => `<option value="${o.id}">${o.name}</option>`).join("");
-    }
-
-    // Populate Focal Thing Dropdown & Tradeoff Candidates
-    const focalThingSelect = document.getElementById("focal-thing-select");
-    const tradeoffContainer = document.getElementById("tradeoff-candidates-container");
-
-    if (focalThingSelect) {
-      focalThingSelect.innerHTML = things.map(t => `<option value="${t.id}">${t.name} (${t.lifecycle})</option>`).join("");
-    }
-
-    if (tradeoffContainer) {
-      tradeoffContainer.innerHTML = things.map(t => `
-        <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; cursor: pointer;">
-          <input type="checkbox" class="tradeoff-candidate-checkbox" value="${t.id}" />
-          <span>${t.name} ($${(t.estimated_cost / 1000).toFixed(0)}k)</span>
-        </label>
-      `).join("");
-    }
-  } catch (err) {
-    console.warn("Could not pre-populate entities (database may be empty):", err.message);
+  function buildViewParams(extra = {}) {
+    const p = {
+      include_hierarchy_priorities: state.includeHierarchyPriorities,
+      ...extra,
+    };
+    if (state.minConfidence) p.min_confidence = state.minConfidence;
+    if (state.asOfDate) p.as_of_date = state.asOfDate;
+    if (state.orgFilter && extra.includeOrgFilter) p.org_filter = state.orgFilter;
+    return p;
   }
 
-  // 3. Initialize Subsystems
-  await TechTreeManager.init();
-  await ViewsManager.initBriefing();
-  await ViewsManager.initFocal();
-  await ViewsManager.initCrud();
-  if (window.ThingPuck) await ThingPuck.init();
-  if (window.SpheresManager) await SpheresManager.init();
+  function applyZoom() {
+    const world = document.getElementById("canvas-world");
+    const label = document.getElementById("zoom-level-label");
+    if (world) world.style.transform = `scale(${state.zoom.toFixed(2)})`;
+    if (label) label.textContent = `${Math.round(state.zoom * 100)}%`;
+  }
 
-  // 4. Omnibar Command Palette (Ctrl+K) (REC-018)
-  const omnibarDialog = document.getElementById("omnibar-dialog");
-  const omnibarInput = document.getElementById("omnibar-input");
-  const omnibarResults = document.getElementById("omnibar-results");
-
-  let omnibarItems = [];
-  let selectedIndex = 0;
-
-  async function refreshOmnibarData() {
+  async function initPerspectiveDropdown() {
     try {
-      const [things, concerns] = await Promise.all([
-        BijouAPI.getThings().catch(() => []),
-        BijouAPI.getConcerns().catch(() => [])
-      ]);
-
-      omnibarItems = [
-        // Lens actions
-        { type: "lens", id: "tech-tree-canvas", title: "Lens 1: Strategic Tech Tree Canvas", category: "View" },
-        { type: "lens", id: "briefing-one-pager", title: "Lens 2: Executive Perspective Briefing", category: "View" },
-        { type: "lens", id: "focal-dashboard", title: "Lens 3: Thing Focal Dashboard & Trade-Offs", category: "View" },
-        { type: "lens", id: "crud-studio", title: "Lens 4: Manifest Studio & Admin CRUD", category: "View" },
-        { type: "lens", id: "spheres-canvas-view", title: "Lens 5: Spheres of Ownership & Cross-Cutting Graph", category: "View" },
-        // Things
-        ...things.map(t => ({
-          type: "thing",
-          id: t.id,
-          title: t.name,
-          subtitle: `${t.lifecycle} • $${(t.estimated_cost / 1000).toFixed(0)}k`,
-          category: "Thing",
-          data: t
-        })),
-        // Concerns
-        ...concerns.map(c => ({
-          type: "concern",
-          id: c.id,
-          title: c.name,
-          subtitle: `Priority ${c.priority} • Org: ${c.owner_org_id}`,
-          category: "Concern",
-          data: c
-        }))
-      ];
-    } catch (e) {
-      console.warn("Could not cache items for Omnibar:", e);
+      const pstate = await global.BijouApi.getPerspectiveState();
+      const sel = document.getElementById("perspective-select");
+      if (!sel) return;
+      const { escapeHtml } = global.BijouApi;
+      const managedOpts = (pstate.managed_organizations || [])
+        .map(
+          (o) =>
+            `<option value="OWNER:${escapeHtml(o.id)}">Org Owner: ${escapeHtml(o.name)}</option>`
+        )
+        .join("");
+      sel.innerHTML = `<option value="GLOBAL_ANALYST">Global Analyst (Read/Model All)</option>${managedOpts}`;
+    } catch (_) {
+      // Fallback leaves default Global Analyst option intact
     }
   }
 
-  function openOmnibar() {
-    if (!omnibarDialog || !omnibarInput) return;
-    refreshOmnibarData();
-    if (typeof omnibarDialog.showModal === "function") {
-      if (!omnibarDialog.open) omnibarDialog.showModal();
-    } else {
-      omnibarDialog.setAttribute("open", "");
-    }
-    omnibarInput.value = "";
-    selectedIndex = 0;
-    renderOmnibarMatches("");
-    omnibarInput.focus();
-  }
+  let dockController = null;
+  let puckController = null;
+  let briefingController = null;
+  let studioController = null;
 
-  function closeOmnibar() {
-    if (!omnibarDialog) return;
-    if (typeof omnibarDialog.close === "function") {
-      omnibarDialog.close();
-    } else {
-      omnibarDialog.removeAttribute("open");
-    }
-  }
+  function renderCanvasStage() {
+    const svgEl = document.getElementById("canvas-svg-layer");
+    const domEl = document.getElementById("canvas-dom-layer");
+    const worldEl = document.getElementById("canvas-world");
+    const aOverlays = document.getElementById("view-a-overlay-wrap");
+    const bOverlays = document.getElementById("view-b-overlay-wrap");
 
-  function renderOmnibarMatches(query) {
-    if (!omnibarResults) return;
-    const q = query.trim().toLowerCase();
-    const filtered = omnibarItems.filter(item => {
-      if (!q) return true;
-      return item.title.toLowerCase().includes(q) ||
-        (item.subtitle && item.subtitle.toLowerCase().includes(q)) ||
-        (item.category && item.category.toLowerCase().includes(q)) ||
-        item.id.toLowerCase().includes(q);
-    }).slice(0, 20);
-
-    if (filtered.length === 0) {
-      omnibarResults.innerHTML = `<div style="padding: 16px; color: var(--text-dim); text-align: center; font-size: 0.85rem;">No matching entities or actions found.</div>`;
-      return;
-    }
-
-    if (selectedIndex >= filtered.length) {
-      selectedIndex = 0;
-    }
-
-    omnibarResults.innerHTML = filtered.map((item, idx) => `
-      <div class="omnibar-item ${idx === selectedIndex ? 'selected' : ''}" data-idx="${idx}" data-type="${item.type}" data-id="${item.id}">
-        <div>
-          <div style="font-weight: 600; font-size: 0.88rem; color: var(--text-main);">${item.title}</div>
-          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">${item.subtitle || item.id}</div>
-        </div>
-        <span class="badge-pill" style="font-size: 0.65rem;">${item.category}</span>
-      </div>
-    `).join("");
-
-    omnibarResults.querySelectorAll(".omnibar-item").forEach(el => {
-      el.addEventListener("click", () => {
-        const idx = parseInt(el.dataset.idx, 10);
-        executeOmnibarAction(filtered[idx]);
+    if (state.canvasMode === "B") {
+      aOverlays?.classList.add("hidden");
+      bOverlays?.classList.remove("hidden");
+      global.BijouViewB.renderViewBTripartite({
+        triView: state.triView,
+        svgEl,
+        domEl,
+        worldEl,
+        showIndirect: state.showIndirect,
+        showPartners: state.showPartners,
+        onSelectEntity: (kind, id) => puckController.open(kind, id, buildViewParams()),
       });
-    });
-  }
+    } else {
+      aOverlays?.classList.remove("hidden");
+      bOverlays?.classList.add("hidden");
+      const activeTree =
+        state.canvasMode === "C" && state.simulationResult?.projected_tree
+          ? state.simulationResult.projected_tree
+          : state.treeView;
+      const impactedIds =
+        state.canvasMode === "C" && state.simulationResult
+          ? state.simulationResult.impacted_effort_ids
+          : [];
 
-  function executeOmnibarAction(item) {
-    if (!item) return;
-    closeOmnibar();
-
-    if (item.type === "lens") {
-      switchLens(item.id);
-    } else if (item.type === "thing") {
-      switchLens("focal-dashboard");
-      const focalSelect = document.getElementById("focal-thing-select");
-      if (focalSelect) {
-        focalSelect.value = item.id;
-        ViewsManager.refreshFocal();
-      }
-    } else if (item.type === "concern") {
-      switchLens("briefing-one-pager");
-      const orgSelect = document.getElementById("briefing-subject-org");
-      if (orgSelect && item.data && item.data.owner_org_id) {
-        orgSelect.value = item.data.owner_org_id;
-        ViewsManager.refreshBriefing();
-      }
+      global.BijouViewA.renderViewADag({
+        treeView: activeTree,
+        svgEl,
+        domEl,
+        worldEl,
+        clusterBy: state.clusterBy,
+        impactedIds,
+        onSelectEffort: (effortId) => puckController.open("effort", effortId, buildViewParams()),
+      });
     }
   }
 
-  window.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
+  async function refreshAllData() {
+    const healthBadge = document.getElementById("engine-health-badge");
+    try {
+      await global.BijouApi.health();
+      if (healthBadge) {
+        healthBadge.textContent = "ENGINE ONLINE";
+        healthBadge.classList.remove("warn");
+      }
+    } catch (_) {
+      if (healthBadge) {
+        healthBadge.textContent = "ENGINE OFFLINE";
+        healthBadge.classList.add("warn");
+      }
+    }
+
+    try {
+      const [tree, tri] = await Promise.all([
+        global.BijouApi.getCapabilityTree(buildViewParams({ includeOrgFilter: true })),
+        global.BijouApi.getTripartiteFlow(buildViewParams()),
+      ]);
+      state.treeView = tree;
+      state.triView = tri;
+
+      // Populate top Org Scope filter in View A
+      const orgFilterSel = document.getElementById("view-a-org-filter");
+      if (orgFilterSel) {
+        const { escapeHtml } = global.BijouApi;
+        const orgs = tri.capability_tree?.organizations || tree.organizations || [];
+        const prev = state.orgFilter;
+        orgFilterSel.innerHTML =
+          `<option value="">All Organizations</option>` +
+          orgs.map((o) => `<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join("");
+        orgFilterSel.value = prev;
+        briefingController.setOrganizations(orgs);
+      }
+
+      dockController.setBaseline(tri.capability_tree || tree, tri.pool_balances || []);
+      renderCanvasStage();
+
+      if (state.activeLens === "briefing") {
+        await briefingController.refresh(buildViewParams());
+      } else if (state.activeLens === "studio") {
+        await studioController.refresh();
+      }
+    } catch (err) {
+      notify(`Failed to load Bijou graph: ${err.message}`, "error");
+    }
+  }
+
+  function switchLens(lens) {
+    state.activeLens = lens;
+    document.querySelectorAll(".lens-btn").forEach((b) => b.classList.toggle("active", b.dataset.lens === lens));
+    document.querySelectorAll(".lens-panel").forEach((p) => p.classList.toggle("active", p.id === `lens-${lens}`));
+
+    if (lens === "briefing") {
+      briefingController.refresh(buildViewParams());
+    } else if (lens === "studio") {
+      studioController.refresh();
+    } else {
+      renderCanvasStage();
+    }
+  }
+
+  function switchCanvasMode(mode) {
+    state.canvasMode = mode;
+    document.querySelectorAll(".abc-btn").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
+
+    if (mode === "C") {
+      dockController.setOpen(true);
+      document.getElementById("boe-mode-subtitle").textContent = "Live Decision Workbench (Mode C)";
+    } else {
+      dockController.setOpen(false);
+    }
+    renderCanvasStage();
+  }
+
+  function setupPanning() {
+    const viewport = document.getElementById("canvas-viewport");
+    if (!viewport) return;
+    let isPanning = false;
+    let startX = 0;
+    let startY = 0;
+    let scrollLeft = 0;
+    let scrollTop = 0;
+
+    viewport.addEventListener("mousedown", (e) => {
+      if (e.target.closest(".effort-card, .tri-node, button, input, select")) return;
+      isPanning = true;
+      startX = e.pageX - viewport.offsetLeft;
+      startY = e.pageY - viewport.offsetTop;
+      scrollLeft = viewport.scrollLeft;
+      scrollTop = viewport.scrollTop;
+    });
+    window.addEventListener("mouseup", () => {
+      isPanning = false;
+    });
+    viewport.addEventListener("mousemove", (e) => {
+      if (!isPanning) return;
       e.preventDefault();
-      openOmnibar();
-    }
-  });
-
-  if (omnibarInput) {
-    omnibarInput.addEventListener("input", (e) => {
-      selectedIndex = 0;
-      renderOmnibarMatches(e.target.value);
-    });
-
-    omnibarInput.addEventListener("keydown", (e) => {
-      const items = omnibarResults ? omnibarResults.querySelectorAll(".omnibar-item") : [];
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        if (items.length > 0) {
-          selectedIndex = (selectedIndex + 1) % items.length;
-          renderOmnibarMatches(omnibarInput.value);
-        }
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        if (items.length > 0) {
-          selectedIndex = (selectedIndex - 1 + items.length) % items.length;
-          renderOmnibarMatches(omnibarInput.value);
-        }
-      } else if (e.key === "Enter") {
-        e.preventDefault();
-        const selected = omnibarResults ? omnibarResults.querySelector(".omnibar-item.selected") : null;
-        if (selected) {
-          selected.click();
-        }
-      } else if (e.key === "Escape") {
-        closeOmnibar();
-      }
+      const x = e.pageX - viewport.offsetLeft;
+      const y = e.pageY - viewport.offsetTop;
+      viewport.scrollLeft = scrollLeft - (x - startX);
+      viewport.scrollTop = scrollTop - (y - startY);
     });
   }
 
-  if (omnibarDialog) {
-    omnibarDialog.addEventListener("click", (e) => {
-      if (e.target === omnibarDialog) {
-        closeOmnibar();
-      }
+  async function boot() {
+    dockController = new global.BillOfEffortsDock({
+      notify,
+      onSimulationUpdated: (simRes) => {
+        state.simulationResult = simRes;
+        if (state.canvasMode !== "C" && simRes) {
+          switchCanvasMode("C");
+        } else {
+          renderCanvasStage();
+        }
+      },
+      onCommitted: async () => {
+        state.simulationResult = null;
+        await refreshAllData();
+      },
     });
+
+    puckController = new global.EntityPuck({
+      notify,
+      onStageMitigator: (mitId, nextVal) => {
+        switchLens("canvas");
+        switchCanvasMode("C");
+        dockController.stageMitigator(mitId, nextVal);
+      },
+      onEditInStudio: async (tab, id) => {
+        switchLens("studio");
+        await studioController.refresh();
+        if (tab === "efforts") studioController.openEffortForEdit(id);
+      },
+    });
+
+    briefingController = new global.BriefingController({ notify });
+    studioController = new global.StudioController({
+      notify,
+      onGraphMutated: async () => {
+        await initPerspectiveDropdown();
+        await refreshAllData();
+      },
+    });
+
+    // Wire Lens Navigation
+    document.querySelectorAll(".lens-btn").forEach((btn) => {
+      btn.addEventListener("click", () => switchLens(btn.dataset.lens));
+    });
+
+    // Wire A / B / C Canvas Switcher
+    document.querySelectorAll(".abc-btn").forEach((btn) => {
+      btn.addEventListener("click", () => switchCanvasMode(btn.dataset.mode));
+    });
+
+    // Wire Perspective Switcher
+    document.getElementById("perspective-select")?.addEventListener("change", (ev) => {
+      const val = ev.target.value;
+      if (val.startsWith("OWNER:")) {
+        const oid = val.slice(6);
+        global.BijouApi.setPerspective("MANAGED_ORG_OWNER", oid);
+        notify(`Switched perspective to Managed Org Owner (${oid})`, "info");
+      } else {
+        global.BijouApi.setPerspective("GLOBAL_ANALYST", null);
+        notify("Switched perspective to Global Analyst", "info");
+      }
+      refreshAllData();
+    });
+
+    // Wire Top Filters
+    document.getElementById("pedigree-select")?.addEventListener("change", (ev) => {
+      state.minConfidence = ev.target.value;
+      refreshAllData();
+    });
+
+    document.getElementById("hierarchy-priority-toggle")?.addEventListener("change", (ev) => {
+      state.includeHierarchyPriorities = Boolean(ev.target.checked);
+      refreshAllData();
+    });
+
+    document.getElementById("as-of-date-input")?.addEventListener("change", (ev) => {
+      state.asOfDate = ev.target.value || "";
+      refreshAllData();
+    });
+
+    document.getElementById("btn-global-refresh")?.addEventListener("click", () => refreshAllData());
+
+    // Wire View Overlays
+    document.getElementById("view-a-org-filter")?.addEventListener("change", (ev) => {
+      state.orgFilter = ev.target.value;
+      refreshAllData();
+    });
+
+    document.getElementById("view-a-cluster-by")?.addEventListener("change", (ev) => {
+      state.clusterBy = ev.target.value;
+      renderCanvasStage();
+    });
+
+    document.getElementById("view-b-show-indirect")?.addEventListener("change", (ev) => {
+      state.showIndirect = Boolean(ev.target.checked);
+      renderCanvasStage();
+    });
+
+    document.getElementById("view-b-show-partners")?.addEventListener("change", (ev) => {
+      state.showPartners = Boolean(ev.target.checked);
+      renderCanvasStage();
+    });
+
+    // Dock Toggle & Zoom
+    document.getElementById("btn-toggle-dock")?.addEventListener("click", () => {
+      dockController.setOpen(!dockController.isOpen());
+    });
+    document.getElementById("btn-close-dock")?.addEventListener("click", () => {
+      dockController.setOpen(false);
+    });
+
+    document.getElementById("btn-zoom-in")?.addEventListener("click", () => {
+      state.zoom = Math.min(1.8, state.zoom + 0.15);
+      applyZoom();
+    });
+    document.getElementById("btn-zoom-out")?.addEventListener("click", () => {
+      state.zoom = Math.max(0.55, state.zoom - 0.15);
+      applyZoom();
+    });
+    document.getElementById("btn-zoom-reset")?.addEventListener("click", () => {
+      state.zoom = 1.0;
+      applyZoom();
+    });
+
+    setupPanning();
+    await initPerspectiveDropdown();
+    await refreshAllData();
   }
-});
+
+  document.addEventListener("DOMContentLoaded", boot);
+})(window);

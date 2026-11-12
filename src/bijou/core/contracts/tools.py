@@ -1,4 +1,4 @@
-"""Tool registry and analytical tool descriptor schemas."""
+"""Tool registry and analytical tool descriptor schemas for Bijou v2."""
 
 from typing import Literal
 from pydantic import Field
@@ -11,17 +11,13 @@ class ToolDescriptorDTO(BijouBaseModel):
 
     tool_id: str = Field(..., alias="tool_id", description="Unique tool identifier")
     title: str = Field(..., alias="title", description="Human-readable title")
-    icon: str = Field(..., alias="icon", description="Icon identifier (e.g. zap, globe, target, history)")
-    category: Literal["simulation", "graph_projection", "audit", "workbench"] = Field(
-        ...,
-        alias="category",
-        description="Tool category"
+    icon: str = Field(..., alias="icon", description="Icon identifier")
+    category: Literal["simulation", "graph_projection", "audit", "workbench", "resourcing"] = Field(
+        ..., alias="category", description="Tool category"
     )
-    target_entity: Literal["thing", "milestone", "organization", "global"] = Field(
-        ...,
-        alias="target_entity",
-        description="Target entity type that can be passed to this tool"
+    target_entity: Literal["effort", "organization", "interest", "global"] = Field(
+        ..., alias="target_entity", description="Target entity type that can be passed to this tool"
     )
     description: str = Field(..., alias="description", description="Brief tool description")
-    endpoint: str = Field(..., alias="endpoint", description="API endpoint providing backend analytical support")
-    ui_component: str = Field(..., alias="ui_component", description="Registered frontend UI component or modal name")
+    endpoint: str = Field(..., alias="endpoint", description="API endpoint providing analytical support")
+    ui_component: str = Field(..., alias="ui_component", description="Registered frontend UI component")

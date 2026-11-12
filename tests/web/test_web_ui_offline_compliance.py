@@ -1,3 +1,5 @@
+"""Static web UI offline-first compliance and Bijou v2 structural tests."""
+
 import re
 from pathlib import Path
 
@@ -6,13 +8,13 @@ from fastapi.testclient import TestClient
 from bijou.api.app import app
 
 
-def test_zero_external_cdn_links_in_static_bundle():
+def test_zero_external_cdn_links_in_static_bundle() -> None:
     """Asserts that all HTML, CSS, and JS static assets contain ZERO external HTTP/HTTPS CDN links."""
     static_dir = Path(__file__).parent.parent.parent / "src" / "bijou" / "web" / "static"
     assert static_dir.exists(), f"Static directory does not exist: {static_dir}"
 
     static_files = list(static_dir.glob("*.html")) + list(static_dir.glob("*.css")) + list(static_dir.glob("*.js"))
-    assert len(static_files) >= 4, f"Expected at least 4 static asset files, found {len(static_files)}"
+    assert len(static_files) >= 8, f"Expected at least 8 modular static asset files, found {len(static_files)}"
 
     url_pattern = re.compile(r"https?://(?!www\.w3\.org/)[^\s\"'>]+")
 
@@ -26,30 +28,32 @@ def test_zero_external_cdn_links_in_static_bundle():
     assert not violations, f"Detected external URL dependencies in static bundle: {violations}"
 
 
-def test_web_root_serves_application_shell_and_assets():
-    """Verifies that the web root serves index.html and static assets are routable."""
+def test_web_root_serves_v2_shell_and_assets() -> None:
+    """Verifies web root serves Bijou v2 index.html with A/B/C canvas, BoE dock, Puck, Briefing & Studio."""
     client = TestClient(app)
 
-    # Check GET / (serves index.html)
     resp_root = client.get("/")
     assert resp_root.status_code == 200
     assert "text/html" in resp_root.headers.get("content-type", "")
     body = resp_root.text
 
-    # Verify 4 lens target containers exist
-    assert 'id="tech-tree-canvas"' in body
+    assert 'id="lens-canvas"' in body
+    assert 'id="btn-mode-a"' in body
+    assert 'id="btn-mode-b"' in body
+    assert 'id="btn-mode-c"' in body
+    assert 'id="bill-of-efforts-dock"' in body
     assert 'id="briefing-one-pager"' in body
-    assert 'id="focal-dashboard"' in body
-    assert 'id="crud-studio"' in body
-    assert 'id="slip-drawer"' in body
+    assert 'id="lens-studio"' in body
+    assert 'id="puck-backdrop"' in body
+    assert 'id="perspective-select"' in body
+    assert 'id="pedigree-select"' in body
 
-    # Check GET /static/app.js
     resp_asset = client.get("/static/app.js")
     assert resp_asset.status_code == 200
-    assert "switchLens" in resp_asset.text
+    assert "switchCanvasMode" in resp_asset.text
 
 
-def test_print_stylesheet_present_for_one_slide_briefing():
+def test_print_stylesheet_present_for_one_slide_briefing() -> None:
     """Verifies @media print and @page CSS rules are defined for single-landscape print output."""
     static_dir = Path(__file__).parent.parent.parent / "src" / "bijou" / "web" / "static"
     css_file = static_dir / "styles.css"

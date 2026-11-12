@@ -1,26 +1,31 @@
-"""Abstract repository port for graph entity storage."""
+"""Abstract repository port for Bijou v2 graph storage."""
 
 from abc import ABC, abstractmethod
 
 from bijou.core.contracts.manifest import BijouManifestDTO
 from bijou.core.contracts.models import (
-    CausalGateDTO,
-    ConcernDTO,
     DecisionLogEntryDTO,
-    EffectDTO,
-    GraphEdgeDTO,
+    EffortDTO,
+    EffortEffortEdgeDTO,
+    EffortInterestEdgeDTO,
+    InterestDTO,
+    InterestInterestEdgeDTO,
+    OrgEffortEdgeDTO,
+    OrgInterestEdgeDTO,
+    OrgOrgEdgeDTO,
     OrganizationDTO,
-    ThingDTO,
+    ResourcePoolDTO,
 )
 
 
 class IGraphRepository(ABC):
-    """Abstract port for ACID relational graph entity storage.
+    """Abstract port for ACID relational graph entity and relationship storage.
 
     Concurrency Model: Thread-safe ACID transactions; write operations acquire exclusive
     transaction scope; read operations return immutable DTO snapshots.
     """
 
+    # --- Organizations ---
     @abstractmethod
     def upsert_organization(self, org: OrganizationDTO) -> OrganizationDTO:
         """Upsert an Organization."""
@@ -33,83 +38,89 @@ class IGraphRepository(ABC):
     def list_organizations(self) -> list[OrganizationDTO]:
         """List all Organizations."""
 
+    # --- Resource Pools ---
     @abstractmethod
-    def upsert_concern(self, concern: ConcernDTO) -> ConcernDTO:
-        """Upsert a Concern."""
+    def upsert_resource_pool(self, pool: ResourcePoolDTO) -> ResourcePoolDTO:
+        """Upsert a ResourcePool."""
 
     @abstractmethod
-    def get_concern(self, concern_id: str) -> ConcernDTO | None:
-        """Retrieve a Concern by ID."""
+    def get_resource_pool(self, pool_id: str) -> ResourcePoolDTO | None:
+        """Retrieve a ResourcePool by ID."""
 
     @abstractmethod
-    def list_concerns(self) -> list[ConcernDTO]:
-        """List all Concerns."""
+    def list_resource_pools(self, org_id: str | None = None) -> list[ResourcePoolDTO]:
+        """List ResourcePools, optionally filtered by Organization ID."""
+
+    # --- Interests ---
+    @abstractmethod
+    def upsert_interest(self, interest: InterestDTO) -> InterestDTO:
+        """Upsert an Interest."""
 
     @abstractmethod
-    def upsert_thing(self, thing: ThingDTO) -> ThingDTO:
-        """Upsert a Thing and its Milestones."""
+    def get_interest(self, interest_id: str) -> InterestDTO | None:
+        """Retrieve an Interest by ID."""
 
     @abstractmethod
-    def get_thing(self, thing_id: str) -> ThingDTO | None:
-        """Retrieve a Thing by ID with its Milestones."""
+    def list_interests(self) -> list[InterestDTO]:
+        """List all Interests."""
+
+    # --- Efforts (with Requirements, Risks, Mitigators) ---
+    @abstractmethod
+    def upsert_effort(self, effort: EffortDTO) -> EffortDTO:
+        """Upsert an Effort with its requirements, risks, and mitigators."""
 
     @abstractmethod
-    def list_things(self) -> list[ThingDTO]:
-        """List all Things."""
+    def get_effort(self, effort_id: str) -> EffortDTO | None:
+        """Retrieve an Effort by ID."""
 
     @abstractmethod
-    def upsert_causal_gate(self, gate: CausalGateDTO) -> CausalGateDTO:
-        """Upsert a Causal Gate."""
+    def list_efforts(self) -> list[EffortDTO]:
+        """List all Efforts."""
+
+    # --- Typed Relationship Edges ---
+    @abstractmethod
+    def upsert_org_org_edge(self, edge: OrgOrgEdgeDTO) -> OrgOrgEdgeDTO:
+        """Upsert an Org-to-Org edge."""
 
     @abstractmethod
-    def get_causal_gate(self, gate_id: str) -> CausalGateDTO | None:
-        """Retrieve a Causal Gate by ID."""
+    def upsert_org_interest_edge(self, edge: OrgInterestEdgeDTO) -> OrgInterestEdgeDTO:
+        """Upsert an Org-to-Interest edge."""
 
     @abstractmethod
-    def list_causal_gates(self) -> list[CausalGateDTO]:
-        """List all Causal Gates."""
+    def upsert_interest_interest_edge(self, edge: InterestInterestEdgeDTO) -> InterestInterestEdgeDTO:
+        """Upsert an Interest-to-Interest edge."""
 
     @abstractmethod
-    def upsert_effect(self, effect: EffectDTO) -> EffectDTO:
-        """Upsert an Effect."""
+    def upsert_org_effort_edge(self, edge: OrgEffortEdgeDTO) -> OrgEffortEdgeDTO:
+        """Upsert an Org-to-Effort resourcing edge."""
 
     @abstractmethod
-    def get_effect(self, effect_id: str) -> EffectDTO | None:
-        """Retrieve an Effect by ID."""
+    def upsert_effort_interest_edge(self, edge: EffortInterestEdgeDTO) -> EffortInterestEdgeDTO:
+        """Upsert an Effort-to-Interest alignment edge."""
 
     @abstractmethod
-    def list_effects(self) -> list[EffectDTO]:
-        """List all Effects."""
+    def upsert_effort_effort_edge(self, edge: EffortEffortEdgeDTO) -> EffortEffortEdgeDTO:
+        """Upsert an Effort-to-Effort causal dependency edge."""
 
-    @abstractmethod
-    def upsert_edge(self, edge: GraphEdgeDTO) -> GraphEdgeDTO:
-        """Upsert a Graph Edge."""
-
-    @abstractmethod
-    def get_edge(self, edge_id: str) -> GraphEdgeDTO | None:
-        """Retrieve a Graph Edge by ID."""
-
-    @abstractmethod
-    def list_edges(self) -> list[GraphEdgeDTO]:
-        """List all Graph Edges."""
-
+    # --- Deletion ---
     @abstractmethod
     def delete_entity(self, entity_type: str, entity_id: str) -> bool:
-        """Delete an entity by type and identifier."""
+        """Delete an entity or typed edge by category and identifier."""
 
+    # --- Manifest Interchange ---
     @abstractmethod
     def export_manifest(self) -> BijouManifestDTO:
         """Export current database contents as a point-in-time BijouManifestDTO."""
 
     @abstractmethod
     def import_manifest(self, manifest: BijouManifestDTO, replace_all: bool = False) -> dict[str, int]:
-        """Import manifest entities, atomically replacing all existing entities if requested."""
+        """Import manifest entities and edges atomically."""
 
+    # --- Decision Provenance Ledger ---
     @abstractmethod
     def upsert_decision_log(self, entry: DecisionLogEntryDTO) -> DecisionLogEntryDTO:
-        """Upsert a decision log entry into the ledger."""
+        """Upsert a decision log entry."""
 
     @abstractmethod
-    def list_decision_logs(self, target_milestone_id: str | None = None) -> list[DecisionLogEntryDTO]:
-        """List decision log entries, optionally filtered by target milestone ID."""
-
+    def list_decision_logs(self, target_effort_id: str | None = None) -> list[DecisionLogEntryDTO]:
+        """List decision log entries, optionally filtered by Effort ID."""

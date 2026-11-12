@@ -1,159 +1,125 @@
-"""Service and API integration tests verifying full wiring and middleware."""
+"""Tests for BijouOrchestrationService perspective permissions, skill mismatch risk creation, and commit flow."""
 
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
 
+from bijou.adapters.db import SqlAlchemyGraphRepository
 from bijou.adapters.llm import AuraRouterAdapter
-from bijou.api.app import create_app
-from bijou.config import BijouSettings
+from bijou.adapters.telemetry import DuckDbTelemetryStore
 from bijou.core.contracts import (
-    CausalContributorDTO,
-    CausalGateDTO,
-    CausalMechanismType,
-    ConcernDTO,
-    ConcernSatisfactionLinkDTO,
-    EffectDTO,
-    EffectTier,
-    LifecycleStatus,
-    MilestoneDTO,
-    MilestoneStatus,
+    AccessMode,
+    BillOfEffortsSimulationRequestDTO,
+    EffortDTO,
+    MitigatorDTO,
+    OrgEffortEdgeDTO,
     OrganizationDTO,
-    PerspectiveBriefingDTO,
-    ThingDTO,
+    ResourceCategory,
+    ResourcePoolDTO,
+    ResourceRequirementDTO,
+    SimulatedPoolAllocationDTO,
 )
-from bijou.core.ports.exceptions import ServiceUnavailableError
+from bijou.core.engine import InMemoryGraphProjectionEngine
+from bijou.core.ports import AccessContext, GraphCycleError, PermissionDeniedError
+from bijou.services import BijouOrchestrationService
 
 
-@pytest.fixture
-def wired_client(tmp_path: Path) -> TestClient:
-    """Fixture providing a TestClient backed by live isolated SQLite and DuckDB."""
-    db_file = tmp_path / "test_wiring_graph.db"
-    duckdb_file = tmp_path / "test_wiring_telemetry.duckdb"
-
-    settings = BijouSettings(
-        db_uri=f"sqlite:///{db_file}",
-        duckdb_path=str(duckdb_file),
-        max_payload_bytes=1024,  # Small payload limit for testing
-        enable_reasoning=False,
+def _make_service(tmp_path: Path) -> BijouOrchestrationService:
+    repo = SqlAlchemyGraphRepository(db_uri=f"sqlite:///{tmp_path}/orch.db")
+    tel = DuckDbTelemetryStore(db_path=str(tmp_path / "orch.duckdb"))
+    llm = AuraRouterAdapter(aurarouter_url="http://offline.invalid:9999")
+    engine = InMemoryGraphProjectionEngine()
+    svc = BijouOrchestrationService(
+        repository=repo,
+        projection_engine=engine,
+        telemetry_store=tel,
+        reasoning_broker=llm,
     )
-    app = create_app(settings)
-    with TestClient(app) as client:
-        yield client
+    svc.initialize()
+    return svc
 
 
-def test_full_api_crud_triggers_projection_rebuild_and_briefing_update(wired_client: TestClient) -> None:
-    """Creates entities via FastAPI TestClient, then queries perspective briefing and verifies non-zero ROI and concern coverage."""
-    client = wired_client
-
-    # 1. Create Organization
-    org = OrganizationDTO(
-        id="org-c2",
-        name="C2 Directorate",
-        echelon_level=1,
-        mission_statement="Orchestrate tactical fires",
+def test_orchestrator_enforces_perspective_seam_and_auto_registers_skill_mismatch_risk(tmp_path: Path) -> None:
+    svc = _make_service(tmp_path)
+    svc.upsert_organization(OrganizationDTO(id="org-a", name="Org A", is_managed=True))
+    svc.upsert_organization(OrganizationDTO(id="org-b", name="Org B", is_managed=True))
+    svc.upsert_resource_pool(
+        ResourcePoolDTO(
+            id="pool-a-staff",
+            org_id="org-a",
+            name="Org A Engineers",
+            category=ResourceCategory.STAFF,
+            capacity=3.0,
+            unit="FTE",
+            skill_tag="General Engineer",
+        )
     )
-    resp_org = client.post("/api/v1/organizations", json=org.model_dump(mode="json", by_alias=True))
-    assert resp_org.status_code == 201
-
-    # 2. Create Concern
-    con = ConcernDTO(
-        id="con-fires",
-        name="Fires Latency < 30s",
-        description="Fires sensor to shooter",
-        owner_org_id="org-c2",
-        priority=1.0,
-    )
-    resp_con = client.post("/api/v1/concerns", json=con.model_dump(mode="json", by_alias=True))
-    assert resp_con.status_code == 201
-
-    # 3. Create Thing and Milestone
-    ms = MilestoneDTO(
-        id="ms-f1",
-        thing_id="th-f1",
-        sequence_index=0,
-        name="Fires Node Prototype",
-        description="Lab test",
-        target_date="2026-05-01",
-        actual_date="2026-05-01",
-        status=MilestoneStatus.ACHIEVED,
-        lane="Tactical Fires",
-        trl=7,
-    )
-    th = ThingDTO(
-        id="th-f1",
-        name="Automated Fires Controller",
-        description="Tactical controller",
-        lifecycle=LifecycleStatus.ACTIVE,
-        owner_org_id="org-c2",
-        estimated_cost=100000.0,
-        risk_factor=1.0,
-        milestones=[ms],
-    )
-    resp_th = client.post("/api/v1/things", json=th.model_dump(mode="json", by_alias=True))
-    assert resp_th.status_code == 201
-
-    # 4. Create Causal Gate
-    gate = CausalGateDTO(
-        id="gate-f1",
-        name="Fires Gate",
-        mechanism=CausalMechanismType.ADDITIVE,
-        contributors=[CausalContributorDTO(thing_id="th-f1", milestone_id="ms-f1", contribution_weight=1.0)],
-    )
-    resp_gate = client.post("/api/v1/causal-gates", json=gate.model_dump(mode="json", by_alias=True))
-    assert resp_gate.status_code == 201
-
-    # 5. Create Effect satisfying Concern
-    effect = EffectDTO(
-        id="eff-f1",
-        name="Fires Operational",
-        description="Delivery",
-        tier=EffectTier.TIER_1_STRATEGIC,
-        causal_gate_id="gate-f1",
-        satisfies_concerns=[ConcernSatisfactionLinkDTO(concern_id="con-fires", weight=1.0)],
-    )
-    resp_eff = client.post("/api/v1/effects", json=effect.model_dump(mode="json", by_alias=True))
-    assert resp_eff.status_code == 201
-
-    # 6. Query Perspective Briefing
-    resp_briefing = client.get("/api/v1/views/perspectives/org-c2?as_of_date=2026-06-01")
-    assert resp_briefing.status_code == 200
-    briefing_data = resp_briefing.json()
-
-    assert briefing_data["portfolio_roi_score"] > 0.0
-    assert len(briefing_data["supported_concerns"]) == 1
-    assert briefing_data["supported_concerns"][0]["coverage_score"] == 1.0
-
-
-def test_aurarouter_adapter_raises_service_unavailable_when_endpoint_down() -> None:
-    """Verifies AuraRouterAdapter makes a real transport attempt and raises ServiceUnavailableError when target socket refuses connection."""
-    adapter = AuraRouterAdapter(
-        aurarouter_url="http://240.0.0.1:9999",  # Non-routable IP
-        model="bijou-strategic-reasoner",
-        timeout=1.0,
-    )
-    briefing = PerspectiveBriefingDTO(
-        subject_org_id="org-c2",
-        as_of_date="2026-06-01",
+    svc.upsert_effort(
+        EffortDTO(
+            id="eff-dsp",
+            name="RF Filter",
+            resource_requirements=[
+                ResourceRequirementDTO(
+                    id="req-rf",
+                    category=ResourceCategory.STAFF,
+                    label="RF Specialist",
+                    quantity=1.0,
+                    unit="FTE",
+                    required_skill="TS/SCI RF DSP Engineer",
+                    is_generic=False,
+                )
+            ],
+            mitigators=[
+                MitigatorDTO(id="mit-1", effort_id="eff-dsp", name="Tooling Assist", slip_reduction_days=10)
+            ],
+        )
     )
 
-    with pytest.raises(ServiceUnavailableError) as exc_info:
-        adapter.synthesize_executive_briefing(briefing, "Tactical mission")
+    owner_b_ctx = AccessContext(mode=AccessMode.MANAGED_ORG_OWNER, active_org_id="org-b")
+    with pytest.raises(PermissionDeniedError):
+        svc.upsert_org_effort_edge(
+            OrgEffortEdgeDTO(org_id="org-a", effort_id="eff-dsp", allocation_amount=1.0),
+            context=owner_b_ctx,
+        )
 
-    assert "AuraRouter connection to" in str(exc_info.value)
-    adapter.close()
-
-
-def test_payload_size_limit_middleware_rejects_oversized_body(wired_client: TestClient) -> None:
-    """Sends a payload exceeding max_payload_bytes and verifies HTTP 413 response."""
-    client = wired_client
-    # max_payload_bytes was set to 1024 bytes in wired_client fixture
-    large_payload = {"oversized_junk": "X" * 2048}
-
-    response = client.post(
-        "/api/v1/manifest/import",
-        json=large_payload,
+    owner_a_ctx = AccessContext(mode=AccessMode.MANAGED_ORG_OWNER, active_org_id="org-a")
+    svc.upsert_org_effort_edge(
+        OrgEffortEdgeDTO(
+            org_id="org-a",
+            effort_id="eff-dsp",
+            resourcing_type=ResourceCategory.STAFF,
+            resource_pool_id="pool-a-staff",
+            requirement_id="req-rf",
+            allocation_amount=1.0,
+            allocation_unit="FTE",
+            assigned_skill="General Engineer",
+            is_generic=False,
+        ),
+        context=owner_a_ctx,
+        human_slip_penalty_days=40,
     )
-    assert response.status_code == 413
-    assert "Payload exceeds maximum allowed bytes limit" in response.json()["detail"]
+
+    updated = svc.get_effort("eff-dsp")
+    assert updated is not None
+    assert any(r.is_skill_mismatch_risk and r.potential_slip_days == 40 for r in updated.risks)
+
+    # Commit Bill of Efforts exercising mitigator
+    svc.commit_bill_of_efforts(
+        BillOfEffortsSimulationRequestDTO(
+            toggle_mitigators={"mit-1": True},
+            add_allocations=[
+                SimulatedPoolAllocationDTO(
+                    org_id="org-a",
+                    effort_id="eff-dsp",
+                    resourcing_type=ResourceCategory.MONEY,
+                    amount=50000.0,
+                    unit="USD",
+                    is_generic=True,
+                )
+            ],
+        ),
+        context=owner_a_ctx,
+    )
+    committed = svc.get_effort("eff-dsp")
+    assert committed is not None
+    assert committed.mitigators[0].is_exercised is True

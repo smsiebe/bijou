@@ -1,6 +1,7 @@
 """CLI entrypoint for bijou-ingest."""
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -11,28 +12,20 @@ from bijou_ingest.ingestor import ManifestIngestor
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="bijou-ingest",
-        description="Batch document manifest and operational telemetry stream ingestor for Bijou."
+        description="Batch document manifest and operational telemetry stream ingestor for Bijou v2.",
     )
-    parser.add_argument(
-        "--manifest",
-        type=str,
-        help="Path to manifest YAML or JSON file."
-    )
-    parser.add_argument(
-        "--telemetry",
-        type=str,
-        help="Path to telemetry JSONL event stream file."
-    )
+    parser.add_argument("--manifest", type=str, help="Path to manifest YAML or JSON file.")
+    parser.add_argument("--telemetry", type=str, help="Path to telemetry JSONL event stream file.")
     parser.add_argument(
         "--server-url",
         type=str,
-        default="http://localhost:8000",
-        help="Bijou server endpoint URL (default: http://localhost:8000)."
+        default=os.environ.get("BIJOU_SERVER_URL", "http://bijou.internal:8000"),
+        help="Bijou server endpoint URL.",
     )
     parser.add_argument(
         "--replace-all",
         action="store_true",
-        help="Replace existing entities in graph instead of merging."
+        help="Replace existing entities in graph instead of merging.",
     )
 
     args = parser.parse_args()
@@ -64,4 +57,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

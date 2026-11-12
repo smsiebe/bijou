@@ -1,297 +1,318 @@
-"""Client-side wire models matching the Bijou contracts and OpenAPI specification."""
+"""Client-side wire models matching the Bijou v2 contracts and OpenAPI specification."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class LifecycleStatus(str, Enum):
-    PROPOSED = "PROPOSED"
-    ACTIVE = "ACTIVE"
-    DELIVERED = "DELIVERED"
-    DEPRECATED = "DEPRECATED"
+class EffortState(str, Enum):
+    COMPLETED = "COMPLETED"
+    IN_WORK = "IN_WORK"
+    BACKLOGGED = "BACKLOGGED"
+    PLANNED = "PLANNED"
+    DISCOVERY_PENDING = "DISCOVERY_PENDING"
     CANCELLED = "CANCELLED"
 
 
-class MilestoneStatus(str, Enum):
-    ESTIMATED = "ESTIMATED"
-    COMMITTED = "COMMITTED"
-    IN_PROGRESS = "IN_PROGRESS"
-    ACHIEVED = "ACHIEVED"
-    SLIPPED = "SLIPPED"
-    BLOCKED = "BLOCKED"
+class EffortTimingMode(str, Enum):
+    EXPLICIT_DATES = "EXPLICIT_DATES"
+    DURATION_ONLY = "DURATION_ONLY"
+    UNKNOWN = "UNKNOWN"
 
 
-class CausalMechanismType(str, Enum):
-    ADDITIVE = "ADDITIVE"
-    COMBINATORIAL_AND = "COMBINATORIAL_AND"
-    THRESHOLD_K_OF_N = "THRESHOLD_K_OF_N"
+class ForecastHorizonStatus(str, Enum):
+    COMPLETED_HISTORICAL = "COMPLETED_HISTORICAL"
+    EXPLICIT_SCHEDULE = "EXPLICIT_SCHEDULE"
+    OPEN_ENDED_ACTIVE = "OPEN_ENDED_ACTIVE"
+    RELATIVE_TO_DEPENDENCY = "RELATIVE_TO_DEPENDENCY"
+    UNSCHEDULED_PLAN = "UNSCHEDULED_PLAN"
+    CANCELLED = "CANCELLED"
 
 
-class EffectTier(str, Enum):
-    TIER_1_STRATEGIC = "TIER_1_STRATEGIC"
-    TIER_2_OPERATIONAL = "TIER_2_OPERATIONAL"
-    FEDERATED_VIRTUAL = "FEDERATED_VIRTUAL"
+class InterestKind(str, Enum):
+    STRATEGIC_CONCEPT = "STRATEGIC_CONCEPT"
+    MISSION_GOAL = "MISSION_GOAL"
+    NIPF_PRIORITY = "NIPF_PRIORITY"
+    THREAT_VECTOR = "THREAT_VECTOR"
+    INTELLIGENCE_GAP = "INTELLIGENCE_GAP"
+    CUSTOMER = "CUSTOMER"
+    INVESTMENT = "INVESTMENT"
+    COUNTRY = "COUNTRY"
+    CAPABILITY_AREA = "CAPABILITY_AREA"
+    OTHER = "OTHER"
 
 
-class TechTreeNodeState(str, Enum):
-    ACHIEVED = "ACHIEVED"
+class ConfidenceLevel(str, Enum):
+    CONFIRMED = "CONFIRMED"
+    ASSESSED = "ASSESSED"
+    UNCONFIRMED = "UNCONFIRMED"
+
+
+class ResourceCategory(str, Enum):
+    MONEY = "MONEY"
+    STAFF = "STAFF"
+    COMPUTE = "COMPUTE"
+    MATERIAL = "MATERIAL"
+    GENERIC_SUPPORT = "GENERIC_SUPPORT"
+
+
+class OrgOrgRelationType(str, Enum):
+    HIERARCHICAL_PARENT = "HIERARCHICAL_PARENT"
+    FORMAL_SUPPORTING = "FORMAL_SUPPORTING"
+    COLLABORATIVE_ADJACENT = "COLLABORATIVE_ADJACENT"
+    CO_SPONSOR = "CO_SPONSOR"
+
+
+class OrgInterestStance(str, Enum):
+    RESPONSIBLE_OWNER = "RESPONSIBLE_OWNER"
+    DIRECT_INVESTOR = "DIRECT_INVESTOR"
+    BENEFICIARY = "BENEFICIARY"
+    PERCEIVED_GAP = "PERCEIVED_GAP"
+    MISSION_ALIGNED = "MISSION_ALIGNED"
+
+
+class InterestInterestRelationType(str, Enum):
+    SPECIALIZES = "SPECIALIZES"
+    CONTRIBUTES_TO = "CONTRIBUTES_TO"
+    RELATED_TO = "RELATED_TO"
+
+
+class EffortInterestRelationType(str, Enum):
+    DIRECT_SOLUTION = "DIRECT_SOLUTION"
+    INDIRECT_ENABLER = "INDIRECT_ENABLER"
+    FUNDED_FOR = "FUNDED_FOR"
+    PARTIAL_ALIGNMENT = "PARTIAL_ALIGNMENT"
+
+
+class BlockingMode(str, Enum):
+    BLOCKING = "BLOCKING"
+    NON_BLOCKING_INFORMS = "NON_BLOCKING_INFORMS"
+
+
+class RiskSeverity(str, Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
+
+
+class RiskStatus(str, Enum):
     ACTIVE = "ACTIVE"
-    UNLOCKED_READY = "UNLOCKED_READY"
-    LOCKED = "LOCKED"
-    BLOCKED = "BLOCKED"
+    MITIGATED = "MITIGATED"
+    REALIZED = "REALIZED"
 
 
-class TechTreeStratificationMode(str, Enum):
-    TRL_TIERS = "TRL_TIERS"
-    FISCAL_ERA = "FISCAL_ERA"
-    TOPOLOGICAL_DEPTH = "TOPOLOGICAL_DEPTH"
+class AccessMode(str, Enum):
+    GLOBAL_ANALYST = "GLOBAL_ANALYST"
+    MANAGED_ORG_OWNER = "MANAGED_ORG_OWNER"
 
 
 class BijouSdkBaseModel(BaseModel):
-    model_config = ConfigDict(
-        populate_by_name=True,
-        use_enum_values=True,
-    )
+    model_config = ConfigDict(populate_by_name=True, use_enum_values=True)
 
 
 class Organization(BijouSdkBaseModel):
     id: str
     name: str
-    echelon_level: int
-    mission_statement: str
-    parent_org_id: str | None = None
-    peer_org_ids: list[str] = Field(default_factory=list)
+    description: str = ""
+    echelon_level: int = 1
+    is_managed: bool = False
     tags: list[str] = Field(default_factory=list)
 
 
-class Concern(BijouSdkBaseModel):
+class ResourcePool(BijouSdkBaseModel):
+    id: str
+    org_id: str
+    name: str
+    category: ResourceCategory
+    capacity: float
+    unit: str = "USD"
+    skill_tag: str | None = None
+    restricted_interest_ids: list[str] = Field(default_factory=list)
+    description: str = ""
+
+
+class Interest(BijouSdkBaseModel):
     id: str
     name: str
-    description: str
-    owner_org_id: str
-    parent_concern_id: str | None = None
-    priority: float
-    target_metric_sla: float | None = None
+    description: str = ""
+    interest_kind: InterestKind = InterestKind.STRATEGIC_CONCEPT
+    start_date: date | None = None
+    end_date: date | None = None
 
 
-class Milestone(BijouSdkBaseModel):
+class ResourceRequirement(BijouSdkBaseModel):
     id: str
-    thing_id: str
-    sequence_index: int
-    name: str
-    description: str
-    target_date: date
-    actual_date: date | None = None
-    status: MilestoneStatus
-    cost_delta: float = 0.0
-    lane: str
-    trl: int
+    category: ResourceCategory
+    label: str
+    quantity: float = 1.0
+    unit: str = "USD"
+    required_skill: str | None = None
+    estimated_cost_usd: float | None = None
+    is_generic: bool = True
 
 
-class Thing(BijouSdkBaseModel):
+class Risk(BijouSdkBaseModel):
     id: str
+    effort_id: str
+    title: str
+    description: str = ""
+    severity: RiskSeverity = RiskSeverity.MEDIUM
+    likelihood: float = 0.5
+    potential_slip_days: int = 0
+    is_skill_mismatch_risk: bool = False
+    status: RiskStatus = RiskStatus.ACTIVE
+    related_requirement_id: str | None = None
+
+
+class Mitigator(BijouSdkBaseModel):
+    id: str
+    effort_id: str
+    risk_id: str | None = None
     name: str
-    description: str
-    lifecycle: LifecycleStatus
-    owner_org_id: str
-    estimated_cost: float
-    risk_factor: float
-    milestones: list[Milestone] = Field(default_factory=list)
+    description: str = ""
+    is_exercised: bool = False
+    slip_reduction_days: int = 0
+    risk_reduction_factor: float = 0.5
+    additional_requirements: list[ResourceRequirement] = Field(default_factory=list)
 
 
-class AccumulatorPattern(str, Enum):
-    SUM = "SUM"
-    SLA_THRESHOLD = "SLA_THRESHOLD"
-    CASCADE_DEPTH = "CASCADE_DEPTH"
-    YIELD_RATIO = "YIELD_RATIO"
-
-
-class RelationshipType(str, Enum):
-    PARENT_OF = "PARENT_OF"
-    COLLABORATES_WITH = "COLLABORATES_WITH"
-    PEER_OF = "PEER_OF"
-    SUB_CONCERN_OF = "SUB_CONCERN_OF"
-    OWNS = "OWNS"
-    SUPPORTS = "SUPPORTS"
-    IMPACTS = "IMPACTS"
-    SATISFIES = "SATISFIES"
-    DEPENDS_ON = "DEPENDS_ON"
-    CONFLICTS_WITH = "CONFLICTS_WITH"
-    REPLACES = "REPLACES"
-
-
-class ConcernSatisfactionLink(BijouSdkBaseModel):
-    concern_id: str
-    weight: float = 1.0
-
-
-class FederationSpec(BijouSdkBaseModel):
-    connector_id: str
-    query_template: str
-    params: dict[str, str | int | float] = Field(default_factory=dict)
-    accumulator: AccumulatorPattern
-    sla_target: float | None = None
-    cache_ttl_seconds: int = 300
-
-
-class CausalContributor(BijouSdkBaseModel):
-    thing_id: str
-    milestone_id: str | None = None
-    contribution_weight: float = 1.0
-
-
-class CausalGate(BijouSdkBaseModel):
+class Effort(BijouSdkBaseModel):
     id: str
     name: str
-    mechanism: CausalMechanismType
-    threshold_k: int | None = None
-    contributors: list[CausalContributor] = Field(default_factory=list)
+    description: str = ""
+    state: EffortState = EffortState.PLANNED
+    start_date: date | None = None
+    end_date: date | None = None
+    estimated_duration_days: int | None = None
+    resource_requirements: list[ResourceRequirement] = Field(default_factory=list)
+    risks: list[Risk] = Field(default_factory=list)
+    mitigators: list[Mitigator] = Field(default_factory=list)
 
 
-class Effect(BijouSdkBaseModel):
-    id: str
-    name: str
-    description: str
-    tier: EffectTier
-    causal_gate_id: str | None = None
-    accumulator: AccumulatorPattern = AccumulatorPattern.SUM
-    observed_value: float | None = None
-    target_threshold: float | None = None
-    satisfies_concerns: list[ConcernSatisfactionLink] = Field(default_factory=list)
-    federation_spec: FederationSpec | None = None
-
-
-class GraphEdge(BijouSdkBaseModel):
-    id: str
-    source_id: str
-    target_id: str
-    relationship: RelationshipType
-    weight: float = 1.0
-    source_milestone_id: str | None = None
-    target_milestone_id: str | None = None
+class PedigreeEdge(BijouSdkBaseModel):
+    id: str | None = None
+    confidence: ConfidenceLevel = ConfidenceLevel.CONFIRMED
+    provenance_note: str | None = None
     effective_start: date | None = None
     effective_end: date | None = None
 
 
+class OrgOrgEdge(PedigreeEdge):
+    source_org_id: str
+    target_org_id: str
+    relation_type: OrgOrgRelationType
+
+
+class OrgInterestEdge(PedigreeEdge):
+    org_id: str
+    interest_id: str
+    stance: OrgInterestStance = OrgInterestStance.MISSION_ALIGNED
+    priority_rank: float = 0.5
+    allow_hierarchy_inheritance: bool = True
+
+
+class InterestInterestEdge(PedigreeEdge):
+    parent_interest_id: str
+    child_interest_id: str
+    relation_type: InterestInterestRelationType = InterestInterestRelationType.SPECIALIZES
+
+
+class OrgEffortEdge(PedigreeEdge):
+    org_id: str
+    effort_id: str
+    resourcing_type: ResourceCategory = ResourceCategory.GENERIC_SUPPORT
+    resource_pool_id: str | None = None
+    requirement_id: str | None = None
+    allocation_amount: float = 0.0
+    allocation_unit: str = "UNITS"
+    assigned_skill: str | None = None
+    is_generic: bool = True
+
+
+class EffortInterestEdge(PedigreeEdge):
+    effort_id: str
+    interest_id: str
+    relation_type: EffortInterestRelationType = EffortInterestRelationType.DIRECT_SOLUTION
+    impact_weight: float = 1.0
+
+
+class EffortEffortEdge(PedigreeEdge):
+    source_effort_id: str
+    target_effort_id: str
+    blocking_mode: BlockingMode = BlockingMode.BLOCKING
+    dependency_degree: float = 1.0
+
+
 class ManifestPayload(BijouSdkBaseModel):
-    schema_version: str = "1.0.0"
-    exported_at: datetime
+    schema_version: str = "2.0.0"
+    exported_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     organizations: list[Organization] = Field(default_factory=list)
-    concerns: list[Concern] = Field(default_factory=list)
-    things: list[Thing] = Field(default_factory=list)
-    causal_gates: list[CausalGate] = Field(default_factory=list)
-    effects: list[Effect] = Field(default_factory=list)
-    edges: list[GraphEdge] = Field(default_factory=list)
+    resource_pools: list[ResourcePool] = Field(default_factory=list)
+    interests: list[Interest] = Field(default_factory=list)
+    efforts: list[Effort] = Field(default_factory=list)
+    org_org_edges: list[OrgOrgEdge] = Field(default_factory=list)
+    org_interest_edges: list[OrgInterestEdge] = Field(default_factory=list)
+    interest_interest_edges: list[InterestInterestEdge] = Field(default_factory=list)
+    org_effort_edges: list[OrgEffortEdge] = Field(default_factory=list)
+    effort_interest_edges: list[EffortInterestEdge] = Field(default_factory=list)
+    effort_effort_edges: list[EffortEffortEdge] = Field(default_factory=list)
 
 
-class TechTreeNode(BijouSdkBaseModel):
-    node_id: str
-    thing_id: str
-    milestone_id: str
-    title: str
-    thing_name: str
-    owner_org_id: str
-    tier_id: str
-    tier_order: int
-    lane_id: str
-    state: TechTreeNodeState
-    target_date: date
-    actual_date: date | None = None
-    cost_estimate: float
-    trl: int
-    unlocked_effect_ids: list[str] = Field(default_factory=list)
-    slack_days: int = 0
-    centrality_score: float = 0.0
+class ForecastedEffortNode(BijouSdkBaseModel):
+    effort: Effort
+    timing_mode: EffortTimingMode
+    horizon_status: ForecastHorizonStatus
+    forecast_start: date | None = None
+    forecast_end: date | None = None
+    relative_offset_days: int | None = None
+    blocked_by_effort_ids: list[str] = Field(default_factory=list)
+    informing_effort_ids: list[str] = Field(default_factory=list)
+    topological_depth: int = 0
+    slack_days: int | None = None
     is_spof: bool = False
+    funding_org_ids: list[str] = Field(default_factory=list)
+    primary_org_id: str | None = None
+    aligned_interest_ids: list[str] = Field(default_factory=list)
+    indirect_beneficiary_org_ids: list[str] = Field(default_factory=list)
+    total_estimated_cost_usd: float = 0.0
+    resourcing_coverage_ratio: float = 0.0
+    active_risk_count: int = 0
+    exercised_mitigator_count: int = 0
+    unexercised_mitigator_count: int = 0
 
 
-class TechTreeEdge(BijouSdkBaseModel):
-    edge_id: str
-    source_node_id: str
-    target_node_id: str
-    gate_type: CausalMechanismType
-    is_satisfied: bool
-    is_critical_path: bool
-
-
-class TechTreeView(BijouSdkBaseModel):
+class CapabilityTreeView(BijouSdkBaseModel):
     as_of_date: date
-    stratification_mode: TechTreeStratificationMode
-    tiers: list[dict[str, Any]] = Field(default_factory=list)
-    lanes: list[dict[str, Any]] = Field(default_factory=list)
-    nodes: list[TechTreeNode] = Field(default_factory=list)
-    edges: list[TechTreeEdge] = Field(default_factory=list)
+    nodes: list[ForecastedEffortNode] = Field(default_factory=list)
+    effort_edges: list[EffortEffortEdge] = Field(default_factory=list)
+    organizations: list[Organization] = Field(default_factory=list)
+    resource_pools: list[ResourcePool] = Field(default_factory=list)
+    interests: list[Interest] = Field(default_factory=list)
+    org_org_edges: list[OrgOrgEdge] = Field(default_factory=list)
+    org_interest_edges: list[OrgInterestEdge] = Field(default_factory=list)
+    interest_interest_edges: list[InterestInterestEdge] = Field(default_factory=list)
+    org_effort_edges: list[OrgEffortEdge] = Field(default_factory=list)
+    effort_interest_edges: list[EffortInterestEdge] = Field(default_factory=list)
+    effective_priorities: list[dict[str, Any]] = Field(default_factory=list)
 
 
-class SlipSimulationRequest(BijouSdkBaseModel):
-    simulated_slips: dict[str, int] = Field(default_factory=dict)
-    cancelled_milestone_ids: list[str] = Field(default_factory=list)
-    milestone_id: str | None = None
-    slip_days: int | None = None
-    simulate_cancellation: bool = False
-
-
-class SlipSimulationResult(BijouSdkBaseModel):
-    slipped_milestone_id: str
-    slip_days: int
-    cancelled: bool
-    impacted_node_states: dict[str, TechTreeNodeState] = Field(default_factory=dict)
-    degraded_effect_ids: list[str] = Field(default_factory=list)
-    broken_concern_ids: list[str] = Field(default_factory=list)
-    roi_delta: float = 0.0
-
-
-class PerspectiveBriefing(BijouSdkBaseModel):
-    subject_org_id: str
-    perspective_org_id: str | None = None
-    include_descendants: bool = True
+class TriPartiteFlowView(BijouSdkBaseModel):
     as_of_date: date
-    owned_things: list[Thing] = Field(default_factory=list)
-    supported_concerns: list[dict[str, Any]] = Field(default_factory=list)
-    cross_org_dependencies: list[GraphEdge] = Field(default_factory=list)
-    portfolio_roi_score: float = 0.0
-    total_committed_cost: float = 0.0
-    executive_summary_narrative: str | None = None
-    strategic_gaps: list[str] = Field(default_factory=list)
+    capability_tree: CapabilityTreeView
+    pool_balances: list[dict[str, Any]] = Field(default_factory=list)
+    indirect_benefits: list[dict[str, Any]] = Field(default_factory=list)
+    shared_interest_partnerships: list[dict[str, Any]] = Field(default_factory=list)
 
 
-class ThingFocalDashboard(BijouSdkBaseModel):
-    thing: Thing
-    upstream_dependencies: list[Thing] = Field(default_factory=list)
-    downstream_dependents: list[Thing] = Field(default_factory=list)
-    produced_effects: list[Effect] = Field(default_factory=list)
-    telemetry_rollups: list[dict[str, Any]] = Field(default_factory=list)
-    impacted_concerns: list[dict[str, Any]] = Field(default_factory=list)
-    direct_roi: float = 0.0
-
-
-class TradeoffProposalComparison(BijouSdkBaseModel):
-    proposed_thing_ids: list[str] = Field(default_factory=list)
-    total_cost: float = 0.0
-    aggregate_roi: float = 0.0
-    concern_coverage_deltas: dict[str, float] = Field(default_factory=dict)
-    unlocked_effect_ids: list[str] = Field(default_factory=list)
-    reasoning_recommendation: str | None = None
-
-
-class DecisionLogEntry(BijouSdkBaseModel):
-    id: str
-    target_milestone_id: str
-    author: str
-    justification: str
-    timestamp: datetime
-
-
-class ParetoFrontier(BijouSdkBaseModel):
-    budget_ceiling: float
-    optimal_portfolios: list[TradeoffProposalComparison] = Field(default_factory=list)
-
-
-class DiagnosticReport(BijouSdkBaseModel):
-    blockers: list[str] = Field(default_factory=list)
-    warnings: list[str] = Field(default_factory=list)
-    cycles_detected: list[list[str]] = Field(default_factory=list)
-
+class BillOfEffortsSimulationResult(BijouSdkBaseModel):
+    projected_tree: CapabilityTreeView
+    pool_balances: list[dict[str, Any]] = Field(default_factory=list)
+    skill_mismatch_warnings: list[dict[str, Any]] = Field(default_factory=list)
+    newly_registered_risks: list[Risk] = Field(default_factory=list)
+    impacted_effort_ids: list[str] = Field(default_factory=list)
+    interest_coverage_deltas: dict[str, float] = Field(default_factory=dict)
+    total_cost_delta: float = 0.0
+    net_risk_count_delta: int = 0

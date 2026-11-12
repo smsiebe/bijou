@@ -1,531 +1,564 @@
-schema_version: "1.0.0"
-exported_at: "2026-11-01T12:00:00Z"
-
+schema_version: 2.0.0
 organizations:
-  - id: "org-strat-space"
-    name: "Strategic Space Command"
-    echelon_level: 0
-    mission_statement: "Global space superiority and resilient orbital infrastructure"
-    parent_org_id: null
-    peer_org_ids: []
-    tags: ["strategic", "space", "orbital"]
-
-  - id: "org-c2-joint"
-    name: "Joint C2 Directorate"
-    echelon_level: 1
-    mission_statement: "Orchestration of multi-domain command and control"
-    parent_org_id: "org-strat-space"
-    peer_org_ids: ["org-allied-partner"]
-    tags: ["operational", "c2", "joint"]
-
-  - id: "org-tac-isr"
-    name: "Tactical Airborne ISR Wing"
-    echelon_level: 2
-    mission_statement: "High-altitude tactical sensor surveillance"
-    parent_org_id: "org-c2-joint"
-    peer_org_ids: ["org-tac-strike"]
-    tags: ["tactical", "isr", "airborne"]
-
-  - id: "org-tac-strike"
-    name: "Tactical Strike Group"
-    echelon_level: 2
-    mission_statement: "Precision strike and electronic warfare operations"
-    parent_org_id: "org-c2-joint"
-    peer_org_ids: ["org-tac-isr"]
-    tags: ["tactical", "strike", "kinetic"]
-
-  - id: "org-allied-partner"
-    name: "Allied Coalition Defense Command"
-    echelon_level: 1
-    mission_statement: "Coalition sensor data exchange and shared defense"
-    parent_org_id: null
-    peer_org_ids: ["org-c2-joint"]
-    tags: ["allied", "coalition", "external"]
-
-concerns:
-  - id: "concern-deep-sensing"
-    name: "Persistent Deep Sensing"
-    description: "Unbroken wide-area sensing across contested domains"
-    owner_org_id: "org-strat-space"
-    parent_concern_id: null
-    priority: 0.95
-    target_metric_sla: 99.5
-
-  - id: "concern-sub-hypersonic"
-    name: "Hypersonic Threat Tracking"
-    description: "Continuous trajectory acquisition for high-velocity glide vehicles"
-    owner_org_id: "org-strat-space"
-    parent_concern_id: "concern-deep-sensing"
-    priority: 0.90
-    target_metric_sla: 95.0
-
-  - id: "concern-c2-interop"
-    name: "Cross-Coalition C2 Interoperability"
-    description: "Low-latency message federation across sovereign boundary gateways"
-    owner_org_id: "org-c2-joint"
-    parent_concern_id: null
-    priority: 0.85
-    target_metric_sla: 90.0
-
-  - id: "concern-low-latency-kill-web"
-    name: "Sub-Second Sensor-to-Shooter Mesh"
-    description: "Automated track correlation directly into strike orchestration"
-    owner_org_id: "org-tac-strike"
-    parent_concern_id: null
-    priority: 0.95
-    target_metric_sla: 98.0
-
-  - id: "concern-sub-resilient-comms"
-    name: "Jam-Resistant Tactical Downlink"
-    description: "Anti-jam optical and phased-array communication uplinks"
-    owner_org_id: "org-tac-strike"
-    parent_concern_id: "concern-low-latency-kill-web"
-    priority: 0.80
-    target_metric_sla: 92.0
-
-things:
-  - id: "thing-hypersonic-sensor-constellation"
-    name: "Hypersonic Tracking Space Constellation"
-    description: "Low-Earth Orbit infrared and optical tracking sensor bus"
-    lifecycle: "ACTIVE"
-    owner_org_id: "org-strat-space"
-    estimated_cost: 450000.0
-    risk_factor: 4.2
-    milestones:
-      - id: "ms-space-lab-sensor"
-        thing_id: "thing-hypersonic-sensor-constellation"
-        sequence_index: 0
-        name: "Optical Bench Lab Prototype"
-        description: "Cryo-cooled infrared detector bench test"
-        target_date: "2026-03-15"
-        actual_date: "2026-03-10"
-        status: "ACHIEVED"
-        cost_delta: 50000.0
-        lane: "SPACE_TIER"
-        trl: 3
-      - id: "ms-space-chamber-proto"
-        thing_id: "thing-hypersonic-sensor-constellation"
-        sequence_index: 1
-        name: "Thermal Vacuum Chamber Test"
-        description: "Simulated orbit space environmental qualification"
-        target_date: "2026-09-20"
-        actual_date: "2026-09-18"
-        status: "ACHIEVED"
-        cost_delta: 120000.0
-        lane: "SPACE_TIER"
-        trl: 5
-      - id: "ms-space-flight-qual"
-        thing_id: "thing-hypersonic-sensor-constellation"
-        sequence_index: 2
-        name: "Orbital Demonstration Flight"
-        description: "First-article launch and in-orbit target track test"
-        target_date: "2027-04-10"
-        actual_date: null
-        status: "COMMITTED"
-        cost_delta: 280000.0
-        lane: "SPACE_TIER"
-        trl: 7
-
-  - id: "thing-mesh-relay-bus"
-    name: "Crosslink Optical Relay Bus"
-    description: "Space-to-air optical laser communication crosslinks"
-    lifecycle: "ACTIVE"
-    owner_org_id: "org-strat-space"
-    estimated_cost: 200000.0
-    risk_factor: 2.8
-    milestones:
-      - id: "ms-relay-lab-transceiver"
-        thing_id: "thing-mesh-relay-bus"
-        sequence_index: 0
-        name: "Laser Transceiver Breadboard"
-        description: "High-data-rate transceiver lab testing"
-        target_date: "2026-06-01"
-        actual_date: "2026-05-25"
-        status: "ACHIEVED"
-        cost_delta: 60000.0
-        lane: "SPACE_TIER"
-        trl: 4
-      - id: "ms-relay-fielded"
-        thing_id: "thing-mesh-relay-bus"
-        sequence_index: 1
-        name: "Air-to-Space Optical Link Fielded"
-        description: "Live optical link demonstration with high-altitude airborne node"
-        target_date: "2027-02-15"
-        actual_date: null
-        status: "COMMITTED"
-        cost_delta: 140000.0
-        lane: "SPACE_TIER"
-        trl: 7
-
-  - id: "thing-edge-ai-correlator"
-    name: "Tactical Edge AI Correlator"
-    description: "Autonomous multi-sensor track fusion and kinematics prediction engine"
-    lifecycle: "ACTIVE"
-    owner_org_id: "org-c2-joint"
-    estimated_cost: 180000.0
-    risk_factor: 3.5
-    milestones:
-      - id: "ms-edge-algo-design"
-        thing_id: "thing-edge-ai-correlator"
-        sequence_index: 0
-        name: "Kinematic Kalman Filter Benchmark"
-        description: "Algorithmic validation on synthetic track telemetry"
-        target_date: "2026-04-01"
-        actual_date: "2026-03-28"
-        status: "ACHIEVED"
-        cost_delta: 30000.0
-        lane: "C2_TIER"
-        trl: 3
-      - id: "ms-edge-hw-integrated"
-        thing_id: "thing-edge-ai-correlator"
-        sequence_index: 1
-        name: "Ruggedized Airborne Compute Integration"
-        description: "Payload integration on tactical testbed airframe"
-        target_date: "2026-11-15"
-        actual_date: null
-        status: "IN_PROGRESS"
-        cost_delta: 70000.0
-        lane: "C2_TIER"
-        trl: 6
-      - id: "ms-edge-eval-live"
-        thing_id: "thing-edge-ai-correlator"
-        sequence_index: 2
-        name: "Operational Multi-Node Field Exercise"
-        description: "Real-time track correlation across live flights"
-        target_date: "2027-06-30"
-        actual_date: null
-        status: "COMMITTED"
-        cost_delta: 80000.0
-        lane: "C2_TIER"
-        trl: 8
-
-  - id: "thing-allied-federation-gateway"
-    name: "Allied Sovereign Gateway Interface"
-    description: "Cross-domain cryptographic boundary filter for coalition telemetry"
-    lifecycle: "ACTIVE"
-    owner_org_id: "org-allied-partner"
-    estimated_cost: 150000.0
-    risk_factor: 2.1
-    milestones:
-      - id: "ms-gateway-sim"
-        thing_id: "thing-allied-federation-gateway"
-        sequence_index: 0
-        name: "Cryptographic Guard Simulation"
-        description: "Zero-trust protocol validation in simulated WAN"
-        target_date: "2026-07-01"
-        actual_date: "2026-06-25"
-        status: "ACHIEVED"
-        cost_delta: 40000.0
-        lane: "ALLIED_TIER"
-        trl: 5
-      - id: "ms-gateway-live-peering"
-        thing_id: "thing-allied-federation-gateway"
-        sequence_index: 1
-        name: "Operational Coalition Peering"
-        description: "Live TLS connection between joint command centres"
-        target_date: "2027-01-15"
-        actual_date: null
-        status: "COMMITTED"
-        cost_delta: 110000.0
-        lane: "ALLIED_TIER"
-        trl: 7
-
-  - id: "thing-tactical-strike-interceptor"
-    name: "High-Speed Kinetic Interceptor"
-    description: "Hypersonic interceptor with terminal dual-mode seeker"
-    lifecycle: "ACTIVE"
-    owner_org_id: "org-tac-strike"
-    estimated_cost: 600000.0
-    risk_factor: 5.5
-    milestones:
-      - id: "ms-strike-propulsion-concept"
-        thing_id: "thing-tactical-strike-interceptor"
-        sequence_index: 0
-        name: "Solid Rocket Motor Feasibility"
-        description: "Propellant grain design and burn rate test"
-        target_date: "2026-05-10"
-        actual_date: "2026-05-02"
-        status: "ACHIEVED"
-        cost_delta: 150000.0
-        lane: "STRIKE_TIER"
-        trl: 2
-      - id: "ms-strike-live-test"
-        thing_id: "thing-tactical-strike-interceptor"
-        sequence_index: 1
-        name: "Range Live-Fire Intercept Test"
-        description: "Closed-loop intercept against supersonic target drone"
-        target_date: "2027-08-20"
-        actual_date: null
-        status: "COMMITTED"
-        cost_delta: 450000.0
-        lane: "STRIKE_TIER"
-        trl: 6
-
-  - id: "thing-autonomous-ew-decoy"
-    name: "Autonomous EW Airborne Decoy"
-    description: "Miniature air-launched decoy vehicle with active jamming payload"
-    lifecycle: "ACTIVE"
-    owner_org_id: "org-tac-isr"
-    estimated_cost: 120000.0
-    risk_factor: 3.0
-    milestones:
-      - id: "ms-decoy-rf-test"
-        thing_id: "thing-autonomous-ew-decoy"
-        sequence_index: 0
-        name: "Anechoic Chamber RF Signature Test"
-        description: "Emitter mimicry and radar cross-section test"
-        target_date: "2026-08-01"
-        actual_date: "2026-07-28"
-        status: "ACHIEVED"
-        cost_delta: 40000.0
-        lane: "ISR_TIER"
-        trl: 4
-      - id: "ms-decoy-flight-swarm"
-        thing_id: "thing-autonomous-ew-decoy"
-        sequence_index: 1
-        name: "Tactical Swarm In-Flight Release"
-        description: "Flight release and coordinated jamming test"
-        target_date: "2027-05-15"
-        actual_date: null
-        status: "COMMITTED"
-        cost_delta: 80000.0
-        lane: "ISR_TIER"
-        trl: 7
-
-causal_gates:
-  - id: "gate-combinatorial-deep-cueing"
-    name: "Deep Sensor Cueing Gate"
-    mechanism: "COMBINATORIAL_AND"
-    threshold_k: null
-    contributors:
-      - thing_id: "thing-hypersonic-sensor-constellation"
-        milestone_id: "ms-space-flight-qual"
-        contribution_weight: 1.0
-      - thing_id: "thing-mesh-relay-bus"
-        milestone_id: "ms-relay-fielded"
-        contribution_weight: 1.0
-
-  - id: "gate-additive-relay-capacity"
-    name: "Multi-Domain Relay Aggregation"
-    mechanism: "ADDITIVE"
-    threshold_k: null
-    contributors:
-      - thing_id: "thing-hypersonic-sensor-constellation"
-        milestone_id: "ms-space-chamber-proto"
-        contribution_weight: 0.6
-      - thing_id: "thing-allied-federation-gateway"
-        milestone_id: "ms-gateway-sim"
-        contribution_weight: 0.4
-
-  - id: "gate-k-of-n-target-lock"
-    name: "Triangulated Target Lock Gate"
-    mechanism: "THRESHOLD_K_OF_N"
-    threshold_k: 2
-    contributors:
-      - thing_id: "thing-hypersonic-sensor-constellation"
-        milestone_id: "ms-space-flight-qual"
-        contribution_weight: 1.0
-      - thing_id: "thing-edge-ai-correlator"
-        milestone_id: "ms-edge-eval-live"
-        contribution_weight: 1.0
-      - thing_id: "thing-allied-federation-gateway"
-        milestone_id: "ms-gateway-live-peering"
-        contribution_weight: 1.0
-
-effects:
-  - id: "eff-sensor-coverage-t1"
-    name: "Global Hypersonic Tracking Footprint"
-    description: "99% orbital line-of-sight tracking capability for hypersonic threats"
-    tier: "TIER_1_STRATEGIC"
-    causal_gate_id: "gate-combinatorial-deep-cueing"
-    accumulator: "SUM"
-    observed_value: 0.92
-    target_threshold: 0.90
-    satisfies_concerns:
-      - concern_id: "concern-sub-hypersonic"
-        weight: 0.95
-    federation_spec: null
-
-  - id: "eff-detection-speed-t1"
-    name: "Sub-Second Track Formation"
-    description: "Automated kinematic trajectory prediction within 500ms of launch"
-    tier: "TIER_1_STRATEGIC"
-    causal_gate_id: "gate-combinatorial-deep-cueing"
-    accumulator: "SUM"
-    observed_value: 0.88
-    target_threshold: 0.85
-    satisfies_concerns:
-      - concern_id: "concern-low-latency-kill-web"
-        weight: 0.90
-    federation_spec: null
-
-  - id: "eff-downlink-resilience-t2"
-    name: "Jam-Resistant Tactical Ingress"
-    description: "Optical crosslink downlink sustained during severe RF denial"
-    tier: "TIER_2_OPERATIONAL"
-    causal_gate_id: "gate-additive-relay-capacity"
-    accumulator: "SUM"
-    observed_value: 0.75
-    target_threshold: 0.70
-    satisfies_concerns:
-      - concern_id: "concern-sub-resilient-comms"
-        weight: 0.85
-    federation_spec: null
-
-  - id: "eff-federated-track-t2"
-    name: "Coalition Common Operating Picture"
-    description: "Real-time bi-directional telemetry broadcast across allied nodes"
-    tier: "TIER_2_OPERATIONAL"
-    causal_gate_id: "gate-k-of-n-target-lock"
-    accumulator: "SUM"
-    observed_value: 0.80
-    target_threshold: 0.75
-    satisfies_concerns:
-      - concern_id: "concern-c2-interop"
-        weight: 0.88
-    federation_spec: null
-
-edges:
-  - id: "edge-strat-c2-hierarchy"
-    source_id: "thing-hypersonic-sensor-constellation"
-    target_id: "thing-edge-ai-correlator"
-    relationship: "SUPPORTS"
-    weight: 1.0
-    source_milestone_id: "ms-space-chamber-proto"
-    target_milestone_id: "ms-edge-algo-design"
-
-  - id: "edge-space-sensor-to-relay"
-    source_id: "thing-hypersonic-sensor-constellation"
-    target_id: "thing-mesh-relay-bus"
-    relationship: "DEPENDS_ON"
-    weight: 1.0
-    source_milestone_id: "ms-space-flight-qual"
-    target_milestone_id: "ms-relay-fielded"
-
-  - id: "edge-relay-to-edge-compute"
-    source_id: "thing-mesh-relay-bus"
-    target_id: "thing-edge-ai-correlator"
-    relationship: "SUPPORTS"
-    weight: 1.0
-    source_milestone_id: "ms-relay-fielded"
-    target_milestone_id: "ms-edge-hw-integrated"
-
-  - id: "edge-allied-to-edge"
-    source_id: "thing-allied-federation-gateway"
-    target_id: "thing-edge-ai-correlator"
-    relationship: "COLLABORATES_WITH"
-    weight: 1.0
-    source_milestone_id: "ms-gateway-live-peering"
-    target_milestone_id: "ms-edge-eval-live"
-
-  - id: "edge-edge-to-strike"
-    source_id: "thing-edge-ai-correlator"
-    target_id: "thing-tactical-strike-interceptor"
-    relationship: "DEPENDS_ON"
-    weight: 1.0
-    source_milestone_id: "ms-edge-eval-live"
-    target_milestone_id: "ms-strike-live-test"
-
-  - id: "edge-decoy-to-strike"
-    source_id: "thing-autonomous-ew-decoy"
-    target_id: "thing-tactical-strike-interceptor"
-    relationship: "SUPPORTS"
-    weight: 0.8
-    source_milestone_id: "ms-decoy-flight-swarm"
-    target_milestone_id: "ms-strike-live-test"
-
-  - id: "edge-decoy-to-isr"
-    source_id: "thing-autonomous-ew-decoy"
-    target_id: "thing-hypersonic-sensor-constellation"
-    relationship: "IMPACTS"
-    weight: 0.5
-    source_milestone_id: "ms-decoy-rf-test"
-    target_milestone_id: "ms-space-lab-sensor"
-
-  - id: "edge-sensor-deep-sensing"
-    source_id: "thing-hypersonic-sensor-constellation"
-    target_id: "thing-hypersonic-sensor-constellation"
-    relationship: "SATISFIES"
-    weight: 1.0
-    source_milestone_id: "ms-space-flight-qual"
-    target_milestone_id: "ms-space-lab-sensor"
-
-  - id: "edge-relay-comms"
-    source_id: "thing-mesh-relay-bus"
-    target_id: "thing-mesh-relay-bus"
-    relationship: "SATISFIES"
-    weight: 1.0
-    source_milestone_id: "ms-relay-fielded"
-    target_milestone_id: "ms-relay-lab-transceiver"
-
-  - id: "edge-allied-interop"
-    source_id: "thing-allied-federation-gateway"
-    target_id: "thing-allied-federation-gateway"
-    relationship: "SATISFIES"
-    weight: 1.0
-    source_milestone_id: "ms-gateway-live-peering"
-    target_milestone_id: "ms-gateway-sim"
-
-  - id: "edge-strike-kill-web"
-    source_id: "thing-tactical-strike-interceptor"
-    target_id: "thing-tactical-strike-interceptor"
-    relationship: "SATISFIES"
-    weight: 1.0
-    source_milestone_id: "ms-strike-live-test"
-    target_milestone_id: "ms-strike-propulsion-concept"
-
-  - id: "edge-sensor-to-allied"
-    source_id: "thing-hypersonic-sensor-constellation"
-    target_id: "thing-allied-federation-gateway"
-    relationship: "PEER_OF"
-    weight: 0.9
-    source_milestone_id: "ms-space-chamber-proto"
-    target_milestone_id: "ms-gateway-sim"
-
-  - id: "edge-relay-to-allied"
-    source_id: "thing-mesh-relay-bus"
-    target_id: "thing-allied-federation-gateway"
-    relationship: "PEER_OF"
-    weight: 0.8
-    source_milestone_id: "ms-relay-lab-transceiver"
-    target_milestone_id: "ms-gateway-sim"
-
-  - id: "edge-edge-to-decoy"
-    source_id: "thing-edge-ai-correlator"
-    target_id: "thing-autonomous-ew-decoy"
-    relationship: "COLLABORATES_WITH"
-    weight: 0.7
-    source_milestone_id: "ms-edge-hw-integrated"
-    target_milestone_id: "ms-decoy-rf-test"
-
-  - id: "edge-sensor-to-strike"
-    source_id: "thing-hypersonic-sensor-constellation"
-    target_id: "thing-tactical-strike-interceptor"
-    relationship: "PEER_OF"
-    weight: 0.5
-    source_milestone_id: "ms-space-lab-sensor"
-    target_milestone_id: "ms-strike-propulsion-concept"
-
-  - id: "edge-relay-to-decoy"
-    source_id: "thing-mesh-relay-bus"
-    target_id: "thing-autonomous-ew-decoy"
-    relationship: "SUPPORTS"
-    weight: 0.6
-    source_milestone_id: "ms-relay-fielded"
-    target_milestone_id: "ms-decoy-flight-swarm"
-
-  - id: "edge-strike-to-decoy"
-    source_id: "thing-tactical-strike-interceptor"
-    target_id: "thing-autonomous-ew-decoy"
-    relationship: "COLLABORATES_WITH"
-    weight: 0.85
-    source_milestone_id: "ms-strike-live-test"
-    target_milestone_id: "ms-decoy-flight-swarm"
-
-  - id: "edge-c2-to-tac-isr"
-    source_id: "thing-edge-ai-correlator"
-    target_id: "thing-autonomous-ew-decoy"
-    relationship: "SUPPORTS"
-    weight: 0.95
-    source_milestone_id: "ms-edge-eval-live"
-    target_milestone_id: "ms-decoy-flight-swarm"
+- id: org-joint-c2
+  name: Joint C2 & Resilience Directorate
+  description: Principal architecture office responsible for resilient multi-domain
+    command and NIPF intelligence integration.
+  echelon_level: 1
+  is_managed: true
+  tags:
+  - managed
+  - c2
+  - resiliency
+- id: org-strat-space
+  name: Strategic Space Systems Command
+  description: Acquires and operates proliferated LEO sensing constellations and space
+    optical backhaul.
+  echelon_level: 2
+  is_managed: true
+  tags:
+  - managed
+  - space
+  - sensors
+- id: org-tac-isr
+  name: Tactical Airborne ISR Wing
+  description: Operates theater-level tactical aircraft platforms consuming overhead
+    tasking and EW cues.
+  echelon_level: 2
+  is_managed: false
+  tags:
+  - unmanaged
+  - airborne
+  - tactical
+- id: org-allied-partner
+  name: Allied Coalition Cyber & Peering Group
+  description: Combined partner telemetry boundary cell building cross-domain coalition
+    peering.
+  echelon_level: 2
+  is_managed: false
+  tags:
+  - unmanaged
+  - coalition
+  - gateway
+- id: org-ic-analytic
+  name: National Signals & Indications Cell
+  description: IC analytical center benefiting from hypersonic early-warning and contested-spectrum
+    fusion.
+  echelon_level: 1
+  is_managed: false
+  tags:
+  - unmanaged
+  - ic
+  - indications
+resource_pools:
+- id: pool-resiliency-fy27
+  org_id: org-joint-c2
+  name: FY27 Cross-Domain Resiliency Pool
+  category: MONEY
+  capacity: 2400000.0
+  unit: USD
+  skill_tag: null
+  restricted_interest_ids:
+  - intr-resiliency
+  description: Color-of-money pool restricted strictly to Resiliency and its descendant
+    sub-interests.
+- id: pool-rf-engineers
+  org_id: org-joint-c2
+  name: Cleared RF DSP Engineering Bench
+  category: STAFF
+  capacity: 4.0
+  unit: FTE
+  skill_tag: TS/SCI RF DSP Engineer
+  restricted_interest_ids: []
+  description: Specialized RF digital signal processing engineers holding active TS/SCI
+    clearance.
+- id: pool-ml-engineers
+  org_id: org-strat-space
+  name: Space Edge ML Software Team
+  category: STAFF
+  capacity: 3.0
+  unit: FTE
+  skill_tag: Edge ML / C++ Engineer
+  restricted_interest_ids: []
+  description: Flight-software and low-SWaP inference engineers.
+- id: pool-h100-cluster
+  org_id: org-strat-space
+  name: SCIF H100 Model Training Cluster
+  category: COMPUTE
+  capacity: 1200.0
+  unit: GPU_HRS
+  skill_tag: Classified H100 Air-Gapped Compute
+  restricted_interest_ids: []
+  description: Air-gapped classified GPU training allocation.
+- id: pool-space-discretionary
+  org_id: org-strat-space
+  name: Space Systems Unencumbered RDT&E
+  category: MONEY
+  capacity: 950000.0
+  unit: USD
+  skill_tag: null
+  restricted_interest_ids: []
+  description: General discretionary R&D funds with no Interest earmark restriction.
+interests:
+- id: intr-resiliency
+  name: Cross-Domain Operational Resiliency
+  description: Broad enterprise mission concept ensuring graceful degradation under
+    kinetic or EW attack.
+  interest_kind: STRATEGIC_CONCEPT
+  start_date: null
+  end_date: null
+- id: intr-optical-resiliency
+  name: Optical Crosslink Mesh Resiliency
+  description: Hardened space-to-air optical relay survivability bypassing RF jamming.
+  interest_kind: CAPABILITY_AREA
+  start_date: null
+  end_date: null
+- id: intr-comms-anti-jam
+  name: Contested RF / Anti-Jam Survival
+  description: Maintaining command links under severe adversarial electronic warfare
+    pressure.
+  interest_kind: THREAT_VECTOR
+  start_date: '2026-01-01'
+  end_date: null
+- id: intr-nipf-indopac
+  name: 'NIPF Priority: Indo-Pacific Persistent Tracking'
+  description: Presidential NIPF mandate for continuous custody of mobile maritime
+    and missile threats.
+  interest_kind: NIPF_PRIORITY
+  start_date: '2026-01-01'
+  end_date: '2028-12-31'
+- id: intr-hypersonic-gap
+  name: Hypersonic Boost-Glide Detection Gap
+  description: Long-standing collection & custody gap during dim-target mid-course
+    glide phases.
+  interest_kind: INTELLIGENCE_GAP
+  start_date: null
+  end_date: null
+efforts:
+- id: eff-optical-bench
+  name: Optical Crosslink Lab Prototype
+  description: Completed 10Gbps space-grade laser terminal bench verification.
+  state: COMPLETED
+  start_date: '2025-10-01'
+  end_date: '2026-06-15'
+  estimated_duration_days: 257
+  resource_requirements:
+  - id: req-opt-1
+    category: MONEY
+    label: Optical Terminal Breadboard Hardware
+    quantity: 250000.0
+    unit: USD
+    required_skill: null
+    estimated_cost_usd: 250000.0
+    is_generic: false
+  risks: []
+  mitigators: []
+- id: eff-space-sensor
+  name: P-LEO Hypersonic Sensor Constellation
+  description: Initial 4-satellite OPIR tracking plane undergoing thermal-vac integration.
+  state: IN_WORK
+  start_date: '2026-04-15'
+  end_date: '2027-07-01'
+  estimated_duration_days: 442
+  resource_requirements:
+  - id: req-space-money
+    category: MONEY
+    label: Sensor Bus Environmental Qualification
+    quantity: 600000.0
+    unit: USD
+    required_skill: null
+    estimated_cost_usd: 600000.0
+    is_generic: false
+  - id: req-space-ml
+    category: STAFF
+    label: Flight Calibration Engineers
+    quantity: 2.0
+    unit: FTE
+    required_skill: Edge ML / C++ Engineer
+    estimated_cost_usd: 360000.0
+    is_generic: false
+  risks:
+  - id: risk-rad-yield
+    effort_id: eff-space-sensor
+    title: FPA Radiation Hardening Yield Loss
+    description: Infrared focal plane array foundry lot yields running 18% below target.
+    severity: HIGH
+    likelihood: 0.65
+    potential_slip_days: 45
+    is_skill_mismatch_risk: false
+    status: ACTIVE
+    related_requirement_id: req-space-money
+  mitigators:
+  - id: mit-parallel-screening
+    effort_id: eff-space-sensor
+    risk_id: risk-rad-yield
+    name: Parallel Secondary Wafer Screening
+    description: Fund backup foundry lot screening to absorb yield loss and recover
+      40 days.
+    is_exercised: false
+    slip_reduction_days: 40
+    risk_reduction_factor: 0.8
+    additional_requirements:
+    - id: req-mit-wafer
+      category: MONEY
+      label: Backup Wafer Screening Lot
+      quantity: 320000.0
+      unit: USD
+      required_skill: null
+      estimated_cost_usd: 320000.0
+      is_generic: false
+- id: eff-ew-discovery
+  name: Contested Spectrum EW Characterization
+  description: Ongoing adversarial waveform characterization campaign (open-ended
+    discovery).
+  state: IN_WORK
+  start_date: '2026-08-01'
+  end_date: null
+  estimated_duration_days: null
+  resource_requirements:
+  - id: req-ew-generic
+    category: GENERIC_SUPPORT
+    label: Wing Collection Sorties & Analysis
+    quantity: 1.0
+    unit: SQUADRON_EQ
+    required_skill: null
+    estimated_cost_usd: 180000.0
+    is_generic: true
+  risks: []
+  mitigators: []
+- id: eff-edge-correlator
+  name: Tactical Edge Anti-Jam Correlator
+  description: Low-SWaP RF/Optical track correlation firmware adapting waveforms in
+    flight.
+  state: BACKLOGGED
+  start_date: null
+  end_date: null
+  estimated_duration_days: 120
+  resource_requirements:
+  - id: req-edge-rf
+    category: STAFF
+    label: Senior Anti-Jam RF DSP Architect
+    quantity: 1.5
+    unit: FTE
+    required_skill: TS/SCI RF DSP Engineer
+    estimated_cost_usd: 280000.0
+    is_generic: false
+  - id: req-edge-compute
+    category: COMPUTE
+    label: Classified Inference Training Run
+    quantity: 400.0
+    unit: GPU_HRS
+    required_skill: Classified H100 Air-Gapped Compute
+    estimated_cost_usd: 75000.0
+    is_generic: false
+  - id: req-edge-hw
+    category: MATERIAL
+    label: Flight Ruggedized Chassis Batch
+    quantity: 350000.0
+    unit: USD
+    required_skill: null
+    estimated_cost_usd: 350000.0
+    is_generic: false
+  risks:
+  - id: risk-correlator-compute
+    effort_id: eff-edge-correlator
+    title: Classified SCIF Compute Queue Contention
+    description: Training cluster contention could stall firmware freeze by 30 days.
+    severity: MEDIUM
+    likelihood: 0.5
+    potential_slip_days: 30
+    is_skill_mismatch_risk: false
+    status: ACTIVE
+    related_requirement_id: req-edge-compute
+  mitigators:
+  - id: mit-reserved-scif-block
+    effort_id: eff-edge-correlator
+    risk_id: risk-correlator-compute
+    name: Pre-Allocate Dedicated SCIF GPU Reservation
+    description: Reserve dedicated cluster hours ahead of integration sprint.
+    is_exercised: false
+    slip_reduction_days: 25
+    risk_reduction_factor: 0.75
+    additional_requirements:
+    - id: req-mit-gpu
+      category: COMPUTE
+      label: Dedicated Overnight H100 Reservation
+      quantity: 200.0
+      unit: GPU_HRS
+      required_skill: Classified H100 Air-Gapped Compute
+      estimated_cost_usd: 35000.0
+      is_generic: false
+- id: eff-multi-int-fusor
+  name: Multi-INT Autonomous Track Fusion
+  description: Theater-wide cross-sensor hypersonic track custody engine dependent
+    on EW characterization.
+  state: DISCOVERY_PENDING
+  start_date: null
+  end_date: null
+  estimated_duration_days: 180
+  resource_requirements:
+  - id: req-fusor-funds
+    category: MONEY
+    label: Core Fusion Algorithm Integration
+    quantity: 500000.0
+    unit: USD
+    required_skill: null
+    estimated_cost_usd: 500000.0
+    is_generic: false
+  risks: []
+  mitigators: []
+- id: eff-allied-peering
+  name: Coalition Sovereign TLS Peering Node
+  description: Cross-domain guard connecting Allied partner command centers cleanly.
+  state: PLANNED
+  start_date: null
+  end_date: null
+  estimated_duration_days: 90
+  resource_requirements:
+  - id: req-ally-staff
+    category: STAFF
+    label: Coalition Guard Systems Engineers
+    quantity: 2.0
+    unit: FTE
+    required_skill: null
+    estimated_cost_usd: 220000.0
+    is_generic: true
+  risks: []
+  mitigators: []
+org_org_edges:
+- id: oo-1
+  source_org_id: org-joint-c2
+  target_org_id: org-strat-space
+  relation_type: HIERARCHICAL_PARENT
+  confidence: CONFIRMED
+  provenance_note: Charter Directive 2025-04
+- id: oo-2
+  source_org_id: org-joint-c2
+  target_org_id: org-tac-isr
+  relation_type: HIERARCHICAL_PARENT
+  confidence: CONFIRMED
+  provenance_note: Joint theater alignment
+- id: oo-3
+  source_org_id: org-strat-space
+  target_org_id: org-tac-isr
+  relation_type: FORMAL_SUPPORTING
+  confidence: CONFIRMED
+  provenance_note: ICD-402 optical downlink interface agreement
+- id: oo-4
+  source_org_id: org-joint-c2
+  target_org_id: org-allied-partner
+  relation_type: COLLABORATIVE_ADJACENT
+  confidence: ASSESSED
+  provenance_note: Informal working group bilateral working meetings
+org_interest_edges:
+- id: oi-1
+  org_id: org-joint-c2
+  interest_id: intr-resiliency
+  stance: RESPONSIBLE_OWNER
+  priority_rank: 0.95
+  allow_hierarchy_inheritance: true
+  confidence: CONFIRMED
+  provenance_note: Core Directorate mission priority
+- id: oi-2
+  org_id: org-joint-c2
+  interest_id: intr-nipf-indopac
+  stance: DIRECT_INVESTOR
+  priority_rank: 0.9
+  allow_hierarchy_inheritance: true
+  confidence: CONFIRMED
+- id: oi-3
+  org_id: org-strat-space
+  interest_id: intr-optical-resiliency
+  stance: RESPONSIBLE_OWNER
+  priority_rank: 0.85
+  allow_hierarchy_inheritance: true
+  confidence: CONFIRMED
+- id: oi-4
+  org_id: org-tac-isr
+  interest_id: intr-comms-anti-jam
+  stance: PERCEIVED_GAP
+  priority_rank: 0.8
+  allow_hierarchy_inheritance: false
+  confidence: ASSESSED
+  provenance_note: After-action exercise findings
+- id: oi-5
+  org_id: org-ic-analytic
+  interest_id: intr-hypersonic-gap
+  stance: BENEFICIARY
+  priority_rank: 0.92
+  allow_hierarchy_inheritance: true
+  confidence: CONFIRMED
+  provenance_note: Needs early indications cueing from Joint ISR mesh
+- id: oi-6
+  org_id: org-allied-partner
+  interest_id: intr-optical-resiliency
+  stance: MISSION_ALIGNED
+  priority_rank: 0.7
+  allow_hierarchy_inheritance: false
+  confidence: UNCONFIRMED
+  provenance_note: Rumor of upcoming allied Q3 charter update
+interest_interest_edges:
+- id: ii-1
+  parent_interest_id: intr-resiliency
+  child_interest_id: intr-optical-resiliency
+  relation_type: SPECIALIZES
+  confidence: CONFIRMED
+- id: ii-2
+  parent_interest_id: intr-resiliency
+  child_interest_id: intr-comms-anti-jam
+  relation_type: SPECIALIZES
+  confidence: CONFIRMED
+- id: ii-3
+  parent_interest_id: intr-nipf-indopac
+  child_interest_id: intr-hypersonic-gap
+  relation_type: CONTRIBUTES_TO
+  confidence: CONFIRMED
+- id: ii-4
+  parent_interest_id: intr-resiliency
+  child_interest_id: intr-hypersonic-gap
+  relation_type: RELATED_TO
+  confidence: ASSESSED
+  provenance_note: 'Multi-parent link: surviving sensors preserve hypersonic custody'
+org_effort_edges:
+- id: oe-1
+  org_id: org-joint-c2
+  effort_id: eff-optical-bench
+  resourcing_type: MONEY
+  resource_pool_id: pool-resiliency-fy27
+  requirement_id: req-opt-1
+  allocation_amount: 250000.0
+  allocation_unit: USD
+  assigned_skill: null
+  is_generic: false
+  confidence: CONFIRMED
+- id: oe-2
+  org_id: org-strat-space
+  effort_id: eff-space-sensor
+  resourcing_type: MONEY
+  resource_pool_id: pool-space-discretionary
+  requirement_id: req-space-money
+  allocation_amount: 600000.0
+  allocation_unit: USD
+  assigned_skill: null
+  is_generic: false
+  confidence: CONFIRMED
+- id: oe-3
+  org_id: org-strat-space
+  effort_id: eff-space-sensor
+  resourcing_type: STAFF
+  resource_pool_id: pool-ml-engineers
+  requirement_id: req-space-ml
+  allocation_amount: 2.0
+  allocation_unit: FTE
+  assigned_skill: Edge ML / C++ Engineer
+  is_generic: false
+  confidence: CONFIRMED
+- id: oe-4
+  org_id: org-tac-isr
+  effort_id: eff-ew-discovery
+  resourcing_type: GENERIC_SUPPORT
+  resource_pool_id: null
+  requirement_id: req-ew-generic
+  allocation_amount: 1.0
+  allocation_unit: SQUADRON_EQ
+  assigned_skill: null
+  is_generic: true
+  confidence: ASSESSED
+  provenance_note: Modeled externally based on theater flight ops reporting
+- id: oe-5
+  org_id: org-allied-partner
+  effort_id: eff-allied-peering
+  resourcing_type: STAFF
+  resource_pool_id: null
+  requirement_id: req-ally-staff
+  allocation_amount: 2.0
+  allocation_unit: FTE
+  assigned_skill: null
+  is_generic: true
+  confidence: UNCONFIRMED
+  provenance_note: Pending partner budget approval
+effort_interest_edges:
+- id: ei-1
+  effort_id: eff-optical-bench
+  interest_id: intr-optical-resiliency
+  relation_type: DIRECT_SOLUTION
+  impact_weight: 0.9
+  confidence: CONFIRMED
+- id: ei-2
+  effort_id: eff-space-sensor
+  interest_id: intr-hypersonic-gap
+  relation_type: DIRECT_SOLUTION
+  impact_weight: 0.95
+  confidence: CONFIRMED
+- id: ei-3
+  effort_id: eff-ew-discovery
+  interest_id: intr-comms-anti-jam
+  relation_type: INDIRECT_ENABLER
+  impact_weight: 0.75
+  confidence: ASSESSED
+- id: ei-4
+  effort_id: eff-edge-correlator
+  interest_id: intr-comms-anti-jam
+  relation_type: DIRECT_SOLUTION
+  impact_weight: 0.9
+  confidence: CONFIRMED
+- id: ei-5
+  effort_id: eff-edge-correlator
+  interest_id: intr-optical-resiliency
+  relation_type: PARTIAL_ALIGNMENT
+  impact_weight: 0.65
+  confidence: CONFIRMED
+- id: ei-6
+  effort_id: eff-multi-int-fusor
+  interest_id: intr-hypersonic-gap
+  relation_type: DIRECT_SOLUTION
+  impact_weight: 1.0
+  confidence: CONFIRMED
+- id: ei-7
+  effort_id: eff-allied-peering
+  interest_id: intr-optical-resiliency
+  relation_type: INDIRECT_ENABLER
+  impact_weight: 0.6
+  confidence: ASSESSED
+effort_effort_edges:
+- id: ee-1
+  source_effort_id: eff-optical-bench
+  target_effort_id: eff-edge-correlator
+  blocking_mode: BLOCKING
+  dependency_degree: 0.9
+  confidence: CONFIRMED
+  provenance_note: Optical transceiver spec locked from lab prototype
+- id: ee-2
+  source_effort_id: eff-space-sensor
+  target_effort_id: eff-edge-correlator
+  blocking_mode: BLOCKING
+  dependency_degree: 0.85
+  confidence: CONFIRMED
+  provenance_note: Downlink framing protocol delivered by Space Sensor PDR
+- id: ee-3
+  source_effort_id: eff-ew-discovery
+  target_effort_id: eff-edge-correlator
+  blocking_mode: NON_BLOCKING_INFORMS
+  dependency_degree: 0.5
+  confidence: ASSESSED
+  provenance_note: Waveform findings tune correlator thresholds but do not delay integration
+- id: ee-4
+  source_effort_id: eff-ew-discovery
+  target_effort_id: eff-multi-int-fusor
+  blocking_mode: BLOCKING
+  dependency_degree: 0.95
+  confidence: CONFIRMED
+  provenance_note: Must finish EW spectral library before fusion architecture lock
+- id: ee-5
+  source_effort_id: eff-edge-correlator
+  target_effort_id: eff-multi-int-fusor
+  blocking_mode: BLOCKING
+  dependency_degree: 0.9
+  confidence: CONFIRMED
+- id: ee-6
+  source_effort_id: eff-edge-correlator
+  target_effort_id: eff-allied-peering
+  blocking_mode: NON_BLOCKING_INFORMS
+  dependency_degree: 0.4
+  confidence: UNCONFIRMED
+  provenance_note: Allied team may use draft ICD without waiting on full flight test

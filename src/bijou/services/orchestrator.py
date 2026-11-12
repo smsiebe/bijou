@@ -1,41 +1,51 @@
-"""Bijou central orchestration service with materialized view caching."""
+"""Bijou v2 central orchestration service coordinating repository, projection engine, telemetry, and access perspective."""
 
 import threading
 from collections import OrderedDict
 from datetime import date, datetime, timezone
 
-import httpx
-
 from bijou.core.contracts.enums import (
+    AccessMode,
     AccumulatorPattern,
-    EffectTier,
-    TechTreeStratificationMode,
+    ConfidenceLevel,
+    ResourceCategory,
 )
 from bijou.core.contracts.manifest import BijouManifestDTO
 from bijou.core.contracts.models import (
-    CausalGateDTO,
-    ConcernDTO,
     DecisionLogEntryDTO,
-    EffectDTO,
-    GraphEdgeDTO,
+    EffortDTO,
+    EffortEffortEdgeDTO,
+    EffortInterestEdgeDTO,
+    InterestDTO,
+    InterestInterestEdgeDTO,
+    OrgEffortEdgeDTO,
+    OrgInterestEdgeDTO,
+    OrgOrgEdgeDTO,
     OrganizationDTO,
-    ThingDTO,
+    ResourcePoolDTO,
 )
-from bijou.core.contracts.telemetry import EffectEventDTO
-from bijou.core.contracts.views import (
-    DiagnosticReportDTO,
-    ParetoFrontierDTO,
-    PerspectiveBriefingDTO,
-    SlipSimulationRequestDTO,
-    SlipSimulationResponseDTO,
-    TechTreeViewDTO,
-    ThingFocalDashboardDTO,
-    TradeoffProposalComparisonDTO,
-    ClusteredSpheresViewDTO,
-)
+from bijou.core.contracts.telemetry import EffortTelemetryEventDTO, TelemetryRollupDTO
 from bijou.core.contracts.tools import ToolDescriptorDTO
-from bijou.core.ports.exceptions import ServiceUnavailableError
-from bijou.core.ports.federation import IFederationConnector
+from bijou.core.contracts.views import (
+    AccessPerspectiveStateDTO,
+    BillOfEffortsSimulationRequestDTO,
+    BillOfEffortsSimulationResponseDTO,
+    CapabilityTreeViewDTO,
+    DiagnosticReportDTO,
+    EffortFocalDashboardDTO,
+    InterestFocalDashboardDTO,
+    OrgFocalDashboardDTO,
+    PerspectiveBriefingDTO,
+    TriPartiteFlowViewDTO,
+)
+from bijou.core.engine.forecasting import detect_cycles_in_graph
+from bijou.core.engine.traversal import evaluate_skill_mismatch
+from bijou.core.ports.access_control import (
+    AccessContext,
+    DemoAccessControlProvider,
+    IAccessControlProvider,
+)
+from bijou.core.ports.exceptions import GraphCycleError, PermissionDeniedError
 from bijou.core.ports.graph_engine import IGraphProjectionEngine
 from bijou.core.ports.reasoning import IReasoningBroker
 from bijou.core.ports.repository import IGraphRepository
@@ -43,27 +53,23 @@ from bijou.core.ports.telemetry_store import ITelemetryStore
 
 
 class BijouOrchestrationService:
-    """Core application orchestrator coordinating repository, in-memory graph, telemetry, and reasoning.
-
-    Concurrency Model: Thread-safe; write mutations synchronize graph rebuilds and invalidate
-    the bounded LRU materialized perspective cache under an exclusive RLock.
-    """
+    """Thread-safe application orchestrator for Bijou v2."""
 
     def __init__(
         self,
         repository: IGraphRepository,
         projection_engine: IGraphProjectionEngine,
         telemetry_store: ITelemetryStore,
-        federation_connector: IFederationConnector,
         reasoning_broker: IReasoningBroker,
+        access_provider: IAccessControlProvider | None = None,
         enable_reasoning: bool = False,
         max_cache_size: int = 128,
     ) -> None:
         self._repository = repository
         self._projection_engine = projection_engine
         self._telemetry_store = telemetry_store
-        self._federation_connector = federation_connector
         self._reasoning_broker = reasoning_broker
+        self._access_provider = access_provider or DemoAccessControlProvider()
         self._enable_reasoning = enable_reasoning
         self._max_cache_size = max_cache_size
 
@@ -83,7 +89,35 @@ class BijouOrchestrationService:
             manifest = self._repository.export_manifest()
             self._projection_engine.rebuild_projection(manifest)
 
-    # --- Organization Operations ---
+    # --- Access Perspective Resolution ---
+    def resolve_access_context(
+        self,
+        requested_mode: AccessMode | None = None,
+        requested_org_id: str | None = None,
+        auth_token: str | None = None,
+    ) -> AccessContext:
+        return self._access_provider.resolve_context(
+            requested_mode=requested_mode,
+            requested_org_id=requested_org_id,
+            auth_token=auth_token,
+        )
+
+    def get_perspective_state(self, context: AccessContext) -> AccessPerspectiveStateDTO:
+        managed_orgs = [o for o in self._repository.list_organizations() if o.is_managed]
+        return AccessPerspectiveStateDTO(
+            mode=context.mode,
+            active_org_id=context.active_org_id,
+            managed_organizations=managed_orgs,
+        )
+
+    def _assert_can_manage_org(self, context: AccessContext, org_id: str) -> None:
+        org = self._repository.get_organization(org_id)
+        if org and not self._access_provider.can_manage_org(context, org):
+            raise PermissionDeniedError(
+                f"Active perspective ({context.mode}:{context.active_org_id}) cannot mutate inventories for '{org_id}'"
+            )
+
+    # --- Organization & Resource Pool CRUD ---
     def upsert_organization(self, org: OrganizationDTO) -> OrganizationDTO:
         res = self._repository.upsert_organization(org)
         self._invalidate_and_rebuild()
@@ -95,67 +129,135 @@ class BijouOrchestrationService:
     def list_organizations(self) -> list[OrganizationDTO]:
         return self._repository.list_organizations()
 
-    # --- Concern Operations ---
-    def upsert_concern(self, concern: ConcernDTO) -> ConcernDTO:
-        res = self._repository.upsert_concern(concern)
+    def upsert_resource_pool(
+        self,
+        pool: ResourcePoolDTO,
+        context: AccessContext | None = None,
+    ) -> ResourcePoolDTO:
+        if context is not None:
+            self._assert_can_manage_org(context, pool.org_id)
+        res = self._repository.upsert_resource_pool(pool)
         self._invalidate_and_rebuild()
         return res
 
-    def get_concern(self, concern_id: str) -> ConcernDTO | None:
-        return self._repository.get_concern(concern_id)
+    def get_resource_pool(self, pool_id: str) -> ResourcePoolDTO | None:
+        return self._repository.get_resource_pool(pool_id)
 
-    def list_concerns(self) -> list[ConcernDTO]:
-        return self._repository.list_concerns()
+    def list_resource_pools(self, org_id: str | None = None) -> list[ResourcePoolDTO]:
+        return self._repository.list_resource_pools(org_id=org_id)
 
-    # --- Thing Operations ---
-    def upsert_thing(self, thing: ThingDTO) -> ThingDTO:
-        res = self._repository.upsert_thing(thing)
+    # --- Interest CRUD ---
+    def upsert_interest(self, interest: InterestDTO) -> InterestDTO:
+        res = self._repository.upsert_interest(interest)
         self._invalidate_and_rebuild()
         return res
 
-    def get_thing(self, thing_id: str) -> ThingDTO | None:
-        return self._repository.get_thing(thing_id)
+    def get_interest(self, interest_id: str) -> InterestDTO | None:
+        return self._repository.get_interest(interest_id)
 
-    def list_things(self) -> list[ThingDTO]:
-        return self._repository.list_things()
+    def list_interests(self) -> list[InterestDTO]:
+        return self._repository.list_interests()
 
-    # --- Causal Gate Operations ---
-    def upsert_causal_gate(self, gate: CausalGateDTO) -> CausalGateDTO:
-        res = self._repository.upsert_causal_gate(gate)
+    # --- Effort CRUD ---
+    def upsert_effort(self, effort: EffortDTO) -> EffortDTO:
+        res = self._repository.upsert_effort(effort)
         self._invalidate_and_rebuild()
         return res
 
-    def get_causal_gate(self, gate_id: str) -> CausalGateDTO | None:
-        return self._repository.get_causal_gate(gate_id)
+    def get_effort(self, effort_id: str) -> EffortDTO | None:
+        return self._repository.get_effort(effort_id)
 
-    def list_causal_gates(self) -> list[CausalGateDTO]:
-        return self._repository.list_causal_gates()
+    def list_efforts(self) -> list[EffortDTO]:
+        return self._repository.list_efforts()
 
-    # --- Effect Operations ---
-    def upsert_effect(self, effect: EffectDTO) -> EffectDTO:
-        res = self._repository.upsert_effect(effect)
+    # --- Six Typed Edges CRUD ---
+    def upsert_org_org_edge(self, edge: OrgOrgEdgeDTO) -> OrgOrgEdgeDTO:
+        res = self._repository.upsert_org_org_edge(edge)
         self._invalidate_and_rebuild()
         return res
 
-    def get_effect(self, effect_id: str) -> EffectDTO | None:
-        return self._repository.get_effect(effect_id)
-
-    def list_effects(self) -> list[EffectDTO]:
-        return self._repository.list_effects()
-
-    # --- Edge Operations ---
-    def upsert_edge(self, edge: GraphEdgeDTO) -> GraphEdgeDTO:
-        res = self._repository.upsert_edge(edge)
+    def upsert_org_interest_edge(self, edge: OrgInterestEdgeDTO) -> OrgInterestEdgeDTO:
+        res = self._repository.upsert_org_interest_edge(edge)
         self._invalidate_and_rebuild()
         return res
 
-    def get_edge(self, edge_id: str) -> GraphEdgeDTO | None:
-        return self._repository.get_edge(edge_id)
+    def upsert_interest_interest_edge(self, edge: InterestInterestEdgeDTO) -> InterestInterestEdgeDTO:
+        manifest = self._repository.export_manifest()
+        nodes = [i.id for i in manifest.interests]
+        edges = [
+            (e.parent_interest_id, e.child_interest_id)
+            for e in manifest.interest_interest_edges
+            if e.id != edge.id
+        ]
+        edges.append((edge.parent_interest_id, edge.child_interest_id))
+        cycles = detect_cycles_in_graph(nodes, edges)
+        if cycles:
+            raise GraphCycleError(cycles[0])
 
-    def list_edges(self) -> list[GraphEdgeDTO]:
-        return self._repository.list_edges()
+        res = self._repository.upsert_interest_interest_edge(edge)
+        self._invalidate_and_rebuild()
+        return res
 
-    # --- Generic Entity Deletion ---
+    def upsert_org_effort_edge(
+        self,
+        edge: OrgEffortEdgeDTO,
+        context: AccessContext | None = None,
+        human_slip_penalty_days: int | None = None,
+    ) -> OrgEffortEdgeDTO:
+        if context is not None:
+            self._assert_can_manage_org(context, edge.org_id)
+
+        # Check for non-transferable skill mismatch and automatically register Risk on target Effort
+        target_effort = self._repository.get_effort(edge.effort_id)
+        if target_effort and edge.requirement_id:
+            all_reqs = list(target_effort.resource_requirements)
+            for m in target_effort.mitigators:
+                all_reqs.extend(m.additional_requirements)
+            matched_req = next((r for r in all_reqs if r.id == edge.requirement_id), None)
+
+            assigned_skill = edge.assigned_skill
+            if assigned_skill is None and edge.resource_pool_id:
+                pool = self._repository.get_resource_pool(edge.resource_pool_id)
+                if pool:
+                    assigned_skill = pool.skill_tag
+
+            warning = evaluate_skill_mismatch(
+                effort_id=edge.effort_id,
+                assigned_skill=assigned_skill,
+                requirement=matched_req,
+                is_generic=edge.is_generic,
+                human_slip_penalty_days=human_slip_penalty_days,
+            )
+            if warning:
+                updated_risks = list(target_effort.risks) + [warning.generated_risk]
+                self._repository.upsert_effort(target_effort.model_copy(update={"risks": updated_risks}))
+
+        res = self._repository.upsert_org_effort_edge(edge)
+        self._invalidate_and_rebuild()
+        return res
+
+    def upsert_effort_interest_edge(self, edge: EffortInterestEdgeDTO) -> EffortInterestEdgeDTO:
+        res = self._repository.upsert_effort_interest_edge(edge)
+        self._invalidate_and_rebuild()
+        return res
+
+    def upsert_effort_effort_edge(self, edge: EffortEffortEdgeDTO) -> EffortEffortEdgeDTO:
+        manifest = self._repository.export_manifest()
+        nodes = [e.id for e in manifest.efforts]
+        edges = [
+            (e.source_effort_id, e.target_effort_id)
+            for e in manifest.effort_effort_edges
+            if e.id != edge.id
+        ]
+        edges.append((edge.source_effort_id, edge.target_effort_id))
+        cycles = detect_cycles_in_graph(nodes, edges)
+        if cycles:
+            raise GraphCycleError(cycles[0])
+
+        res = self._repository.upsert_effort_effort_edge(edge)
+        self._invalidate_and_rebuild()
+        return res
+
     def delete_entity(self, entity_type: str, entity_id: str) -> bool:
         res = self._repository.delete_entity(entity_type, entity_id)
         if res:
@@ -171,301 +273,244 @@ class BijouOrchestrationService:
         self._invalidate_and_rebuild()
         return counts
 
-    # --- Telemetry Operations ---
-    def ingest_telemetry(self, events: list[EffectEventDTO]) -> int:
-        return self._telemetry_store.ingest_events(events)
+    # --- Views & Simulation ---
+    def get_capability_tree_view(
+        self,
+        as_of_date: date | None = None,
+        include_hierarchy_priorities: bool = True,
+        min_confidence: ConfidenceLevel | None = None,
+        org_filter: str | None = None,
+    ) -> CapabilityTreeViewDTO:
+        return self._projection_engine.build_capability_tree_view(
+            as_of_date=as_of_date or date.today(),
+            include_hierarchy_priorities=include_hierarchy_priorities,
+            min_confidence=min_confidence,
+            org_filter=org_filter,
+        )
 
-    def trace_event_provenance(self, event_id: str, max_depth: int = 10) -> list[EffectEventDTO]:
-        return self._telemetry_store.trace_event_provenance(event_id, max_depth)
+    def get_tripartite_flow_view(
+        self,
+        as_of_date: date | None = None,
+        include_hierarchy_priorities: bool = True,
+        min_confidence: ConfidenceLevel | None = None,
+    ) -> TriPartiteFlowViewDTO:
+        return self._projection_engine.build_tripartite_flow_view(
+            as_of_date=as_of_date or date.today(),
+            include_hierarchy_priorities=include_hierarchy_priorities,
+            min_confidence=min_confidence,
+        )
 
-    # --- View & Projection Operations ---
+    def simulate_bill_of_efforts(
+        self,
+        request: BillOfEffortsSimulationRequestDTO,
+        as_of_date: date | None = None,
+    ) -> BillOfEffortsSimulationResponseDTO:
+        return self._projection_engine.simulate_bill_of_efforts(
+            request=request,
+            as_of_date=as_of_date or date.today(),
+        )
+
+    def commit_bill_of_efforts(
+        self,
+        request: BillOfEffortsSimulationRequestDTO,
+        context: AccessContext | None = None,
+        as_of_date: date | None = None,
+    ) -> BillOfEffortsSimulationResponseDTO:
+        """Persist Bill of Efforts adjustments (toggled mitigators and allocations) into repository."""
+        eff_date = as_of_date or date.today()
+        sim_preview = self.simulate_bill_of_efforts(request=request, as_of_date=eff_date)
+
+        # 1. Remove specified resourcing edges
+        for edge_id in request.remove_edge_ids:
+            try:
+                self._repository.delete_entity("org_effort_edge", edge_id)
+            except Exception:
+                pass
+
+        # 2. Apply toggled mitigators on Efforts
+        if request.toggle_mitigators:
+            for effort in self._repository.list_efforts():
+                changed = False
+                new_mits = []
+                for m in effort.mitigators:
+                    if m.id in request.toggle_mitigators:
+                        new_mits.append(m.model_copy(update={"is_exercised": request.toggle_mitigators[m.id]}))
+                        changed = True
+                    else:
+                        new_mits.append(m)
+                if changed:
+                    self._repository.upsert_effort(effort.model_copy(update={"mitigators": new_mits}))
+
+        # 3. Apply new resource allocations (with auto-risk generation for skill mismatch)
+        for alloc in request.add_allocations:
+            self.upsert_org_effort_edge(
+                OrgEffortEdgeDTO(
+                    org_id=alloc.org_id,
+                    effort_id=alloc.effort_id,
+                    resourcing_type=alloc.resourcing_type,
+                    resource_pool_id=alloc.pool_id,
+                    requirement_id=alloc.requirement_id,
+                    allocation_amount=alloc.amount,
+                    allocation_unit=alloc.unit,
+                    assigned_skill=alloc.assigned_skill,
+                    is_generic=alloc.is_generic,
+                    confidence=ConfidenceLevel.CONFIRMED,
+                    provenance_note="Committed from Bill of Efforts workbench",
+                ),
+                context=context,
+                human_slip_penalty_days=alloc.human_slip_penalty_days,
+            )
+
+        self._invalidate_and_rebuild()
+        return sim_preview
+
+    # --- Focal Dashboards ---
+    def get_effort_focal_dashboard(
+        self,
+        effort_id: str,
+        as_of_date: date | None = None,
+    ) -> EffortFocalDashboardDTO:
+        metric_names = self._telemetry_store.list_metrics_for_effort(effort_id)
+        window_start = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        window_end = datetime.now(timezone.utc)
+        rollups: list[TelemetryRollupDTO] = [
+            self._telemetry_store.compute_rollup(
+                effort_id=effort_id,
+                metric_name=mname,
+                accumulator=AccumulatorPattern.SUM,
+                window_start=window_start,
+                window_end=window_end,
+            )
+            for mname in metric_names
+        ]
+        return self._projection_engine.build_effort_focal_dashboard(
+            effort_id=effort_id,
+            as_of_date=as_of_date or date.today(),
+            telemetry_rollups=rollups,
+        )
+
+    def get_org_focal_dashboard(
+        self,
+        org_id: str,
+        as_of_date: date | None = None,
+        include_hierarchy_priorities: bool = True,
+    ) -> OrgFocalDashboardDTO:
+        return self._projection_engine.build_org_focal_dashboard(
+            org_id=org_id,
+            as_of_date=as_of_date or date.today(),
+            include_hierarchy_priorities=include_hierarchy_priorities,
+        )
+
+    def get_interest_focal_dashboard(
+        self,
+        interest_id: str,
+        as_of_date: date | None = None,
+    ) -> InterestFocalDashboardDTO:
+        return self._projection_engine.build_interest_focal_dashboard(
+            interest_id=interest_id,
+            as_of_date=as_of_date or date.today(),
+        )
+
+    # --- Executive Briefing ---
     def get_perspective_briefing(
         self,
         subject_org_id: str,
-        perspective_org_id: str | None = None,
-        include_descendants: bool = True,
+        active_access_mode: AccessMode = AccessMode.GLOBAL_ANALYST,
+        include_hierarchy_inheritance: bool = True,
         as_of_date: date | None = None,
     ) -> PerspectiveBriefingDTO:
-        """Assemble or retrieve cached Multi-Perspective Briefing."""
         effective_date = as_of_date or date.today()
-        cache_key = f"{subject_org_id}:{perspective_org_id}:{include_descendants}:{effective_date}"
+        cache_key = f"{subject_org_id}:{active_access_mode}:{include_hierarchy_inheritance}:{effective_date}"
 
         with self._lock:
             if cache_key in self._perspective_cache:
                 self._perspective_cache.move_to_end(cache_key)
                 return self._perspective_cache[cache_key]
 
-        # Hydrate observed values from telemetry/federation if needed
-        self._hydrate_virtual_effects()
-
         briefing = self._projection_engine.build_perspective_briefing(
             subject_org_id=subject_org_id,
-            perspective_org_id=perspective_org_id,
-            include_descendants=include_descendants,
+            active_access_mode=active_access_mode,
+            include_hierarchy_inheritance=include_hierarchy_inheritance,
             as_of_date=effective_date,
         )
 
         narrative: str | None = None
         strategic_gaps: list[str] = []
-
         if self._enable_reasoning:
             subject_org = self.get_organization(subject_org_id)
-            mission = subject_org.mission_statement if subject_org else "Support enterprise intentions"
-            narrative, strategic_gaps = self._reasoning_broker.synthesize_executive_briefing(
-                briefing, mission
-            )
+            mission = subject_org.description if subject_org else "Strategic domain mission"
+            narrative, strategic_gaps = self._reasoning_broker.synthesize_executive_briefing(briefing, mission)
 
-        updated_briefing = PerspectiveBriefingDTO(
-            subject_org_id=briefing.subject_org_id,
-            perspective_org_id=briefing.perspective_org_id,
-            include_descendants=briefing.include_descendants,
-            as_of_date=briefing.as_of_date,
-            owned_things=briefing.owned_things,
-            supported_concerns=briefing.supported_concerns,
-            cross_org_dependencies=briefing.cross_org_dependencies,
-            portfolio_roi_score=briefing.portfolio_roi_score,
-            total_committed_cost=briefing.total_committed_cost,
-            executive_summary_narrative=narrative,
-            strategic_gaps=strategic_gaps,
+        result = briefing.model_copy(
+            update={
+                "executive_summary_narrative": narrative,
+                "strategic_gaps": strategic_gaps,
+            }
         )
 
         with self._lock:
             if len(self._perspective_cache) >= self._max_cache_size:
                 self._perspective_cache.popitem(last=False)
-            self._perspective_cache[cache_key] = updated_briefing
+            self._perspective_cache[cache_key] = result
 
-        return updated_briefing
+        return result
 
-    def _hydrate_virtual_effects(self) -> None:
-        """Query telemetry sidecar or external federation for observable metrics."""
-        manifest = self._repository.export_manifest()
-        window_start = datetime(2020, 1, 1, tzinfo=timezone.utc)
-        window_end = datetime.now(timezone.utc)
-        updated_any = False
+    # --- Diagnostics, Telemetry, Ledger & Tools ---
+    def validate_manifest_diagnostics(self, manifest: BijouManifestDTO | None = None) -> DiagnosticReportDTO:
+        return self._projection_engine.validate_manifest_diagnostics(manifest=manifest)
 
-        gates_by_id = {g.id: g for g in manifest.causal_gates}
+    def ingest_telemetry(self, events: list[EffortTelemetryEventDTO]) -> int:
+        return self._telemetry_store.ingest_events(events)
 
-        for effect in manifest.effects:
-            new_observed: float | None = None
+    def trace_event_provenance(self, event_id: str, max_depth: int = 10) -> list[EffortTelemetryEventDTO]:
+        return self._telemetry_store.trace_event_provenance(event_id, max_depth)
 
-            # 1. Federated Virtual Tier
-            if effect.tier == EffectTier.FEDERATED_VIRTUAL and effect.federation_spec:
-                try:
-                    rollup = self._federation_connector.execute_federated_rollup(
-                        effect.federation_spec, window_start, window_end
-                    )
-                    new_observed = rollup.aggregated_value
-                except (ServiceUnavailableError, httpx.HTTPError, OSError, ValueError):
-                    pass
-
-            # 2. Tier-2 Operational Telemetry Rollup
-            elif effect.tier == EffectTier.TIER_2_OPERATIONAL:
-                contributing_thing_ids: list[str] = []
-                if effect.causal_gate_id and effect.causal_gate_id in gates_by_id:
-                    gate = gates_by_id[effect.causal_gate_id]
-                    contributing_thing_ids = [c.thing_id for c in gate.contributors]
-
-                if not contributing_thing_ids:
-                    contributing_thing_ids = [t.id for t in manifest.things]
-
-                for t_id in contributing_thing_ids:
-                    metrics = self._telemetry_store.list_metrics_for_thing(t_id)
-                    target_metrics = [
-                        m
-                        for m in metrics
-                        if m in (effect.id, effect.name)
-                        or (effect.federation_spec and m == effect.federation_spec.params.get("metric_name"))
-                    ]
-                    for metric in target_metrics:
-                        rollup = self._telemetry_store.compute_rollup(
-                            thing_id=t_id,
-                            metric_name=metric,
-                            accumulator=effect.accumulator,
-                            window_start=window_start,
-                            window_end=window_end,
-                            sla_target=effect.target_threshold,
-                        )
-                        if rollup.event_count > 0:
-                            new_observed = rollup.aggregated_value
-                            break
-                    if new_observed is not None:
-                        break
-
-            if new_observed is not None and new_observed != effect.observed_value:
-                effect_updated = EffectDTO(
-                    id=effect.id,
-                    name=effect.name,
-                    description=effect.description,
-                    tier=effect.tier,
-                    causal_gate_id=effect.causal_gate_id,
-                    accumulator=effect.accumulator,
-                    observed_value=new_observed,
-                    target_threshold=effect.target_threshold,
-                    satisfies_concerns=effect.satisfies_concerns,
-                    federation_spec=effect.federation_spec,
-                )
-                self._repository.upsert_effect(effect_updated)
-                updated_any = True
-
-        if updated_any:
-            self._projection_engine.rebuild_projection(self._repository.export_manifest())
-
-    def get_tech_tree_view(
-        self,
-        as_of_date: date | None = None,
-        stratification_mode: TechTreeStratificationMode = TechTreeStratificationMode.TRL_TIERS,
-        org_filter: str | None = None,
-    ) -> TechTreeViewDTO:
-        effective_date = as_of_date or date.today()
-        return self._projection_engine.build_tech_tree_view(
-            as_of_date=effective_date,
-            stratification_mode=stratification_mode,
-            org_filter=org_filter,
-        )
-
-    def get_thing_focal_dashboard(
-        self,
-        thing_id: str,
-        as_of_date: date | None = None,
-    ) -> ThingFocalDashboardDTO:
-        effective_date = as_of_date or date.today()
-        window_start = datetime(2020, 1, 1, tzinfo=timezone.utc)
-        window_end = datetime.now(timezone.utc)
-
-        # Query distinct metrics recorded for this thing
-        metrics = self._telemetry_store.list_metrics_for_thing(thing_id)
-        if not metrics:
-            metrics = ["default"]
-
-        rollups = []
-        for metric in metrics:
-            rollup = self._telemetry_store.compute_rollup(
-                thing_id=thing_id,
-                metric_name=metric,
-                accumulator=AccumulatorPattern.SUM,
-                window_start=window_start,
-                window_end=window_end,
-            )
-            if rollup.event_count > 0:
-                rollups.append(rollup)
-
-        return self._projection_engine.build_thing_focal_dashboard(
-            thing_id=thing_id,
-            as_of_date=effective_date,
-            telemetry_rollups=rollups,
-        )
-
-    def simulate_milestone_slip(
-        self,
-        request: SlipSimulationRequestDTO,
-        as_of_date: date | None = None,
-    ) -> SlipSimulationResponseDTO:
-        effective_date = as_of_date or date.today()
-        return self._projection_engine.simulate_milestone_slip(request, effective_date)
-
-    def evaluate_tradeoff(
-        self,
-        proposed_thing_ids: list[str],
-        as_of_date: date | None = None,
-    ) -> TradeoffProposalComparisonDTO:
-        effective_date = as_of_date or date.today()
-        comparison = self._projection_engine.evaluate_tradeoff_matrix(
-            proposed_thing_ids, effective_date
-        )
-        if self._enable_reasoning:
-            try:
-                rec = self._reasoning_broker.recommend_portfolio_tradeoff(comparison)
-                return TradeoffProposalComparisonDTO(
-                    proposed_thing_ids=comparison.proposed_thing_ids,
-                    total_cost=comparison.total_cost,
-                    aggregate_roi=comparison.aggregate_roi,
-                    concern_coverage_deltas=comparison.concern_coverage_deltas,
-                    unlocked_effect_ids=comparison.unlocked_effect_ids,
-                    reasoning_recommendation=rec,
-                )
-            except (httpx.HTTPError, OSError, ValueError):
-                pass
-        return comparison
-
-    def evaluate_pareto_frontier(
-        self,
-        budget_ceiling: float,
-        as_of_date: date | None = None,
-    ) -> ParetoFrontierDTO:
-        effective_date = as_of_date or date.today()
-        return self._projection_engine.evaluate_pareto_frontier(budget_ceiling, effective_date)
-
-    def validate_manifest_diagnostics(
-        self,
-        manifest: BijouManifestDTO | None = None,
-    ) -> DiagnosticReportDTO:
-        return self._projection_engine.validate_manifest_diagnostics(manifest)
-
-    def upsert_decision_log(
-        self,
-        entry: DecisionLogEntryDTO,
-    ) -> DecisionLogEntryDTO:
+    def log_decision(self, entry: DecisionLogEntryDTO) -> DecisionLogEntryDTO:
         return self._repository.upsert_decision_log(entry)
 
-    def list_decision_logs(
-        self,
-        target_milestone_id: str | None = None,
-    ) -> list[DecisionLogEntryDTO]:
-        return self._repository.list_decision_logs(target_milestone_id)
-
+    def list_decision_logs(self, target_effort_id: str | None = None) -> list[DecisionLogEntryDTO]:
+        return self._repository.list_decision_logs(target_effort_id=target_effort_id)
 
     def list_tools(self) -> list[ToolDescriptorDTO]:
-        """Return registry of analytical tools available across Bijou views."""
         return [
             ToolDescriptorDTO(
-                tool_id="what_if_slip",
-                title="What-If Slip Simulator",
+                tool_id="bill-of-efforts",
+                title="Bill of Efforts Workbench",
                 icon="zap",
-                category="simulation",
-                target_entity="thing",
-                description="Slack-aware Critical Path Method (CPM) milestone slip simulation and blast radius evaluation.",
-                endpoint="/api/v1/simulation/milestone-slip",
-                ui_component="SlipDrawerTool",
+                category="workbench",
+                target_entity="effort",
+                description="Simulate Mitigator options, allocate Color-of-Money pools, and reassign staff.",
+                endpoint="/api/v1/simulation/bill-of-efforts",
+                ui_component="BillOfEffortsDock",
             ),
             ToolDescriptorDTO(
-                tool_id="spheres_of_ownership",
-                title="Spheres of Ownership",
+                tool_id="tripartite-flow",
+                title="Tri-Partite Flow Explorer",
                 icon="globe",
                 category="graph_projection",
-                target_entity="thing",
-                description="Clustered compound graph partitioning Things inside Organization custody spheres with cross-cutting dependency vectors.",
-                endpoint="/api/v1/views/clustered-spheres",
-                ui_component="SpheresClusterTool",
+                target_entity="global",
+                description="Trace direct resourcing and indirect shared-interest partnerships across Orgs, Efforts, and Interests.",
+                endpoint="/api/v1/views/tripartite-flow",
+                ui_component="TriPartiteFlowCanvas",
             ),
             ToolDescriptorDTO(
-                tool_id="focal_dashboard",
-                title="Focal Ego-Network",
+                tool_id="effort-focal",
+                title="Effort Deep Inspector",
                 icon="target",
                 category="graph_projection",
-                target_entity="thing",
-                description="2-hop concentric radial ego-network with embedded DuckDB telemetry sparklines and SLA bands.",
-                endpoint="/api/v1/views/focal-dashboard",
-                ui_component="FocalEgoTool",
+                target_entity="effort",
+                description="Inspect upstream/downstream blocking vs informing edges, resource coverage, risks, and telemetry.",
+                endpoint="/api/v1/views/efforts/{effort_id}/focal",
+                ui_component="EntityPuckHUD",
             ),
             ToolDescriptorDTO(
-                tool_id="decision_provenance",
-                title="Decision Provenance Ledger",
+                tool_id="diagnostics",
+                title="Color-of-Money & Graph Diagnostics",
                 icon="history",
                 category="audit",
-                target_entity="thing",
-                description="Thread-safe WAL audit trail of milestone shifts, authors, timestamps, and strategic justifications.",
-                endpoint="/api/v1/decision-log",
-                ui_component="DecisionLogTool",
+                target_entity="global",
+                description="Verify DAG acyclicity, earmarked pool eligibility, and skill-mismatch risk registers.",
+                endpoint="/api/v1/manifest/validate",
+                ui_component="DiagnosticPanel",
             ),
         ]
-
-    def get_clustered_spheres_view(
-        self,
-        as_of_date: date | None = None,
-        org_filter: str | None = None,
-    ) -> ClusteredSpheresViewDTO:
-        effective_date = as_of_date or date.today()
-        return self._projection_engine.build_clustered_spheres_view(
-            as_of_date=effective_date,
-            org_filter=org_filter,
-        )

@@ -1,4 +1,4 @@
-"""Core domain and infrastructure exceptions for Bijou."""
+"""Core domain and infrastructure exceptions for Bijou v2."""
 
 
 class BijouError(Exception):
@@ -23,6 +23,10 @@ class GraphCycleError(BijouError):
 
 class ContractValidationError(BijouError):
     """Raised when an internal contract or invariant is violated."""
+
+
+class PermissionDeniedError(BijouError):
+    """Raised when an AccessContext lacks permission to mutate a Managed Organization."""
 
 
 class ServiceUnavailableError(BijouError):

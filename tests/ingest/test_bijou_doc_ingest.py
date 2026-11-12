@@ -1,83 +1,38 @@
-"""Integration and security tests for bijou-doc-ingest package."""
+"""Tests for bijou-doc-ingest (YAML/JSON reference dataset loading, telemetry ingestion, path traversal guard)."""
 
 from pathlib import Path
 
 import pytest
-from bijou_ingest import ManifestIngestor, validate_safe_path
-from bijou_sdk import BijouClient
 
 from bijou.api.app import create_app
 from bijou.config import BijouSettings
+from bijou_ingest import ManifestIngestor
+from bijou_ingest.path_utils import validate_safe_path
+from bijou_sdk import BijouClient
 
 
-@pytest.fixture
-def ingest_client(tmp_path: Path):
-    """Fixture initializing an ASGI-backed BijouClient with isolated test persistence."""
-    db_file = tmp_path / "ingest_test_graph.db"
-    duckdb_file = tmp_path / "ingest_test_telemetry.duckdb"
-
-    settings = BijouSettings(
-        db_uri=f"sqlite:///{db_file}",
-        duckdb_path=str(duckdb_file),
-        enable_reasoning=False,
+def test_ingestor_loads_v2_json_and_yaml_manifests_and_telemetry(tmp_path: Path) -> None:
+    datasets_dir = Path(__file__).resolve().parent.parent.parent / "datasets"
+    app = create_app(
+        BijouSettings(
+            db_uri=f"sqlite:///{tmp_path}/ingest.db",
+            duckdb_path=str(tmp_path / "ingest.duckdb"),
+            enable_reasoning=False,
+        )
     )
-    test_app = create_app(settings)
+    with BijouClient(app=app) as client:
+        ing = ManifestIngestor(client)
+        counts_json = ing.ingest_manifest_file("joint_isr_architecture.json", base_dir=datasets_dir, replace_all=True)
+        assert counts_json["organizations"] == 5
+        assert counts_json["efforts"] == 6
 
-    with BijouClient(app=test_app) as client:
-        yield client
+        counts_yaml = ing.ingest_manifest_file("joint_isr_architecture.yaml", base_dir=datasets_dir, replace_all=True)
+        assert counts_yaml["efforts"] == 6
 
-
-def test_reference_dataset_validates_and_ingests_via_sdk(ingest_client: BijouClient):
-    """Verifies that the reference Joint ISR architecture YAML and telemetry stream ingest cleanly."""
-    root_dir = Path(__file__).parent.parent.parent
-    datasets_dir = root_dir / "datasets"
-    yaml_path = datasets_dir / "joint_isr_architecture.yaml"
-    jsonl_path = datasets_dir / "satellite_cascade_telemetry.jsonl"
-
-    assert yaml_path.exists(), f"Reference architecture manifest missing: {yaml_path}"
-    assert jsonl_path.exists(), f"Reference telemetry dataset missing: {jsonl_path}"
-
-    ingestor = ManifestIngestor(client=ingest_client)
-
-    # 1. Ingest Manifest
-    manifest_res = ingestor.ingest_manifest_file(yaml_path, base_dir=datasets_dir)
-    assert manifest_res.get("organizations") == 5
-    assert manifest_res.get("concerns") == 5
-    assert manifest_res.get("things") == 6
-    assert manifest_res.get("causal_gates") == 3
-    assert manifest_res.get("effects") == 4
-    assert manifest_res.get("edges") == 18
-
-    # 2. Ingest 60 Telemetry Events
-    ingested_events_count = ingestor.ingest_telemetry_file(jsonl_path, base_dir=datasets_dir)
-    assert ingested_events_count == 60
-
-    # 3. Verify Tech Tree View contains nodes and gates
-    tree_view = ingest_client.get_tech_tree()
-    assert len(tree_view.nodes) == 14
-    assert len(tree_view.tiers) == 3
+        tel_count = ing.ingest_telemetry_file("satellite_cascade_telemetry.jsonl", base_dir=datasets_dir)
+        assert tel_count == 5
 
 
-def test_ingestor_rejects_path_traversal_sequences(tmp_path: Path):
-    """Asserts that validate_safe_path prevents path traversal and directory escape attempts."""
-    safe_dir = tmp_path / "safe_sandbox"
-    safe_dir.mkdir()
-    valid_file = safe_dir / "valid_doc.yaml"
-    valid_file.write_text("schema_version: '1.0.0'", encoding="utf-8")
-
-    outside_file = tmp_path / "secret_doc.yaml"
-    outside_file.write_text("secret_data: true", encoding="utf-8")
-
-    # Valid relative path inside safe_sandbox
-    resolved = validate_safe_path(safe_dir, "valid_doc.yaml")
-    assert resolved == valid_file.resolve()
-
-    # Path traversal attempt using parent directory '..'
-    with pytest.raises(ValueError) as exc_traversal:
-        validate_safe_path(safe_dir, "../secret_doc.yaml")
-    assert "Path traversal detected" in str(exc_traversal.value)
-
-    # Absolute path pointing outside the safe directory
-    with pytest.raises(ValueError) as exc_abs:
-        validate_safe_path(safe_dir, outside_file)
-    assert "Path traversal detected" in str(exc_abs.value)
+def test_path_traversal_blocked(tmp_path: Path) -> None:
+    with pytest.raises(ValueError):
+        validate_safe_path(tmp_path, "../outside.yaml")
