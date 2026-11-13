@@ -205,6 +205,7 @@
     getOrgFocal: (id, params) => request("GET", `/api/v1/views/organizations/${encodeURIComponent(id)}/focal`, null, params),
     getInterestFocal: (id, params) => request("GET", `/api/v1/views/interests/${encodeURIComponent(id)}/focal`, null, params),
     getBriefing: (params) => request("GET", "/api/v1/views/briefing", null, params),
+    getEffortBriefing: (params) => request("GET", "/api/v1/views/briefing/effort", null, params),
 
     // Entities CRUD
     listOrganizations: () => request("GET", "/api/v1/organizations"),

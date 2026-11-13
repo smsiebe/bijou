@@ -166,8 +166,12 @@ def test_sdk_client_full_crud_views_telemetry_and_errors(tmp_path: Path) -> None
         assert len(client.list_decision_logs(target_effort_id="eff-1")) == 1
         assert len(client.list_tools()) >= 1
 
-        # Diagnostics & Manifest Export
+        # Diagnostics & Manifest Export & Effort Briefing
         assert client.validate_manifest().blockers == []
+        eff_brief = client.get_effort_briefing("eff-1")
+        assert eff_brief.subject_effort_id == "eff-1"
+        assert len(eff_brief.distant_effort_investors) == 1
+        assert eff_brief.distant_effort_investors[0].effort_id == "eff-2"
         exported = client.export_manifest()
         assert len(exported.efforts) == 2
 
@@ -192,6 +196,8 @@ async def test_async_sdk_client_parity(tmp_path: Path) -> None:
             assert eff.name == "Async Effort"
             tree = await client.get_capability_tree()
             assert len(tree.nodes) == 1
+            eff_brief = await client.get_effort_briefing("eff-a")
+            assert eff_brief.subject_effort_id == "eff-a"
             assert await client.delete_effort("eff-a") is True
             assert await client.delete_organization("org-a") is True
 

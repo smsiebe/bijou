@@ -43,8 +43,11 @@ from bijou.core.contracts.views import (
     BillOfEffortsSimulationResponseDTO,
     CapabilityTreeViewDTO,
     DiagnosticReportDTO,
+    DistantEffortInvestorDTO,
     DynamicOrgInterestPriorityDTO,
+    EffortBriefingDTO,
     EffortFocalDashboardDTO,
+    EffortResourceGapDTO,
     ForecastedEffortNodeDTO,
     IndirectBenefitPathDTO,
     InterestFocalDashboardDTO,
@@ -84,6 +87,7 @@ BillOfEffortsSimulationRequest = BillOfEffortsSimulationRequestDTO
 BillOfEffortsSimulationResult = BillOfEffortsSimulationResponseDTO
 SimulatedPoolAllocation = SimulatedPoolAllocationDTO
 EffortFocalDashboard = EffortFocalDashboardDTO
+EffortBriefing = EffortBriefingDTO
 OrgFocalDashboard = OrgFocalDashboardDTO
 InterestFocalDashboard = InterestFocalDashboardDTO
 PerspectiveBriefing = PerspectiveBriefingDTO
@@ -108,13 +112,17 @@ __all__ = [
     "DecisionLogEntryDTO",
     "DiagnosticReport",
     "DiagnosticReportDTO",
+    "DistantEffortInvestorDTO",
     "DynamicOrgInterestPriorityDTO",
     "Effort",
+    "EffortBriefing",
+    "EffortBriefingDTO",
     "EffortDTO",
     "EffortEffortEdge",
     "EffortEffortEdgeDTO",
     "EffortFocalDashboard",
     "EffortFocalDashboardDTO",
+    "EffortResourceGapDTO",
     "EffortInterestEdge",
     "EffortInterestEdgeDTO",
     "EffortInterestRelationType",

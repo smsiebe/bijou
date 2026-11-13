@@ -29,6 +29,7 @@ from bijou.core.contracts.views import (
     BillOfEffortsSimulationResponseDTO,
     CapabilityTreeViewDTO,
     DiagnosticReportDTO,
+    EffortBriefingDTO,
     EffortFocalDashboardDTO,
     InterestFocalDashboardDTO,
     OrgFocalDashboardDTO,
@@ -492,6 +493,30 @@ def get_perspective_briefing(
         active_access_mode=access_ctx.mode,
         include_hierarchy_inheritance=include_hierarchy_inheritance,
         as_of_date=as_of_date,
+    )
+
+
+@v1_router.get(
+    "/views/briefing/effort",
+    response_model=EffortBriefingDTO,
+    status_code=status.HTTP_200_OK,
+    summary="Generate 1-Slide Effort-Level Briefing with Multi-Hop Linkages & Distant Investors",
+    operation_id="get_effort_briefing",
+)
+def get_effort_briefing(
+    orchestrator: OrchestratorDep,
+    access_ctx: AccessContextDep,
+    effort_id: str = Query(...),
+    include_hierarchy_inheritance: bool = Query(default=True),
+    as_of_date: date | None = Query(default=None),
+    max_hops: int = Query(default=6, ge=1, le=12),
+) -> EffortBriefingDTO:
+    return orchestrator.get_effort_briefing(
+        effort_id=effort_id,
+        active_access_mode=access_ctx.mode,
+        include_hierarchy_inheritance=include_hierarchy_inheritance,
+        as_of_date=as_of_date,
+        max_hops=max_hops,
     )
 
 

@@ -7,7 +7,9 @@ from pydantic import Field
 from bijou.core.contracts.base import BijouBaseModel
 from bijou.core.contracts.enums import (
     AccessMode,
+    BlockingMode,
     ConfidenceLevel,
+    EffortState,
     EffortTimingMode,
     ForecastHorizonStatus,
 )
@@ -17,6 +19,7 @@ from bijou.core.contracts.models import (
     EffortInterestEdgeDTO,
     InterestDTO,
     InterestInterestEdgeDTO,
+    MitigatorDTO,
     OrganizationDTO,
     OrgEffortEdgeDTO,
     OrgInterestEdgeDTO,
@@ -327,6 +330,77 @@ class PerspectiveBriefingDTO(BijouBaseModel):
     total_allocated_usd: float = Field(default=0.0, alias="total_allocated_usd", ge=0.0)
     executive_summary_narrative: str | None = Field(default=None, alias="executive_summary_narrative")
     strategic_gaps: list[str] = Field(default_factory=list, alias="strategic_gaps")
+
+
+class DistantEffortInvestorDTO(BijouBaseModel):
+    """Organization invested in or holding an Interest stake on a downstream Effort."""
+
+    effort_id: str = Field(..., alias="effort_id")
+    effort_name: str = Field(..., alias="effort_name")
+    effort_state: EffortState = Field(..., alias="effort_state")
+    hop_distance: int = Field(..., alias="hop_distance", ge=1)
+    is_terminal_end: bool = Field(default=False, alias="is_terminal_end")
+    path_effort_ids: list[str] = Field(default_factory=list, alias="path_effort_ids")
+    path_relation_types: list[BlockingMode] = Field(default_factory=list, alias="path_relation_types")
+    investing_org_ids: list[str] = Field(default_factory=list, alias="investing_org_ids")
+    investing_org_names: list[str] = Field(default_factory=list, alias="investing_org_names")
+    total_invested_usd: float = Field(default=0.0, alias="total_invested_usd", ge=0.0)
+    stakeholder_org_ids: list[str] = Field(default_factory=list, alias="stakeholder_org_ids")
+    stakeholder_org_names: list[str] = Field(default_factory=list, alias="stakeholder_org_names")
+
+
+class EffortResourceGapDTO(BijouBaseModel):
+    """Unmet resource requirement on an Effort for executive resourcing asks."""
+
+    requirement_id: str = Field(..., alias="requirement_id")
+    category: ResourceCategory = Field(..., alias="category")
+    required_amount: float = Field(..., alias="required_amount", ge=0.0)
+    allocated_amount: float = Field(default=0.0, alias="allocated_amount", ge=0.0)
+    shortfall_amount: float = Field(default=0.0, alias="shortfall_amount", ge=0.0)
+    unit: str = Field(..., alias="unit")
+    required_skill: str | None = Field(default=None, alias="required_skill")
+
+
+class EffortBriefingDTO(BijouBaseModel):
+    """Executive 1-Slide Multi-Hop Effort Briefing with Linkages & Template Hints."""
+
+    subject_effort_id: str = Field(..., alias="subject_effort_id")
+    active_access_mode: AccessMode = Field(default=AccessMode.GLOBAL_ANALYST, alias="active_access_mode")
+    as_of_date: date = Field(..., alias="as_of_date")
+    recommended_template: str = Field(default="EXECUTION_IMPACT", alias="recommended_template")
+    forecast: ForecastedEffortNodeDTO = Field(..., alias="forecast")
+    organizations: list[OrganizationDTO] = Field(default_factory=list, alias="organizations")
+    direct_resourcing_edges: list[OrgEffortEdgeDTO] = Field(
+        default_factory=list, alias="direct_resourcing_edges"
+    )
+    effort_interest_edges: list[EffortInterestEdgeDTO] = Field(
+        default_factory=list, alias="effort_interest_edges"
+    )
+    aligned_interests: list[InterestDTO] = Field(default_factory=list, alias="aligned_interests")
+    ancestor_interest_categories: list[InterestDTO] = Field(
+        default_factory=list, alias="ancestor_interest_categories"
+    )
+    upstream_effort_edges: list[EffortEffortEdgeDTO] = Field(
+        default_factory=list, alias="upstream_effort_edges"
+    )
+    downstream_effort_edges: list[EffortEffortEdgeDTO] = Field(
+        default_factory=list, alias="downstream_effort_edges"
+    )
+    chain_efforts: list[ForecastedEffortNodeDTO] = Field(default_factory=list, alias="chain_efforts")
+    distant_effort_investors: list[DistantEffortInvestorDTO] = Field(
+        default_factory=list, alias="distant_effort_investors"
+    )
+    resource_gaps: list[EffortResourceGapDTO] = Field(default_factory=list, alias="resource_gaps")
+    active_risks: list[RiskDTO] = Field(default_factory=list, alias="active_risks")
+    unexercised_mitigators: list[MitigatorDTO] = Field(default_factory=list, alias="unexercised_mitigators")
+    exercised_mitigators: list[MitigatorDTO] = Field(default_factory=list, alias="exercised_mitigators")
+    indirect_beneficiaries: list[IndirectBenefitPathDTO] = Field(
+        default_factory=list, alias="indirect_beneficiaries"
+    )
+    total_direct_allocated_usd: float = Field(default=0.0, alias="total_direct_allocated_usd", ge=0.0)
+    total_mitigation_ask_usd: float = Field(default=0.0, alias="total_mitigation_ask_usd", ge=0.0)
+    executive_summary_narrative: str | None = Field(default=None, alias="executive_summary_narrative")
+    key_decision_asks: list[str] = Field(default_factory=list, alias="key_decision_asks")
 
 
 class DiagnosticReportDTO(BijouBaseModel):

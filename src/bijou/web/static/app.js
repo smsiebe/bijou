@@ -440,6 +440,7 @@
 
       const orgs = tri.capability_tree?.organizations || tree.organizations || [];
       const interests = tri.capability_tree?.interests || tree.interests || [];
+      const efforts = (tri.capability_tree?.nodes || tree.nodes || []).map((n) => n.effort);
 
       // Populate top Org Scope filter in View A
       const orgFilterSel = document.getElementById("view-a-org-filter");
@@ -450,6 +451,10 @@
           `<option value="">All Organizations</option>` +
           orgs.map((o) => `<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join("");
         orgFilterSel.value = prev;
+      }
+      if (typeof briefingController.setCatalog === "function") {
+        briefingController.setCatalog(orgs, efforts);
+      } else {
         briefingController.setOrganizations(orgs);
       }
 
@@ -480,6 +485,13 @@
       renderCanvasStage();
     }
   }
+
+  global.openExecutiveBriefing = function openExecutiveBriefing(scope, targetId, templateId) {
+    if (briefingController && typeof briefingController.selectTarget === "function") {
+      briefingController.selectTarget(scope, targetId, templateId);
+    }
+    switchLens("briefing");
+  };
 
   function switchCanvasMode(mode) {
     state.canvasMode = mode;

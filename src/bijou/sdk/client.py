@@ -27,6 +27,7 @@ from bijou.sdk.models import (
     ConfidenceLevel,
     DecisionLogEntryDTO,
     DiagnosticReportDTO,
+    EffortBriefingDTO,
     EffortDTO,
     EffortEffortEdgeDTO,
     EffortFocalDashboardDTO,
@@ -386,6 +387,24 @@ class BijouClient:
             self._request("GET", "/api/v1/views/briefing", params=params).json()
         )
 
+    def get_effort_briefing(
+        self,
+        effort_id: str,
+        include_hierarchy_inheritance: bool = True,
+        as_of_date: date | str | None = None,
+        max_hops: int = 6,
+    ) -> EffortBriefingDTO:
+        params: dict[str, Any] = {
+            "effort_id": effort_id,
+            "include_hierarchy_inheritance": include_hierarchy_inheritance,
+            "max_hops": max_hops,
+        }
+        if as_of_date:
+            params["as_of_date"] = str(as_of_date)
+        return EffortBriefingDTO.model_validate(
+            self._request("GET", "/api/v1/views/briefing/effort", params=params).json()
+        )
+
     # --- Telemetry & Decision Provenance Ledger ---
     def ingest_telemetry_events(self, events: list[EffortTelemetryEventDTO | dict[str, Any]]) -> int:
         payload = [_serialize(ev) for ev in events]
@@ -738,6 +757,24 @@ class AsyncBijouClient:
             params["as_of_date"] = str(as_of_date)
         return PerspectiveBriefingDTO.model_validate(
             (await self._request("GET", "/api/v1/views/briefing", params=params)).json()
+        )
+
+    async def get_effort_briefing(
+        self,
+        effort_id: str,
+        include_hierarchy_inheritance: bool = True,
+        as_of_date: date | str | None = None,
+        max_hops: int = 6,
+    ) -> EffortBriefingDTO:
+        params: dict[str, Any] = {
+            "effort_id": effort_id,
+            "include_hierarchy_inheritance": include_hierarchy_inheritance,
+            "max_hops": max_hops,
+        }
+        if as_of_date:
+            params["as_of_date"] = str(as_of_date)
+        return EffortBriefingDTO.model_validate(
+            (await self._request("GET", "/api/v1/views/briefing/effort", params=params)).json()
         )
 
     # --- Telemetry & Decision Provenance Ledger ---

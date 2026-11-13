@@ -11,6 +11,7 @@ from bijou.core.contracts.views import (
     BillOfEffortsSimulationResponseDTO,
     CapabilityTreeViewDTO,
     DiagnosticReportDTO,
+    EffortBriefingDTO,
     EffortFocalDashboardDTO,
     InterestFocalDashboardDTO,
     OrgFocalDashboardDTO,
@@ -96,6 +97,17 @@ class IGraphProjectionEngine(ABC):
         as_of_date: date,
     ) -> PerspectiveBriefingDTO:
         """Assemble an executive Multi-Perspective 1-Slide Briefing projection."""
+
+    @abstractmethod
+    def build_effort_briefing(
+        self,
+        effort_id: str,
+        active_access_mode: AccessMode,
+        as_of_date: date,
+        include_hierarchy_inheritance: bool = True,
+        max_hops: int = 6,
+    ) -> EffortBriefingDTO:
+        """Assemble an Effort-level 1-Slide Briefing with multi-hop linkages and distant investors."""
 
     @abstractmethod
     def validate_manifest_diagnostics(

@@ -1049,10 +1049,64 @@ aside.boe-dock {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
   background: var(--bg-panel);
   border: 1px solid var(--border-subtle);
   border-radius: 7px;
   padding: 10px 14px;
+}
+
+.briefing-controls-left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.briefing-template-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border: 1px solid var(--accent-cyan);
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+
+.briefing-kpi-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  text-align: right;
+}
+
+.briefing-kpi-val {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--accent-cyan);
+}
+
+.briefing-ask-list {
+  margin-left: 18px;
+  color: var(--text-main);
+  font-size: 0.84rem;
+}
+
+.briefing-svg-panel {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.briefing-linkage-svg {
+  width: 100%;
+  height: auto;
+  max-height: 235px;
+  display: block;
 }
 
 .control-group {
@@ -1647,5 +1701,22 @@ aside.boe-dock {
 
   .quadrant-box h3 {
     color: #0369a1 !important;
+  }
+
+  .briefing-svg-panel {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+  }
+
+  .briefing-linkage-svg rect {
+    fill: #f8fafc !important;
+  }
+
+  .briefing-linkage-svg text {
+    fill: #0f172a !important;
+  }
+
+  .briefing-ask-list {
+    color: #0f172a !important;
   }
 }

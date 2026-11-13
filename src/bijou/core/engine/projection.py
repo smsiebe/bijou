@@ -1,16 +1,20 @@
 """In-memory thread-safe graph projection, forecasting, and Bill of Efforts simulation engine."""
 
 import threading
+from collections import deque
 from datetime import date
 
 from bijou.core.contracts.enums import (
     AccessMode,
+    BlockingMode,
     ConfidenceLevel,
+    EffortState,
     ResourceCategory,
     RiskStatus,
 )
 from bijou.core.contracts.manifest import BijouManifestDTO
 from bijou.core.contracts.models import (
+    MitigatorDTO,
     OrgEffortEdgeDTO,
     RiskDTO,
 )
@@ -20,7 +24,10 @@ from bijou.core.contracts.views import (
     BillOfEffortsSimulationResponseDTO,
     CapabilityTreeViewDTO,
     DiagnosticReportDTO,
+    DistantEffortInvestorDTO,
+    EffortBriefingDTO,
     EffortFocalDashboardDTO,
+    EffortResourceGapDTO,
     ForecastedEffortNodeDTO,
     InterestFocalDashboardDTO,
     OrgFocalDashboardDTO,
@@ -588,6 +595,270 @@ class InMemoryGraphProjectionEngine(IGraphProjectionEngine):
                 total_allocated_usd=round(total_usd, 2),
                 executive_summary_narrative=None,
                 strategic_gaps=[],
+            )
+
+    def build_effort_briefing(
+        self,
+        effort_id: str,
+        active_access_mode: AccessMode,
+        as_of_date: date,
+        include_hierarchy_inheritance: bool = True,
+        max_hops: int = 6,
+    ) -> EffortBriefingDTO:
+        """Assemble an Effort-level 1-Slide Briefing with multi-hop linkages and distant investors."""
+        with self._lock:
+            tree = self._build_tree_from_manifest(
+                self._manifest,
+                as_of_date=as_of_date,
+                include_hierarchy_priorities=include_hierarchy_inheritance,
+            )
+            node_map = {n.effort.id: n for n in tree.nodes}
+            target_node = node_map.get(effort_id)
+            if target_node is None:
+                raise EntityNotFoundError(f"Effort '{effort_id}' not found")
+
+            orgs_by_id = {o.id: o for o in self._manifest.organizations}
+            interests_by_id = {i.id: i for i in self._manifest.interests}
+
+            ee_outgoing: dict[str, list] = {}
+            ee_incoming: dict[str, list] = {}
+            for ee in self._manifest.effort_effort_edges:
+                ee_outgoing.setdefault(ee.source_effort_id, []).append(ee)
+                ee_incoming.setdefault(ee.target_effort_id, []).append(ee)
+
+            # Downstream multi-hop BFS (Effort -> Effort -> ... -> Distant End Effort)
+            downstream_paths: dict[str, tuple[list[str], list[BlockingMode]]] = {}
+            q_down: deque[tuple[str, list[str], list[BlockingMode]]] = deque([(effort_id, [effort_id], [])])
+            while q_down:
+                curr_id, path_ids, path_rels = q_down.popleft()
+                if len(path_rels) >= max_hops:
+                    continue
+                for ee in ee_outgoing.get(curr_id, []):
+                    nxt = ee.target_effort_id
+                    if nxt == effort_id or nxt in path_ids or nxt in downstream_paths:
+                        continue
+                    new_ids = [*path_ids, nxt]
+                    new_rels = [*path_rels, ee.blocking_mode]
+                    downstream_paths[nxt] = (new_ids, new_rels)
+                    q_down.append((nxt, new_ids, new_rels))
+
+            downstream_scope = {effort_id, *downstream_paths.keys()}
+            downstream_edges = [
+                ee
+                for ee in self._manifest.effort_effort_edges
+                if ee.source_effort_id in downstream_scope and ee.target_effort_id in downstream_paths
+            ]
+
+            # Upstream multi-hop BFS
+            upstream_ids: set[str] = set()
+            q_up: deque[tuple[str, int]] = deque([(effort_id, 0)])
+            while q_up:
+                curr_id, depth = q_up.popleft()
+                if depth >= max_hops:
+                    continue
+                for ee in ee_incoming.get(curr_id, []):
+                    src = ee.source_effort_id
+                    if src == effort_id or src in upstream_ids:
+                        continue
+                    upstream_ids.add(src)
+                    q_up.append((src, depth + 1))
+
+            upstream_scope = {effort_id, *upstream_ids}
+            upstream_edges = [
+                ee
+                for ee in self._manifest.effort_effort_edges
+                if ee.source_effort_id in upstream_ids and ee.target_effort_id in upstream_scope
+            ]
+
+            chain_ids = (upstream_ids | set(downstream_paths.keys())) - {effort_id}
+            chain_efforts = [node_map[cid] for cid in chain_ids if cid in node_map]
+
+            # Distant End-Effort Investors & Stakeholders
+            distant_investors: list[DistantEffortInvestorDTO] = []
+            for did, (path_ids, path_rels) in downstream_paths.items():
+                d_node = node_map.get(did)
+                if d_node is None:
+                    continue
+                is_terminal = len(ee_outgoing.get(did, [])) == 0
+                d_res_edges = [oe for oe in self._manifest.org_effort_edges if oe.effort_id == did]
+                inv_org_ids = list(dict.fromkeys(oe.org_id for oe in d_res_edges))
+                inv_org_names = [orgs_by_id[oid].name if oid in orgs_by_id else oid for oid in inv_org_ids]
+                inv_usd = sum(
+                    oe.allocation_amount
+                    for oe in d_res_edges
+                    if oe.resourcing_type == ResourceCategory.MONEY or oe.allocation_unit.upper() == "USD"
+                )
+                d_iids = {ei.interest_id for ei in self._manifest.effort_interest_edges if ei.effort_id == did}
+                stake_org_ids = list(
+                    dict.fromkeys(
+                        oi.org_id for oi in self._manifest.org_interest_edges if oi.interest_id in d_iids
+                    )
+                )
+                stake_org_names = [orgs_by_id[oid].name if oid in orgs_by_id else oid for oid in stake_org_ids]
+                distant_investors.append(
+                    DistantEffortInvestorDTO(
+                        effort_id=did,
+                        effort_name=d_node.effort.name,
+                        effort_state=d_node.effort.state,
+                        hop_distance=len(path_rels),
+                        is_terminal_end=is_terminal,
+                        path_effort_ids=path_ids,
+                        path_relation_types=path_rels,
+                        investing_org_ids=inv_org_ids,
+                        investing_org_names=inv_org_names,
+                        total_invested_usd=round(inv_usd, 2),
+                        stakeholder_org_ids=stake_org_ids,
+                        stakeholder_org_names=stake_org_names,
+                    )
+                )
+            distant_investors.sort(
+                key=lambda item: (not item.is_terminal_end, -item.hop_distance, -item.total_invested_usd, item.effort_name)
+            )
+
+            # Direct resourcing, Interests, & Indirect Beneficiaries for focal effort
+            direct_res_edges = [oe for oe in self._manifest.org_effort_edges if oe.effort_id == effort_id]
+            direct_usd = sum(
+                oe.allocation_amount
+                for oe in direct_res_edges
+                if oe.resourcing_type == ResourceCategory.MONEY or oe.allocation_unit.upper() == "USD"
+            )
+            eff_intr_edges = [ei for ei in self._manifest.effort_interest_edges if ei.effort_id == effort_id]
+            direct_iids = list(dict.fromkeys(ei.interest_id for ei in eff_intr_edges))
+            aligned_interests = [interests_by_id[iid] for iid in direct_iids if iid in interests_by_id]
+
+            ancestor_ids: set[str] = set()
+            for iid in direct_iids:
+                ancestor_ids |= get_interest_ancestors(iid, self._manifest.interest_interest_edges)
+            ancestor_categories = [
+                interests_by_id[aid] for aid in (ancestor_ids - set(direct_iids)) if aid in interests_by_id
+            ]
+
+            indirect_paths, _ = discover_indirect_benefits_and_partnerships(
+                orgs=self._manifest.organizations,
+                org_interest_edges=self._manifest.org_interest_edges,
+                org_effort_edges=self._manifest.org_effort_edges,
+                effort_interest_edges=self._manifest.effort_interest_edges,
+                interest_edges=self._manifest.interest_interest_edges,
+                org_org_edges=self._manifest.org_org_edges,
+            )
+            eff_indirect = [p for p in indirect_paths if p.effort_id == effort_id]
+
+            # Resource gaps on focal effort requirements
+            resource_gaps: list[EffortResourceGapDTO] = []
+            for req in target_node.effort.resource_requirements:
+                allocated = sum(
+                    oe.allocation_amount
+                    for oe in direct_res_edges
+                    if oe.requirement_id == req.id
+                    or (oe.requirement_id is None and oe.resourcing_type == req.category)
+                )
+                shortfall = max(0.0, round(req.quantity - allocated, 2))
+                resource_gaps.append(
+                    EffortResourceGapDTO(
+                        requirement_id=req.id,
+                        category=req.category,
+                        required_amount=req.quantity,
+                        allocated_amount=round(allocated, 2),
+                        shortfall_amount=shortfall,
+                        unit=req.unit,
+                        required_skill=req.required_skill,
+                    )
+                )
+
+            def _mitigator_cost_usd(m: MitigatorDTO) -> float:
+                total = 0.0
+                for r in m.additional_requirements:
+                    if r.estimated_cost_usd is not None:
+                        total += r.estimated_cost_usd
+                    elif r.category == ResourceCategory.MONEY or r.unit.upper() == "USD":
+                        total += r.quantity
+                return total
+
+            active_risks = [r for r in target_node.effort.risks if r.status == RiskStatus.ACTIVE]
+            unexercised_mits: list[MitigatorDTO] = [m for m in target_node.effort.mitigators if not m.is_exercised]
+            exercised_mits: list[MitigatorDTO] = [m for m in target_node.effort.mitigators if m.is_exercised]
+            mit_ask_usd = round(sum(_mitigator_cost_usd(m) for m in unexercised_mits), 2)
+
+            unfunded_states = {
+                EffortState.PLANNED,
+                EffortState.BACKLOGGED,
+                EffortState.DISCOVERY_PENDING,
+            }
+            has_shortfall = any(g.shortfall_amount > 0 for g in resource_gaps)
+            if active_risks and unexercised_mits:
+                recommended_template = "RISK_MITIGATION_ASK"
+            elif target_node.effort.state in unfunded_states or (has_shortfall and direct_usd == 0):
+                recommended_template = "INVESTMENT_OPPORTUNITY"
+            elif len(distant_investors) >= 1 and len(downstream_edges) >= 2:
+                recommended_template = "DEPENDENCY_ECOSYSTEM"
+            else:
+                recommended_template = "EXECUTION_IMPACT"
+
+            # Relevant Org lookup set
+            involved_org_ids = (
+                {oe.org_id for oe in direct_res_edges}
+                | {ib.beneficiary_org_id for ib in eff_indirect}
+                | {oid for d in distant_investors for oid in (*d.investing_org_ids, *d.stakeholder_org_ids)}
+            )
+            involved_orgs = [orgs_by_id[oid] for oid in involved_org_ids if oid in orgs_by_id]
+
+            asks: list[str] = []
+            if unexercised_mits:
+                total_days = sum(m.slip_reduction_days for m in unexercised_mits)
+                asks.append(
+                    f"Resource {len(unexercised_mits)} mitigator(s) (${mit_ask_usd:,.0f}) to recover up to {total_days}d of active schedule risk."
+                )
+            for gap in resource_gaps:
+                if gap.shortfall_amount > 0:
+                    skill_note = f" [{gap.required_skill}]" if gap.required_skill else ""
+                    asks.append(
+                        f"Close {gap.category.value}{skill_note} shortfall: {gap.shortfall_amount:g} {gap.unit} remaining."
+                    )
+            if distant_investors:
+                terminal_orgs = sorted(
+                    {
+                        name
+                        for d in distant_investors
+                        if d.is_terminal_end
+                        for name in (*d.investing_org_names, *d.stakeholder_org_names)
+                    }
+                )
+                if terminal_orgs:
+                    asks.append(
+                        f"Protects downstream outcomes for {', '.join(terminal_orgs[:4])} across {len(distant_investors)} dependent effort(s)."
+                    )
+
+            narrative = (
+                f"{target_node.effort.name} ({target_node.effort.state.value}) has "
+                f"{len(direct_res_edges)} direct resourcing link(s) (${direct_usd:,.0f}), "
+                f"aligns to {len(aligned_interests)} Interest(s), and connects downstream to "
+                f"{len(distant_investors)} dependent effort(s)."
+            )
+
+            return EffortBriefingDTO(
+                subject_effort_id=effort_id,
+                active_access_mode=active_access_mode,
+                as_of_date=as_of_date,
+                recommended_template=recommended_template,
+                forecast=target_node,
+                organizations=involved_orgs,
+                direct_resourcing_edges=direct_res_edges,
+                effort_interest_edges=eff_intr_edges,
+                aligned_interests=aligned_interests,
+                ancestor_interest_categories=ancestor_categories,
+                upstream_effort_edges=upstream_edges,
+                downstream_effort_edges=downstream_edges,
+                chain_efforts=chain_efforts,
+                distant_effort_investors=distant_investors,
+                resource_gaps=resource_gaps,
+                active_risks=active_risks,
+                unexercised_mitigators=unexercised_mits,
+                exercised_mitigators=exercised_mits,
+                indirect_beneficiaries=eff_indirect,
+                total_direct_allocated_usd=round(direct_usd, 2),
+                total_mitigation_ask_usd=mit_ask_usd,
+                executive_summary_narrative=narrative,
+                key_decision_asks=asks,
             )
 
     def validate_manifest_diagnostics(

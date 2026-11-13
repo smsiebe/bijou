@@ -51,6 +51,20 @@ def test_web_root_serves_v2_shell_and_assets() -> None:
     assert 'id="puck-backdrop"' in body
     assert 'id="perspective-select"' in body
     assert 'id="pedigree-select"' in body
+    assert 'id="briefing-scope-select"' in body
+    assert 'id="briefing-effort-select"' in body
+    assert 'id="briefing-template-select"' in body
+
+    resp_briefing = client.get("/static/briefing.js")
+    assert resp_briefing.status_code == 200
+    for tpl_id in (
+        "EXECUTION_IMPACT",
+        "INVESTMENT_OPPORTUNITY",
+        "RISK_MITIGATION_ASK",
+        "DEPENDENCY_ECOSYSTEM",
+        "PARTNERSHIP_ALIGNMENT",
+    ):
+        assert tpl_id in resp_briefing.text
 
     resp_asset = client.get("/static/app.js")
     assert resp_asset.status_code == 200

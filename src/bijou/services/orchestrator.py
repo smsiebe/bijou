@@ -31,6 +31,7 @@ from bijou.core.contracts.views import (
     BillOfEffortsSimulationResponseDTO,
     CapabilityTreeViewDTO,
     DiagnosticReportDTO,
+    EffortBriefingDTO,
     EffortFocalDashboardDTO,
     InterestFocalDashboardDTO,
     OrgFocalDashboardDTO,
@@ -451,6 +452,39 @@ class BijouOrchestrationService:
             if len(self._perspective_cache) >= self._max_cache_size:
                 self._perspective_cache.popitem(last=False)
             self._perspective_cache[cache_key] = result
+
+        return result
+
+    def get_effort_briefing(
+        self,
+        effort_id: str,
+        active_access_mode: AccessMode = AccessMode.GLOBAL_ANALYST,
+        include_hierarchy_inheritance: bool = True,
+        as_of_date: date | None = None,
+        max_hops: int = 6,
+    ) -> EffortBriefingDTO:
+        effective_date = as_of_date or date.today()
+        cache_key = (
+            f"effort:{effort_id}:{active_access_mode}:{include_hierarchy_inheritance}:{effective_date}:{max_hops}"
+        )
+
+        with self._lock:
+            if cache_key in self._perspective_cache:
+                self._perspective_cache.move_to_end(cache_key)
+                return self._perspective_cache[cache_key]  # type: ignore[return-value]
+
+        result = self._projection_engine.build_effort_briefing(
+            effort_id=effort_id,
+            active_access_mode=active_access_mode,
+            as_of_date=effective_date,
+            include_hierarchy_inheritance=include_hierarchy_inheritance,
+            max_hops=max_hops,
+        )
+
+        with self._lock:
+            if len(self._perspective_cache) >= self._max_cache_size:
+                self._perspective_cache.popitem(last=False)
+            self._perspective_cache[cache_key] = result  # type: ignore[assignment]
 
         return result
 

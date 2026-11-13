@@ -302,12 +302,36 @@
       </div>
     </section>
 
-    <!-- LENS 2: EXECUTIVE BRIEFING (PRINTABLE 1-SLIDE) -->
+    <!-- LENS 2: EXECUTIVE BRIEFING (TEMPLATED PRINTABLE 1-SLIDE) -->
     <section class="lens-panel" id="lens-briefing">
       <div class="briefing-controls-bar no-print">
-        <div class="control-group">
-          <label for="briefing-org-select">Briefing Organization</label>
-          <select id="briefing-org-select"></select>
+        <div class="briefing-controls-left">
+          <div class="control-group">
+            <label for="briefing-scope-select">Scope</label>
+            <select id="briefing-scope-select">
+              <option value="org">Organization Portfolio</option>
+              <option value="effort">Effort / Capability</option>
+            </select>
+          </div>
+          <div class="control-group" id="briefing-org-group">
+            <label for="briefing-org-select">Organization</label>
+            <select id="briefing-org-select"></select>
+          </div>
+          <div class="control-group hidden" id="briefing-effort-group">
+            <label for="briefing-effort-select">Effort</label>
+            <select id="briefing-effort-select"></select>
+          </div>
+          <div class="control-group">
+            <label for="briefing-template-select">Template</label>
+            <select id="briefing-template-select">
+              <option value="AUTO">Auto-Tailored (Best Fit)</option>
+              <option value="EXECUTION_IMPACT">Active Execution, Impact &amp; Players</option>
+              <option value="INVESTMENT_OPPORTUNITY">Resourcing Proposal ("If Resourced")</option>
+              <option value="RISK_MITIGATION_ASK">Risk &amp; Mitigation Resourcing Ask</option>
+              <option value="DEPENDENCY_ECOSYSTEM">Value-Chain &amp; Distant Players</option>
+              <option value="PARTNERSHIP_ALIGNMENT">Cross-Org Co-Investment &amp; Partnerships</option>
+            </select>
+          </div>
         </div>
         <div class="control-group">
           <button class="btn btn-primary btn-sm" id="btn-print-briefing">Print / Export Landscape Slide</button>
@@ -316,7 +340,7 @@
 
       <div id="briefing-one-pager">
         <div class="briefing-slide" id="briefing-slide-content">
-          <div class="empty-state">Select an Organization to render Executive Briefing...</div>
+          <div class="empty-state">Select an Organization or Effort to render Executive Briefing...</div>
         </div>
       </div>
     </section>

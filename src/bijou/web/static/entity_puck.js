@@ -69,8 +69,9 @@
           <div><strong>${escapeHtml(fmtForecast(node))}</strong></div>
           <div class="mono-text mt-2">Horizon Status: ${escapeHtml(node.horizon_status)} · Topological Depth: ${node.topological_depth}${node.slack_days !== null ? ` · Slack: ${node.slack_days}d` : ""}</div>
           ${eff.description ? `<p class="mt-2">${escapeHtml(eff.description)}</p>` : ""}
-          <div class="mt-2">
+          <div class="mt-2" style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-secondary btn-xs" id="puck-edit-effort">Edit Effort in Studio</button>
+            <button class="btn btn-primary btn-xs" id="puck-open-effort-briefing">1-Page Effort Briefing</button>
           </div>
         </div>
 
@@ -129,6 +130,11 @@
       document.getElementById("puck-edit-effort")?.addEventListener("click", () => {
         this.close();
         this.onEditInStudio?.("efforts", eff.id);
+      });
+
+      document.getElementById("puck-open-effort-briefing")?.addEventListener("click", () => {
+        this.close();
+        global.openExecutiveBriefing?.("effort", eff.id);
       });
 
       this.contentEl.querySelectorAll(".puck-stage-mit").forEach((btn) => {
