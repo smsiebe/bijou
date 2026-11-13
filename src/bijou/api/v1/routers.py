@@ -15,10 +15,10 @@ from bijou.core.contracts.models import (
     EffortInterestEdgeDTO,
     InterestDTO,
     InterestInterestEdgeDTO,
+    OrganizationDTO,
     OrgEffortEdgeDTO,
     OrgInterestEdgeDTO,
     OrgOrgEdgeDTO,
-    OrganizationDTO,
     ResourcePoolDTO,
 )
 from bijou.core.contracts.telemetry import EffortTelemetryEventDTO

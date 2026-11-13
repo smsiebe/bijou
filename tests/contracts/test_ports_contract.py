@@ -5,7 +5,6 @@ import pytest
 from bijou.core.contracts.enums import AccessMode
 from bijou.core.contracts.models import OrganizationDTO
 from bijou.core.ports import (
-    AccessContext,
     DemoAccessControlProvider,
     EntityNotFoundError,
     GraphCycleError,

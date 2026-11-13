@@ -1,0 +1,58 @@
+{
+  "appId": "bijou",
+  "name": "Bijou - Strategic Capability & Investment Orchestration Engine",
+  "version": "2.0.0",
+  "description": "Organizations, Interests DAG, Stateful Efforts & Bill of Efforts Portfolio Engine with Integrated Python SDK and Offline Web UI",
+  "services": [
+    {
+      "masId": "bijou-web",
+      "mode": "LocalOnly",
+      "runtime": "Python",
+      "displayName": "Bijou Portfolio Server",
+      "pythonConfig": {
+        "pythonExecutable": "python",
+        "arguments": "-m bijou.cli --mode standalone --port 8000"
+      }
+    }
+  ],
+  "guiEntryPoints": [
+    {
+      "name": "desktop",
+      "context": "Python",
+      "entryCommand": "bijou --mode desktop",
+      "iconPath": "assets/bijou.ico",
+      "description": "Launch Bijou desktop workbench (zero-webserver Starlette bridge)"
+    },
+    {
+      "name": "web-server",
+      "context": "Python",
+      "entryCommand": "bijou --mode standalone --port {port}",
+      "iconPath": "assets/bijou.ico",
+      "description": "Launch Bijou standalone FastAPI HTTP server"
+    }
+  ],
+  "distribution": {
+    "channels": [
+      "stable"
+    ],
+    "subprojects": [],
+    "artifacts": [
+      "datasets/*.json",
+      "datasets/*.yaml",
+      "datasets/*.jsonl"
+    ],
+    "hooks": {
+      "post_install": "hooks/post_install.py"
+    },
+    "entrypointCommand": "bijou --mode desktop",
+    "defaultPort": 8000,
+    "createDesktopShortcut": true,
+    "createLaunchers": true,
+    "tags": [
+      "portfolio",
+      "causal-graph",
+      "decision-support",
+      "analytics"
+    ]
+  }
+}

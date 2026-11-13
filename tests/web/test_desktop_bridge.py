@@ -96,3 +96,10 @@ def test_desktop_bridge_serve_resource_and_html_rewriting(tmp_path: Path) -> Non
         assert 'src="./app.js"' in desktop_html
         assert 'href="./styles.css"' in desktop_html
         assert 'src="/static/' not in desktop_html
+
+        inlined_html = bridge.render_desktop_html(use_file_base=False, inline_assets=True)
+        assert "<base href=" not in inlined_html
+        assert "window.__BIJOU_DESKTOP_MODE__ = true;" in inlined_html
+        assert "<style>" in inlined_html
+        assert 'src="/static/' not in inlined_html
+        assert 'href="/static/' not in inlined_html

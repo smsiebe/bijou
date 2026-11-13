@@ -68,6 +68,10 @@ Note for locked-down corporate hosts: if the current directory is read-only, Bij
 ### 2. Launch the Application
 
 ```bash
+# Desktop workbench (zero-webserver in-process pywebview window)
+bijou --mode desktop
+
+# Or standalone FastAPI HTTP server
 bijou --mode standalone --port 8000
 ```
 

@@ -5,12 +5,13 @@ import uvicorn
 
 from bijou.api.app import create_app
 from bijou.config import BijouSettings
+from bijou.web.desktop import launch_desktop
 
 
 @click.command()
 @click.option(
     "--mode",
-    type=click.Choice(["standalone", "api-only", "worker", "web-only"], case_sensitive=False),
+    type=click.Choice(["desktop", "standalone", "api-only", "worker", "web-only"], case_sensitive=False),
     default="standalone",
     help="Deployment runtime mode.",
 )
@@ -46,7 +47,9 @@ def main(
     if enable_reasoning:
         settings.enable_reasoning = enable_reasoning
 
-    if settings.mode in ("standalone", "api-only", "web-only"):
+    if settings.mode == "desktop":
+        raise SystemExit(launch_desktop(settings))
+    elif settings.mode in ("standalone", "api-only", "web-only"):
         app = create_app(settings)
         uvicorn.run(app, host=settings.bind_host, port=settings.bind_port)
     elif settings.mode == "worker":

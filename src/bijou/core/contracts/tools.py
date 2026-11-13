@@ -1,6 +1,7 @@
 """Tool registry and analytical tool descriptor schemas for Bijou v2."""
 
 from typing import Literal
+
 from pydantic import Field
 
 from bijou.core.contracts.base import BijouBaseModel

@@ -14,10 +14,10 @@ from bijou.core.contracts import (
     InterestDTO,
     InterestInterestEdgeDTO,
     MitigatorDTO,
+    OrganizationDTO,
     OrgEffortEdgeDTO,
     OrgInterestEdgeDTO,
     OrgInterestStance,
-    OrganizationDTO,
     OrgOrgEdgeDTO,
     OrgOrgRelationType,
     ResourceCategory,
@@ -25,7 +25,10 @@ from bijou.core.contracts import (
     ResourceRequirementDTO,
     RiskDTO,
 )
-from bijou.core.engine.forecasting import detect_cycles_in_graph, resolve_effort_forecasts
+from bijou.core.engine.forecasting import (
+    detect_cycles_in_graph,
+    resolve_effort_forecasts,
+)
 from bijou.core.engine.traversal import (
     compute_dynamic_hierarchy_priorities,
     compute_pool_balances,

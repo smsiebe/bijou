@@ -12,15 +12,15 @@ from bijou.core.contracts import (
     BillOfEffortsSimulationRequestDTO,
     EffortDTO,
     MitigatorDTO,
-    OrgEffortEdgeDTO,
     OrganizationDTO,
+    OrgEffortEdgeDTO,
     ResourceCategory,
     ResourcePoolDTO,
     ResourceRequirementDTO,
     SimulatedPoolAllocationDTO,
 )
 from bijou.core.engine import InMemoryGraphProjectionEngine
-from bijou.core.ports import AccessContext, GraphCycleError, PermissionDeniedError
+from bijou.core.ports import AccessContext, PermissionDeniedError
 from bijou.services import BijouOrchestrationService
 
 

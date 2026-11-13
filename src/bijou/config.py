@@ -49,7 +49,7 @@ class BijouSettings(BaseSettings):
         extra="ignore",
     )
 
-    mode: Literal["standalone", "api-only", "worker", "web-only"] = "standalone"
+    mode: Literal["desktop", "standalone", "api-only", "worker", "web-only"] = "standalone"
     bind_host: str = Field(default="0.0.0.0", description="Network interface host to bind")
     bind_port: int = Field(default=8000, ge=1, le=65535, description="Port number to listen on")
     db_uri: str = Field(

@@ -182,16 +182,14 @@ def resolve_effort_forecasts(
             matched = 0
             covered_req_ids = {oe.requirement_id for oe in effort_org_edges if oe.requirement_id}
             for req in effective_req_list:
-                if req.id in covered_req_ids:
-                    matched += 1
-                elif any(oe.resourcing_type == req.category and oe.allocation_amount >= req.quantity for oe in effort_org_edges):
+                if req.id in covered_req_ids or any(oe.resourcing_type == req.category and oe.allocation_amount >= req.quantity for oe in effort_org_edges):
                     matched += 1
             coverage_ratio = round(min(1.0, matched / req_count), 3)
 
         # Primary org = highest monetary/unit contributor or first funder
         funders = funding_orgs_map.get(eff_id, [])
         primary_org: str | None = None
-        if eff_id in org_alloc_totals and org_alloc_totals[eff_id]:
+        if org_alloc_totals.get(eff_id):
             primary_org = max(org_alloc_totals[eff_id].items(), key=lambda x: x[1])[0]
         elif funders:
             primary_org = funders[0]

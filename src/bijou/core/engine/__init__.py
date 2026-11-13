@@ -1,6 +1,9 @@
 """Core deterministic graph projection, forecasting, and traversal engines for Bijou v2."""
 
-from bijou.core.engine.forecasting import detect_cycles_in_graph, resolve_effort_forecasts
+from bijou.core.engine.forecasting import (
+    detect_cycles_in_graph,
+    resolve_effort_forecasts,
+)
 from bijou.core.engine.projection import InMemoryGraphProjectionEngine
 from bijou.core.engine.traversal import (
     compute_dynamic_hierarchy_priorities,

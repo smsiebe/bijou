@@ -15,10 +15,10 @@ from bijou.adapters.db.tables import (
     EffortRecord,
     InterestInterestEdgeRecord,
     InterestRecord,
+    OrganizationRecord,
     OrgEffortEdgeRecord,
     OrgInterestEdgeRecord,
     OrgOrgEdgeRecord,
-    OrganizationRecord,
     ResourcePoolRecord,
 )
 from bijou.core.contracts.enums import (
@@ -41,10 +41,10 @@ from bijou.core.contracts.models import (
     InterestDTO,
     InterestInterestEdgeDTO,
     MitigatorDTO,
+    OrganizationDTO,
     OrgEffortEdgeDTO,
     OrgInterestEdgeDTO,
     OrgOrgEdgeDTO,
-    OrganizationDTO,
     ResourcePoolDTO,
     ResourceRequirementDTO,
     RiskDTO,
