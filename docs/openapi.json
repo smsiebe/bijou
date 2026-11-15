@@ -51,7 +51,7 @@
         "title": "AccumulatorPattern",
         "type": "string"
       },
-      "BijouManifestDTO": {
+      "BijouManifestDTO-Input": {
         "additionalProperties": false,
         "description": "Point-in-time manifest representing the complete Bijou v2 entity and relationship graph.",
         "properties": {
@@ -74,7 +74,108 @@
           "efforts": {
             "description": "Capability efforts & programs",
             "items": {
-              "$ref": "#/components/schemas/EffortDTO"
+              "$ref": "#/components/schemas/EffortDTO-Input"
+            },
+            "title": "Efforts",
+            "type": "array"
+          },
+          "exported_at": {
+            "description": "Manifest export timestamp",
+            "format": "date-time",
+            "title": "Exported At",
+            "type": "string"
+          },
+          "interest_interest_edges": {
+            "description": "Interest taxonomy hierarchy DAG",
+            "items": {
+              "$ref": "#/components/schemas/InterestInterestEdgeDTO"
+            },
+            "title": "Interest Interest Edges",
+            "type": "array"
+          },
+          "interests": {
+            "description": "Strategic interests & concepts",
+            "items": {
+              "$ref": "#/components/schemas/InterestDTO"
+            },
+            "title": "Interests",
+            "type": "array"
+          },
+          "org_effort_edges": {
+            "description": "Org-to-Effort direct resourcing",
+            "items": {
+              "$ref": "#/components/schemas/OrgEffortEdgeDTO"
+            },
+            "title": "Org Effort Edges",
+            "type": "array"
+          },
+          "org_interest_edges": {
+            "description": "Org-to-Interest stances & priorities",
+            "items": {
+              "$ref": "#/components/schemas/OrgInterestEdgeDTO"
+            },
+            "title": "Org Interest Edges",
+            "type": "array"
+          },
+          "org_org_edges": {
+            "description": "Org-to-Org relationships",
+            "items": {
+              "$ref": "#/components/schemas/OrgOrgEdgeDTO"
+            },
+            "title": "Org Org Edges",
+            "type": "array"
+          },
+          "organizations": {
+            "description": "Organizations",
+            "items": {
+              "$ref": "#/components/schemas/OrganizationDTO"
+            },
+            "title": "Organizations",
+            "type": "array"
+          },
+          "resource_pools": {
+            "description": "Organization resource pools",
+            "items": {
+              "$ref": "#/components/schemas/ResourcePoolDTO"
+            },
+            "title": "Resource Pools",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": "2.0.0",
+            "default": "2.0.0",
+            "description": "Manifest schema version",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "title": "BijouManifestDTO",
+        "type": "object"
+      },
+      "BijouManifestDTO-Output": {
+        "additionalProperties": false,
+        "description": "Point-in-time manifest representing the complete Bijou v2 entity and relationship graph.",
+        "properties": {
+          "effort_effort_edges": {
+            "description": "Effort-to-Effort causal dependencies",
+            "items": {
+              "$ref": "#/components/schemas/EffortEffortEdgeDTO"
+            },
+            "title": "Effort Effort Edges",
+            "type": "array"
+          },
+          "effort_interest_edges": {
+            "description": "Effort-to-Interest alignments",
+            "items": {
+              "$ref": "#/components/schemas/EffortInterestEdgeDTO"
+            },
+            "title": "Effort Interest Edges",
+            "type": "array"
+          },
+          "efforts": {
+            "description": "Capability efforts & programs",
+            "items": {
+              "$ref": "#/components/schemas/EffortDTO-Output"
             },
             "title": "Efforts",
             "type": "array"
@@ -473,6 +574,89 @@
         "title": "DiagnosticReportDTO",
         "type": "object"
       },
+      "DistantEffortInvestorDTO": {
+        "additionalProperties": false,
+        "description": "Organization invested in or holding an Interest stake on a downstream Effort.",
+        "properties": {
+          "effort_id": {
+            "title": "Effort Id",
+            "type": "string"
+          },
+          "effort_name": {
+            "title": "Effort Name",
+            "type": "string"
+          },
+          "effort_state": {
+            "$ref": "#/components/schemas/EffortState"
+          },
+          "hop_distance": {
+            "minimum": 1.0,
+            "title": "Hop Distance",
+            "type": "integer"
+          },
+          "investing_org_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Investing Org Ids",
+            "type": "array"
+          },
+          "investing_org_names": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Investing Org Names",
+            "type": "array"
+          },
+          "is_terminal_end": {
+            "default": false,
+            "title": "Is Terminal End",
+            "type": "boolean"
+          },
+          "path_effort_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Path Effort Ids",
+            "type": "array"
+          },
+          "path_relation_types": {
+            "items": {
+              "$ref": "#/components/schemas/BlockingMode"
+            },
+            "title": "Path Relation Types",
+            "type": "array"
+          },
+          "stakeholder_org_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Stakeholder Org Ids",
+            "type": "array"
+          },
+          "stakeholder_org_names": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Stakeholder Org Names",
+            "type": "array"
+          },
+          "total_invested_usd": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Total Invested Usd",
+            "type": "number"
+          }
+        },
+        "required": [
+          "effort_id",
+          "effort_name",
+          "effort_state",
+          "hop_distance"
+        ],
+        "title": "DistantEffortInvestorDTO",
+        "type": "object"
+      },
       "DynamicOrgInterestPriorityDTO": {
         "additionalProperties": false,
         "description": "Optional computed Org-Interest priority including hierarchical inheritance.",
@@ -520,7 +704,169 @@
         "title": "DynamicOrgInterestPriorityDTO",
         "type": "object"
       },
-      "EffortDTO": {
+      "EffortBriefingDTO": {
+        "additionalProperties": false,
+        "description": "Executive 1-Slide Multi-Hop Effort Briefing with Linkages & Template Hints.",
+        "properties": {
+          "active_access_mode": {
+            "$ref": "#/components/schemas/AccessMode",
+            "default": "GLOBAL_ANALYST"
+          },
+          "active_risks": {
+            "items": {
+              "$ref": "#/components/schemas/RiskDTO"
+            },
+            "title": "Active Risks",
+            "type": "array"
+          },
+          "aligned_interests": {
+            "items": {
+              "$ref": "#/components/schemas/InterestDTO"
+            },
+            "title": "Aligned Interests",
+            "type": "array"
+          },
+          "ancestor_interest_categories": {
+            "items": {
+              "$ref": "#/components/schemas/InterestDTO"
+            },
+            "title": "Ancestor Interest Categories",
+            "type": "array"
+          },
+          "as_of_date": {
+            "format": "date",
+            "title": "As Of Date",
+            "type": "string"
+          },
+          "chain_efforts": {
+            "items": {
+              "$ref": "#/components/schemas/ForecastedEffortNodeDTO"
+            },
+            "title": "Chain Efforts",
+            "type": "array"
+          },
+          "direct_resourcing_edges": {
+            "items": {
+              "$ref": "#/components/schemas/OrgEffortEdgeDTO"
+            },
+            "title": "Direct Resourcing Edges",
+            "type": "array"
+          },
+          "distant_effort_investors": {
+            "items": {
+              "$ref": "#/components/schemas/DistantEffortInvestorDTO"
+            },
+            "title": "Distant Effort Investors",
+            "type": "array"
+          },
+          "downstream_effort_edges": {
+            "items": {
+              "$ref": "#/components/schemas/EffortEffortEdgeDTO"
+            },
+            "title": "Downstream Effort Edges",
+            "type": "array"
+          },
+          "effort_interest_edges": {
+            "items": {
+              "$ref": "#/components/schemas/EffortInterestEdgeDTO"
+            },
+            "title": "Effort Interest Edges",
+            "type": "array"
+          },
+          "executive_summary_narrative": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Executive Summary Narrative"
+          },
+          "exercised_mitigators": {
+            "items": {
+              "$ref": "#/components/schemas/MitigatorDTO-Output"
+            },
+            "title": "Exercised Mitigators",
+            "type": "array"
+          },
+          "forecast": {
+            "$ref": "#/components/schemas/ForecastedEffortNodeDTO"
+          },
+          "indirect_beneficiaries": {
+            "items": {
+              "$ref": "#/components/schemas/IndirectBenefitPathDTO"
+            },
+            "title": "Indirect Beneficiaries",
+            "type": "array"
+          },
+          "key_decision_asks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Key Decision Asks",
+            "type": "array"
+          },
+          "organizations": {
+            "items": {
+              "$ref": "#/components/schemas/OrganizationDTO"
+            },
+            "title": "Organizations",
+            "type": "array"
+          },
+          "recommended_template": {
+            "default": "EXECUTION_IMPACT",
+            "title": "Recommended Template",
+            "type": "string"
+          },
+          "resource_gaps": {
+            "items": {
+              "$ref": "#/components/schemas/EffortResourceGapDTO"
+            },
+            "title": "Resource Gaps",
+            "type": "array"
+          },
+          "subject_effort_id": {
+            "title": "Subject Effort Id",
+            "type": "string"
+          },
+          "total_direct_allocated_usd": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Total Direct Allocated Usd",
+            "type": "number"
+          },
+          "total_mitigation_ask_usd": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Total Mitigation Ask Usd",
+            "type": "number"
+          },
+          "unexercised_mitigators": {
+            "items": {
+              "$ref": "#/components/schemas/MitigatorDTO-Output"
+            },
+            "title": "Unexercised Mitigators",
+            "type": "array"
+          },
+          "upstream_effort_edges": {
+            "items": {
+              "$ref": "#/components/schemas/EffortEffortEdgeDTO"
+            },
+            "title": "Upstream Effort Edges",
+            "type": "array"
+          }
+        },
+        "required": [
+          "subject_effort_id",
+          "as_of_date",
+          "forecast"
+        ],
+        "title": "EffortBriefingDTO",
+        "type": "object"
+      },
+      "EffortDTO-Input": {
         "additionalProperties": false,
         "description": "Work item, capability program, or discovery activity inside the progression tree.",
         "properties": {
@@ -564,7 +910,103 @@
           "mitigators": {
             "description": "Available or exercised mitigation options",
             "items": {
-              "$ref": "#/components/schemas/MitigatorDTO"
+              "$ref": "#/components/schemas/MitigatorDTO-Input"
+            },
+            "title": "Mitigators",
+            "type": "array"
+          },
+          "name": {
+            "description": "Effort display title",
+            "title": "Name",
+            "type": "string"
+          },
+          "resource_requirements": {
+            "description": "Required resources (personnel, compute, money, material)",
+            "items": {
+              "$ref": "#/components/schemas/ResourceRequirementDTO"
+            },
+            "title": "Resource Requirements",
+            "type": "array"
+          },
+          "risks": {
+            "description": "Known delivery risks",
+            "items": {
+              "$ref": "#/components/schemas/RiskDTO"
+            },
+            "title": "Risks",
+            "type": "array"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Explicit start date if known",
+            "title": "Start Date"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EffortState",
+            "default": "PLANNED",
+            "description": "Execution state"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "EffortDTO",
+        "type": "object"
+      },
+      "EffortDTO-Output": {
+        "additionalProperties": false,
+        "description": "Work item, capability program, or discovery activity inside the progression tree.",
+        "properties": {
+          "description": {
+            "default": "",
+            "description": "Scope and deliverable summary",
+            "title": "Description",
+            "type": "string"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Explicit end date if known",
+            "title": "End Date"
+          },
+          "estimated_duration_days": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Relative duration in days when explicit dates are unavailable",
+            "title": "Estimated Duration Days"
+          },
+          "id": {
+            "description": "Unique effort identifier",
+            "title": "Id",
+            "type": "string"
+          },
+          "mitigators": {
+            "description": "Available or exercised mitigation options",
+            "items": {
+              "$ref": "#/components/schemas/MitigatorDTO-Output"
             },
             "title": "Mitigators",
             "type": "array"
@@ -719,7 +1161,7 @@
           },
           "downstream_dependents": {
             "items": {
-              "$ref": "#/components/schemas/EffortDTO"
+              "$ref": "#/components/schemas/EffortDTO-Output"
             },
             "title": "Downstream Dependents",
             "type": "array"
@@ -750,7 +1192,7 @@
           },
           "upstream_dependencies": {
             "items": {
-              "$ref": "#/components/schemas/EffortDTO"
+              "$ref": "#/components/schemas/EffortDTO-Output"
             },
             "title": "Upstream Dependencies",
             "type": "array"
@@ -855,6 +1297,59 @@
         ],
         "title": "EffortInterestRelationType",
         "type": "string"
+      },
+      "EffortResourceGapDTO": {
+        "additionalProperties": false,
+        "description": "Unmet resource requirement on an Effort for executive resourcing asks.",
+        "properties": {
+          "allocated_amount": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Allocated Amount",
+            "type": "number"
+          },
+          "category": {
+            "$ref": "#/components/schemas/ResourceCategory"
+          },
+          "required_amount": {
+            "minimum": 0.0,
+            "title": "Required Amount",
+            "type": "number"
+          },
+          "required_skill": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Skill"
+          },
+          "requirement_id": {
+            "title": "Requirement Id",
+            "type": "string"
+          },
+          "shortfall_amount": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Shortfall Amount",
+            "type": "number"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "requirement_id",
+          "category",
+          "required_amount",
+          "unit"
+        ],
+        "title": "EffortResourceGapDTO",
+        "type": "object"
       },
       "EffortState": {
         "description": "Execution lifecycle state for an Effort.",
@@ -1007,7 +1502,7 @@
             "type": "array"
           },
           "effort": {
-            "$ref": "#/components/schemas/EffortDTO",
+            "$ref": "#/components/schemas/EffortDTO-Output",
             "description": "Core Effort entity"
           },
           "exercised_mitigator_count": {
@@ -1417,7 +1912,81 @@
         "title": "InterestKind",
         "type": "string"
       },
-      "MitigatorDTO": {
+      "MitigatorDTO-Input": {
+        "additionalProperties": false,
+        "description": "Actionable mitigation option (exercised or unexercised) offsetting Risk/slip on an Effort.",
+        "properties": {
+          "additional_requirements": {
+            "description": "Additional resource inputs needed to exercise this mitigator",
+            "items": {
+              "$ref": "#/components/schemas/ResourceRequirementDTO"
+            },
+            "title": "Additional Requirements",
+            "type": "array"
+          },
+          "description": {
+            "default": "",
+            "description": "Mitigation rationale and action",
+            "title": "Description",
+            "type": "string"
+          },
+          "effort_id": {
+            "description": "Target Effort ID",
+            "title": "Effort Id",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique mitigator ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_exercised": {
+            "default": false,
+            "description": "True if mitigation option has been committed/exercised",
+            "title": "Is Exercised",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Mitigator action title",
+            "title": "Name",
+            "type": "string"
+          },
+          "risk_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional target Risk ID",
+            "title": "Risk Id"
+          },
+          "risk_reduction_factor": {
+            "default": 0.5,
+            "description": "Fractional risk severity/likelihood reduction (0.0 to 1.0)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Risk Reduction Factor",
+            "type": "number"
+          },
+          "slip_reduction_days": {
+            "default": 0,
+            "description": "Schedule slip days recovered when exercised",
+            "minimum": 0.0,
+            "title": "Slip Reduction Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "effort_id",
+          "name"
+        ],
+        "title": "MitigatorDTO",
+        "type": "object"
+      },
+      "MitigatorDTO-Output": {
         "additionalProperties": false,
         "description": "Actionable mitigation option (exercised or unexercised) offsetting Risk/slip on an Effort.",
         "properties": {
@@ -3138,7 +3707,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/EffortDTO"
+                    "$ref": "#/components/schemas/EffortDTO-Output"
                   },
                   "title": "Response List Efforts",
                   "type": "array"
@@ -3156,7 +3725,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EffortDTO"
+                "$ref": "#/components/schemas/EffortDTO-Input"
               }
             }
           },
@@ -3167,7 +3736,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EffortDTO"
+                  "$ref": "#/components/schemas/EffortDTO-Output"
                 }
               }
             },
@@ -3247,7 +3816,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EffortDTO"
+                  "$ref": "#/components/schemas/EffortDTO-Output"
                 }
               }
             },
@@ -3435,7 +4004,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BijouManifestDTO"
+                  "$ref": "#/components/schemas/BijouManifestDTO-Output"
                 }
               }
             },
@@ -3464,7 +4033,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BijouManifestDTO"
+                "$ref": "#/components/schemas/BijouManifestDTO-Input"
               }
             }
           },
@@ -3508,7 +4077,7 @@
               "schema": {
                 "anyOf": [
                   {
-                    "$ref": "#/components/schemas/BijouManifestDTO"
+                    "$ref": "#/components/schemas/BijouManifestDTO-Input"
                   },
                   {
                     "type": "null"
@@ -4101,6 +4670,67 @@
         "summary": "Commit simulated Bill of Efforts decisions into persistent graph"
       }
     },
+    "/api/v1/snapshot/export": {
+      "get": {
+        "operationId": "export_offline_snapshot",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "as_of_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "As Of Date"
+            }
+          },
+          {
+            "description": "Return raw application/zip binary or base64 JSON envelope for desktop WebView bridges",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "zip",
+              "description": "Return raw application/zip binary or base64 JSON envelope for desktop WebView bridges",
+              "enum": [
+                "zip",
+                "base64"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export offline read-only Bijou snapshot ZIP archive"
+      }
+    },
     "/api/v1/telemetry/events": {
       "post": {
         "operationId": "ingest_telemetry_events",
@@ -4336,6 +4966,132 @@
           }
         },
         "summary": "Generate 1-Slide Executive Organization Briefing"
+      }
+    },
+    "/api/v1/views/briefing/effort": {
+      "get": {
+        "operationId": "get_effort_briefing",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "effort_id",
+            "required": true,
+            "schema": {
+              "title": "Effort Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_hierarchy_inheritance",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Include Hierarchy Inheritance",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "as_of_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "As Of Date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_hops",
+            "required": false,
+            "schema": {
+              "default": 6,
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Max Hops",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-bijou-access-mode",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Bijou-Access-Mode"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-bijou-active-org",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Bijou-Active-Org"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EffortBriefingDTO"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate 1-Slide Effort-Level Briefing with Multi-Hop Linkages & Distant Investors"
       }
     },
     "/api/v1/views/capability-tree": {

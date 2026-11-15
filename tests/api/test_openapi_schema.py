@@ -31,6 +31,8 @@ REQUIRED_V2_PATHS = {
     "/api/v1/views/organizations/{org_id}/focal",
     "/api/v1/views/interests/{interest_id}/focal",
     "/api/v1/views/briefing",
+    "/api/v1/views/briefing/effort",
+    "/api/v1/snapshot/export",
     "/api/v1/manifest/import",
     "/api/v1/manifest/export",
     "/api/v1/manifest/validate",

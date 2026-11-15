@@ -51,6 +51,8 @@
       </div>
       <button class="btn btn-secondary btn-sm" id="btn-global-refresh"
         title="Refresh active graph state">Refresh</button>
+      <button class="btn btn-accent btn-sm" id="btn-export-snapshot"
+        title="Export full offline read-only snapshot as a self-contained ZIP archive">Export Snapshot</button>
     </div>
   </header>
 
@@ -376,6 +378,8 @@
   <!-- TOAST NOTIFICATION AREA -->
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
+  <script src="/static/snapshot_data.js"></script>
+  <script src="/static/offline_adapter.js"></script>
   <script src="/static/api.js"></script>
   <script src="/static/view_a_dag.js"></script>
   <script src="/static/view_b_tripartite.js"></script>

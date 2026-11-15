@@ -11,7 +11,7 @@ from bijou.web.desktop import launch_desktop
 @click.command()
 @click.option(
     "--mode",
-    type=click.Choice(["desktop", "standalone", "api-only", "worker", "web-only"], case_sensitive=False),
+    type=click.Choice(["desktop", "standalone", "api-only", "worker", "web-only", "export-snapshot"], case_sensitive=False),
     default="standalone",
     help="Deployment runtime mode.",
 )
@@ -21,6 +21,12 @@ from bijou.web.desktop import launch_desktop
 @click.option("--duckdb-path", default=None, help="Path to DuckDB telemetry database.")
 @click.option("--aurarouter-url", default=None, help="URL for AuraRouter LLM endpoint.")
 @click.option("--enable-reasoning/--no-reasoning", default=False, help="Enable AI reasoning.")
+@click.option(
+    "--export-snapshot",
+    type=click.Path(dir_okay=False, writable=True),
+    default=None,
+    help="Export an offline read-only Bijou snapshot ZIP archive and exit.",
+)
 def main(
     mode: str,
     host: str | None,
@@ -29,6 +35,7 @@ def main(
     duckdb_path: str | None,
     aurarouter_url: str | None,
     enable_reasoning: bool,
+    export_snapshot: str | None,
 ) -> None:
     """Bijou Multi-Echelon Causal Graph Engine CLI."""
     settings = BijouSettings()
@@ -46,6 +53,28 @@ def main(
         settings.aurarouter_url = aurarouter_url
     if enable_reasoning:
         settings.enable_reasoning = enable_reasoning
+
+    if export_snapshot or settings.mode == "export-snapshot":
+        from bijou.adapters.db import SqlAlchemyGraphRepository
+        from bijou.adapters.telemetry import DuckDbTelemetryStore
+        from bijou.core.engine import InMemoryGraphProjectionEngine
+        from bijou.services import BijouOrchestrationService, export_snapshot_to_file
+
+        repo = SqlAlchemyGraphRepository(db_uri=settings.db_uri)
+        telemetry_store = DuckDbTelemetryStore(db_path=settings.duckdb_path)
+        projection_engine = InMemoryGraphProjectionEngine()
+        orchestrator = BijouOrchestrationService(
+            repository=repo,
+            projection_engine=projection_engine,
+            telemetry_store=telemetry_store,
+            reasoning_broker=None,
+        )
+        orchestrator.initialize()
+
+        target_file = export_snapshot or "bijou_snapshot.zip"
+        out_path = export_snapshot_to_file(orchestrator, target_file)
+        click.echo(f"Exported offline Bijou snapshot to: {out_path} ({out_path.stat().st_size:,} bytes)")
+        return
 
     if settings.mode == "desktop":
         raise SystemExit(launch_desktop(settings))

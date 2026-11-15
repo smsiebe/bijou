@@ -126,6 +126,17 @@ header.app-header {
   border-color: rgba(239, 68, 68, 0.35);
 }
 
+.badge-pill.snapshot {
+  background: rgba(56, 189, 248, 0.16);
+  color: var(--accent-cyan);
+  border-color: rgba(56, 189, 248, 0.45);
+}
+
+body.bijou-snapshot-mode #btn-export-snapshot,
+body.bijou-snapshot-mode #st-export-snapshot-btn {
+  display: none;
+}
+
 nav.lens-bar {
   display: flex;
   gap: 6px;

@@ -807,6 +807,9 @@
                 <button class="btn btn-secondary btn-sm" id="st-manifest-import-merge">Import Merge</button>
                 <button class="btn btn-danger-outline btn-sm" id="st-manifest-import-replace">Import Replace-All</button>
               </div>
+              <div class="mt-2">
+                <button class="btn btn-accent btn-sm full-width" id="st-export-snapshot-btn">Export Offline Snapshot (.zip)</button>
+              </div>
             </div>
           </div>
         `;
@@ -825,6 +828,20 @@
 
         document.getElementById("st-manifest-import-merge")?.addEventListener("click", () => doImport(false));
         document.getElementById("st-manifest-import-replace")?.addEventListener("click", () => doImport(true));
+        document.getElementById("st-export-snapshot-btn")?.addEventListener("click", async () => {
+          if (global.__BIJOU_SNAPSHOT_ACTIVE__ || global.__BIJOU_SNAPSHOT__) {
+            this.notify?.("Already viewing an offline snapshot archive.", "info");
+            return;
+          }
+          this.notify?.("Generating offline snapshot ZIP archive...", "info");
+          try {
+            const asOf = document.getElementById("as-of-date-input")?.value || undefined;
+            const res = await global.BijouApi.downloadSnapshot(asOf);
+            this.notify?.(`Downloaded offline snapshot (${res.filename}).`, "success");
+          } catch (err) {
+            this.notify?.(`Snapshot export failed: ${err.message}`, "error");
+          }
+        });
       } catch (err) {
         this.bodyEl.innerHTML = `<div class="hint-banner warn">${escapeHtml(err.message)}</div>`;
       }

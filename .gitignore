@@ -85,3 +85,7 @@ prompts/
 /prompts/
 *_bundle.txt
 *.bundle
+
+# Local SQLite and DuckDB databases
+*.db
+*.duckdb

@@ -183,6 +183,75 @@
     return node.forecast_end || node.forecast_start || "Scheduled";
   }
 
+  async function downloadSnapshot(asOfDate) {
+    if (global.__BIJOU_SNAPSHOT_ACTIVE__ || global.__BIJOU_SNAPSHOT__) {
+      const err = new Error("Already viewing an offline snapshot archive.");
+      err.status = 403;
+      throw err;
+    }
+
+    const params = asOfDate ? { as_of_date: String(asOfDate) } : {};
+    const useBridge = Boolean(
+      customTransport ||
+        typeof global.__BIJOU_BRIDGE__ === "function" ||
+        global.__BIJOU_DESKTOP_MODE__ ||
+        global.pywebview?.api?.dispatch
+    );
+
+    let blob;
+    let filename = `bijou_snapshot_${asOfDate || new Date().toISOString().slice(0, 10)}.zip`;
+
+    if (useBridge) {
+      const payload = await request("GET", "/api/v1/snapshot/export", null, {
+        ...params,
+        format: "base64",
+      });
+      if (payload?.filename) filename = payload.filename;
+      const binStr = global.atob(payload?.content_base64 || "");
+      const bytes = new Uint8Array(binStr.length);
+      for (let i = 0; i < binStr.length; i++) {
+        bytes[i] = binStr.charCodeAt(i);
+      }
+      blob = new Blob([bytes], { type: payload?.media_type || "application/zip" });
+    } else {
+      const sp = new URLSearchParams();
+      if (asOfDate) sp.set("as_of_date", String(asOfDate));
+      const qs = sp.toString();
+      const url = `/api/v1/snapshot/export${qs ? `?${qs}` : ""}`;
+      const resp = await fetch(url);
+      if (!resp.ok) {
+        let detail = `HTTP ${resp.status}`;
+        try {
+          const j = await resp.json();
+          if (j && j.detail !== undefined) {
+            detail = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+          }
+        } catch (_) {}
+        const err = new Error(detail);
+        err.status = resp.status;
+        throw err;
+      }
+      const cd = resp.headers.get("content-disposition") || "";
+      const fnMatch = cd.match(/filename="?([^";]+)"?/i);
+      if (fnMatch && fnMatch[1]) filename = fnMatch[1];
+      blob = await resp.blob();
+    }
+
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = filename;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      link.remove();
+      URL.revokeObjectURL(blobUrl);
+    }, 1000);
+
+    return { filename, sizeBytes: blob.size };
+  }
+
   const BijouApi = {
     setPerspective,
     getPerspective,
@@ -193,6 +262,7 @@
 
     health: () => request("GET", "/api/v1/health"),
     getPerspectiveState: () => request("GET", "/api/v1/perspective"),
+    downloadSnapshot,
 
     // Primary Graph Projections & Simulation
     getCapabilityTree: (params) => request("GET", "/api/v1/views/capability-tree", null, params),
@@ -209,6 +279,7 @@
 
     // Entities CRUD
     listOrganizations: () => request("GET", "/api/v1/organizations"),
+    getOrganization: (id) => request("GET", `/api/v1/organizations/${encodeURIComponent(id)}`),
     upsertOrganization: (org) => request("POST", "/api/v1/organizations", org),
     deleteOrganization: (id) => request("DELETE", `/api/v1/organizations/${encodeURIComponent(id)}`),
 
@@ -217,10 +288,12 @@
     deleteResourcePool: (id) => request("DELETE", `/api/v1/resource-pools/${encodeURIComponent(id)}`),
 
     listInterests: () => request("GET", "/api/v1/interests"),
+    getInterest: (id) => request("GET", `/api/v1/interests/${encodeURIComponent(id)}`),
     upsertInterest: (interest) => request("POST", "/api/v1/interests", interest),
     deleteInterest: (id) => request("DELETE", `/api/v1/interests/${encodeURIComponent(id)}`),
 
     listEfforts: () => request("GET", "/api/v1/efforts"),
+    getEffort: (id) => request("GET", `/api/v1/efforts/${encodeURIComponent(id)}`),
     upsertEffort: (effort) => request("POST", "/api/v1/efforts", effort),
     deleteEffort: (id) => request("DELETE", `/api/v1/efforts/${encodeURIComponent(id)}`),
 
@@ -240,6 +313,7 @@
     importManifest: (manifest, replaceAll) =>
       request("POST", "/api/v1/manifest/import", manifest, { replace_all: Boolean(replaceAll) }),
     listDecisions: (effortId) => request("GET", "/api/v1/decisions", null, effortId ? { target_effort_id: effortId } : null),
+    listTools: () => request("GET", "/api/v1/tools"),
   };
 
   global.BijouApi = BijouApi;

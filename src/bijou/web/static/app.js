@@ -418,14 +418,21 @@
   async function refreshAllData() {
     const healthBadge = document.getElementById("engine-health-badge");
     try {
-      await global.BijouApi.health();
+      const h = await global.BijouApi.health();
       if (healthBadge) {
-        healthBadge.textContent = "ENGINE ONLINE";
-        healthBadge.classList.remove("warn");
+        if (h?.engine?.includes("snapshot") || global.__BIJOU_SNAPSHOT_ACTIVE__) {
+          healthBadge.textContent = "SNAPSHOT (OFFLINE)";
+          healthBadge.classList.remove("warn");
+          healthBadge.classList.add("snapshot");
+        } else {
+          healthBadge.textContent = "ENGINE ONLINE";
+          healthBadge.classList.remove("warn", "snapshot");
+        }
       }
     } catch (_) {
       if (healthBadge) {
         healthBadge.textContent = "ENGINE OFFLINE";
+        healthBadge.classList.remove("snapshot");
         healthBadge.classList.add("warn");
       }
     }
@@ -694,6 +701,19 @@
     });
 
     document.getElementById("btn-global-refresh")?.addEventListener("click", () => refreshAllData());
+    document.getElementById("btn-export-snapshot")?.addEventListener("click", async () => {
+      if (global.__BIJOU_SNAPSHOT_ACTIVE__ || global.__BIJOU_SNAPSHOT__) {
+        notify("Already viewing an offline snapshot archive.", "info");
+        return;
+      }
+      notify("Preparing offline snapshot ZIP download...", "info");
+      try {
+        const res = await global.BijouApi.downloadSnapshot(state.asOfDate || undefined);
+        notify(`Downloaded offline snapshot (${res.filename}).`, "success");
+      } catch (err) {
+        notify(`Snapshot export failed: ${err.message}`, "error");
+      }
+    });
 
     // Wire View Overlays
     document.getElementById("view-a-org-filter")?.addEventListener("change", (ev) => {

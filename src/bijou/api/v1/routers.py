@@ -1,9 +1,11 @@
 """FastAPI v1 REST API route definitions for Bijou v2 ontology & A/B/C workspace views."""
 
+import base64
+import json
 from datetime import date
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from bijou.api.deps import get_access_context, get_orchestrator
 from bijou.core.contracts.enums import ConfidenceLevel
@@ -521,6 +523,49 @@ def get_effort_briefing(
 
 
 # --- Manifest Interchange & Diagnostics ---
+@v1_router.get(
+    "/snapshot/export",
+    status_code=status.HTTP_200_OK,
+    summary="Export offline read-only Bijou snapshot ZIP archive",
+    operation_id="export_offline_snapshot",
+)
+def export_offline_snapshot(
+    orchestrator: OrchestratorDep,
+    as_of_date: date | None = Query(default=None),
+    format: Literal["zip", "base64"] = Query(
+        default="zip",
+        description="Return raw application/zip binary or base64 JSON envelope for desktop WebView bridges",
+    ),
+) -> Response:
+    from bijou.services.snapshot import build_snapshot_zip_bytes
+
+    zip_bytes = build_snapshot_zip_bytes(orchestrator, as_of_date=as_of_date)
+    file_date = (as_of_date or date.today()).isoformat()
+    filename = f"bijou_snapshot_{file_date}.zip"
+
+    if format == "base64":
+        payload = {
+            "filename": filename,
+            "media_type": "application/zip",
+            "size_bytes": len(zip_bytes),
+            "content_base64": base64.b64encode(zip_bytes).decode("ascii"),
+        }
+        return Response(
+            content=json.dumps(payload),
+            media_type="application/json",
+            headers={"Cache-Control": "no-cache"},
+        )
+
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-cache",
+        },
+    )
+
+
 @v1_router.get(
     "/manifest/export",
     response_model=BijouManifestDTO,
