@@ -3,6 +3,8 @@
   "name": "Bijou - Strategic Capability & Investment Orchestration Engine",
   "version": "2.0.0",
   "description": "Organizations, Interests DAG, Stateful Efforts & Bill of Efforts Portfolio Engine with Integrated Python SDK and Offline Web UI",
+  "websiteUrl": "https://auracoredynamics.com/aurasprout/catalog/",
+  "repositoryUrl": "https://github.com/smsiebe/bijou.git",
   "services": [
     {
       "masId": "bijou-web",
