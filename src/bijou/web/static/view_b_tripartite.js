@@ -18,6 +18,7 @@
     showIndirect = true,
     showPartners = true,
     focusNodeKey = null,
+    filterHops = "all",
     impactedIds = [],
     onSelectEntity,
   }) {
@@ -41,20 +42,49 @@
     const partnerships = triView.shared_interest_partnerships || [];
 
     if (focusNodeKey) {
-      const fSet = new Set([focusNodeKey]);
-      const addNb = (a, b) => {
-        if (a === focusNodeKey) fSet.add(b);
-        if (b === focusNodeKey) fSet.add(a);
+      const maxHops =
+        filterHops === "all" || filterHops === undefined || filterHops === null || filterHops === ""
+          ? Infinity
+          : Math.max(1, parseInt(filterHops, 10) || 1);
+
+      const adj = new Map();
+      const addLink = (a, b) => {
+        if (!adj.has(a)) adj.set(a, new Set());
+        if (!adj.has(b)) adj.set(b, new Set());
+        adj.get(a).add(b);
+        adj.get(b).add(a);
       };
-      (tree.org_effort_edges || []).forEach((e) => addNb(`org:${e.org_id}`, `effort:${e.effort_id}`));
-      (tree.effort_interest_edges || []).forEach((e) => addNb(`effort:${e.effort_id}`, `interest:${e.interest_id}`));
-      (tree.org_interest_edges || []).forEach((e) => addNb(`org:${e.org_id}`, `interest:${e.interest_id}`));
-      (tree.effort_edges || tree.effort_effort_edges || []).forEach((e) => addNb(`effort:${e.source_effort_id}`, `effort:${e.target_effort_id}`));
-      (tree.org_org_edges || []).forEach((e) => addNb(`org:${e.source_org_id}`, `org:${e.target_org_id}`));
-      (tree.interest_interest_edges || []).forEach((e) => addNb(`interest:${e.parent_interest_id}`, `interest:${e.child_interest_id}`));
+
+      (tree.org_effort_edges || []).forEach((e) => addLink(`org:${e.org_id}`, `effort:${e.effort_id}`));
+      (tree.effort_interest_edges || []).forEach((e) => addLink(`effort:${e.effort_id}`, `interest:${e.interest_id}`));
+      (tree.org_interest_edges || []).forEach((e) => addLink(`org:${e.org_id}`, `interest:${e.interest_id}`));
+      (tree.effort_edges || tree.effort_effort_edges || []).forEach((e) => addLink(`effort:${e.source_effort_id}`, `effort:${e.target_effort_id}`));
+      (tree.org_org_edges || []).forEach((e) => addLink(`org:${e.source_org_id}`, `org:${e.target_org_id}`));
+      (tree.interest_interest_edges || []).forEach((e) => addLink(`interest:${e.parent_interest_id}`, `interest:${e.child_interest_id}`));
       if (showIndirect) {
-        indirectBenefits.forEach((b) => addNb(`org:${b.beneficiary_org_id}`, `interest:${b.via_interest_id}`));
+        indirectBenefits.forEach((b) => addLink(`org:${b.beneficiary_org_id}`, `interest:${b.via_interest_id}`));
       }
+
+      const fSet = new Set([focusNodeKey]);
+      let frontier = new Set([focusNodeKey]);
+      let currentHop = 0;
+      while (frontier.size > 0 && currentHop < maxHops) {
+        const nextFrontier = new Set();
+        frontier.forEach((nodeKey) => {
+          const neighbors = adj.get(nodeKey);
+          if (neighbors) {
+            neighbors.forEach((nb) => {
+              if (!fSet.has(nb)) {
+                fSet.add(nb);
+                nextFrontier.add(nb);
+              }
+            });
+          }
+        });
+        frontier = nextFrontier;
+        currentHop += 1;
+      }
+
       orgs = orgs.filter((o) => fSet.has(`org:${o.id}`));
       efforts = efforts.filter((n) => fSet.has(`effort:${n.effort.id}`));
       interests = interests.filter((i) => fSet.has(`interest:${i.id}`));

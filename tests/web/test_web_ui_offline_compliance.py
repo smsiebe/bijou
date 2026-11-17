@@ -51,6 +51,7 @@ def test_web_root_serves_v2_shell_and_assets() -> None:
     assert 'id="puck-backdrop"' in body
     assert 'id="perspective-select"' in body
     assert 'id="pedigree-select"' in body
+    assert 'id="neural-hops-select"' in body
     assert 'id="briefing-scope-select"' in body
     assert 'id="briefing-effort-select"' in body
     assert 'id="briefing-template-select"' in body
@@ -97,7 +98,7 @@ def test_wheel_bundle_includes_web_ui_and_sdk(tmp_path: Path, monkeypatch) -> No
     root_dir = Path(__file__).parent.parent.parent
     monkeypatch.chdir(root_dir)
     whl_name = _build_meta.build_wheel(str(tmp_path))
-    assert whl_name.startswith("bijou_portfolio-2.0.0-")
+    assert whl_name.startswith("bijou_portfolio-2.0.1-")
     whl_path = tmp_path / whl_name
     assert whl_path.exists()
 

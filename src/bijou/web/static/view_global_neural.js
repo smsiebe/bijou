@@ -289,6 +289,7 @@
     filterOrgIds = [],
     filterInterestIds = [],
     focusNodeKey = null,
+    filterHops = "all",
     impactedIds = [],
     zoom = 1.0,
     onSelectEntity,
@@ -433,35 +434,53 @@
       );
     }
 
-    // Apply Focus Node + Org/Interest filters + Layer Visibility toggles
+    // Apply Focus Node + Org/Interest filters + Layer Visibility toggles with multi-hop BFS
+    const maxHops =
+      filterHops === "all" || filterHops === undefined || filterHops === null || filterHops === ""
+        ? Infinity
+        : Math.max(1, parseInt(filterHops, 10) || 1);
+
+    function computeReachableKeys(seeds, limitHops) {
+      const visited = new Set(seeds);
+      let frontier = new Set(seeds);
+      let currentHop = 0;
+      while (frontier.size > 0 && currentHop < limitHops) {
+        const nextFrontier = new Set();
+        frontier.forEach((nodeKey) => {
+          const neighbors = fullConnIndex.get(nodeKey);
+          if (neighbors) {
+            neighbors.forEach((nb) => {
+              if (!visited.has(nb)) {
+                visited.add(nb);
+                nextFrontier.add(nb);
+              }
+            });
+          }
+        });
+        frontier = nextFrontier;
+        currentHop += 1;
+      }
+      return visited;
+    }
+
     let allowedKeys = new Set(allItems.map((it) => it.key));
 
     if (focusNodeKey && allItems.some((it) => it.key === focusNodeKey)) {
-      const fSet = new Set([focusNodeKey]);
-      (fullConnIndex.get(focusNodeKey) || new Set()).forEach((nb) => fSet.add(nb));
-      allowedKeys = fSet;
+      allowedKeys = computeReachableKeys([focusNodeKey], maxHops);
     }
 
     const orgF = (filterOrgIds || []).filter(Boolean);
     const intrF = (filterInterestIds || []).filter(Boolean);
 
     if (orgF.length > 0) {
-      const orgReach = new Set();
-      orgF.forEach((oid) => {
-        const k = `org:${oid}`;
-        orgReach.add(k);
-        (fullConnIndex.get(k) || new Set()).forEach((nb) => orgReach.add(nb));
-      });
+      const orgSeeds = orgF.map((oid) => `org:${oid}`);
+      const orgReach = computeReachableKeys(orgSeeds, maxHops);
       allowedKeys = new Set([...allowedKeys].filter((k) => orgReach.has(k)));
     }
 
     if (intrF.length > 0) {
-      const intrReach = new Set();
-      intrF.forEach((iid) => {
-        const k = `interest:${iid}`;
-        intrReach.add(k);
-        (fullConnIndex.get(k) || new Set()).forEach((nb) => intrReach.add(nb));
-      });
+      const intrSeeds = intrF.map((iid) => `interest:${iid}`);
+      const intrReach = computeReachableKeys(intrSeeds, maxHops);
       allowedKeys = new Set([...allowedKeys].filter((k) => intrReach.has(k)));
     }
 

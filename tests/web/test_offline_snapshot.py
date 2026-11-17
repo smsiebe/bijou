@@ -227,7 +227,7 @@ def test_build_snapshot_data(tmp_path: Path) -> None:
     svc = _create_seeded_orchestrator(tmp_path)
     data = build_snapshot_data(svc, as_of_date=date(2026, 5, 1))
 
-    assert data["meta"]["version"] == "2.0.0"
+    assert data["meta"]["version"] == "2.0.1"
     assert data["meta"]["read_only"] is True
     assert data["meta"]["as_of_date"] == "2026-05-01"
 

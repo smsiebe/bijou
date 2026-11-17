@@ -118,6 +118,15 @@
               <button type="button" class="btn btn-secondary btn-xs" id="btn-neural-intr-filter">Interests: All ▾</button>
               <div class="filter-popover-menu hidden" id="neural-intr-filter-menu"></div>
             </div>
+            <div class="control-chip hops-chip" title="Graph exploration depth from selected or focused entities">
+              <label for="neural-hops-select">Hops</label>
+              <select id="neural-hops-select">
+                <option value="1">1-Hop (Direct)</option>
+                <option value="2">2-Hops</option>
+                <option value="3">3-Hops</option>
+                <option value="all">Full Reach (All)</option>
+              </select>
+            </div>
             <label class="toggle-chip">
               <input type="checkbox" id="view-neural-show-structural" checked />
               <span>Org &amp; Taxonomy Links</span>

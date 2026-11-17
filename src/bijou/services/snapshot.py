@@ -84,7 +84,7 @@ def build_snapshot_data(
             pass
 
     meta = {
-        "version": "2.0.0",
+        "version": "2.0.1",
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "as_of_date": eff_date.isoformat(),
         "read_only": True,

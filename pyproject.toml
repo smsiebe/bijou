@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bijou-portfolio"
-version = "2.0.0"
+version = "2.0.1"
 description = "Multi-Echelon Impact & Causal Graph Engine with Air-Gapped Web UI & Python SDK"
 readme = "README.md"
 authors = [

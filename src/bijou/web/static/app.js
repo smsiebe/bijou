@@ -26,6 +26,7 @@
     neuralShowInterests: true,
     neuralFilterOrgIds: [],
     neuralFilterInterestIds: [],
+    neuralFilterHops: "1",
     focusNodeKey: null,
     focusLabel: "",
     zoom: 1.0,
@@ -78,6 +79,7 @@
       neuralShowInterests: state.neuralShowInterests,
       neuralFilterOrgIds: [...state.neuralFilterOrgIds],
       neuralFilterInterestIds: [...state.neuralFilterInterestIds],
+      neuralFilterHops: state.neuralFilterHops,
     };
   }
 
@@ -89,6 +91,7 @@
       a.neuralShowOrgs === b.neuralShowOrgs &&
       a.neuralShowEfforts === b.neuralShowEfforts &&
       a.neuralShowInterests === b.neuralShowInterests &&
+      a.neuralFilterHops === b.neuralFilterHops &&
       a.neuralFilterOrgIds.length === b.neuralFilterOrgIds.length &&
       a.neuralFilterOrgIds.every((v, i) => v === b.neuralFilterOrgIds[i]) &&
       a.neuralFilterInterestIds.length === b.neuralFilterInterestIds.length &&
@@ -103,6 +106,7 @@
         !state.neuralShowOrgs ||
         !state.neuralShowEfforts ||
         !state.neuralShowInterests ||
+        (state.neuralFilterHops !== "all" && (state.focusNodeKey || state.neuralFilterOrgIds.length > 0 || state.neuralFilterInterestIds.length > 0)) ||
         state.neuralFilterOrgIds.length > 0 ||
         state.neuralFilterInterestIds.length > 0
     );
@@ -152,6 +156,11 @@
         state.neuralFilterInterestIds.length > 0
           ? `Interests (${state.neuralFilterInterestIds.length}) ▾`
           : "Interests: All ▾";
+    }
+
+    const hopsSel = document.getElementById("neural-hops-select");
+    if (hopsSel) {
+      hopsSel.value = state.neuralFilterHops || "1";
     }
   }
 
@@ -220,8 +229,9 @@
     state.neuralShowOrgs = snap.neuralShowOrgs;
     state.neuralShowEfforts = snap.neuralShowEfforts;
     state.neuralShowInterests = snap.neuralShowInterests;
-    state.neuralFilterOrgIds = [...snap.neuralFilterOrgIds];
-    state.neuralFilterInterestIds = [...snap.neuralFilterInterestIds];
+    state.neuralFilterOrgIds = snap.neuralFilterOrgIds ? [...snap.neuralFilterOrgIds] : [];
+    state.neuralFilterInterestIds = snap.neuralFilterInterestIds ? [...snap.neuralFilterInterestIds] : [];
+    state.neuralFilterHops = snap.neuralFilterHops || "1";
 
     syncFilterControlsFromState();
     renderBreadcrumbBar();
@@ -248,6 +258,7 @@
     state.neuralShowInterests = true;
     state.neuralFilterOrgIds = [];
     state.neuralFilterInterestIds = [];
+    state.neuralFilterHops = "1";
 
     filterHistory = [{ label: "Full Graph", snapshot: captureFilterSnapshot() }];
     historyIndex = 0;
@@ -374,6 +385,7 @@
         showIndirect: state.showIndirect,
         showPartners: state.showPartners,
         focusNodeKey: state.focusNodeKey,
+        filterHops: state.neuralFilterHops,
         impactedIds,
         onSelectEntity: (kind, id) => puckController.open(kind, id, buildViewParams()),
       });
@@ -394,6 +406,7 @@
         filterOrgIds: state.neuralFilterOrgIds,
         filterInterestIds: state.neuralFilterInterestIds,
         focusNodeKey: state.focusNodeKey,
+        filterHops: state.neuralFilterHops,
         impactedIds,
         zoom: state.zoom,
         onSelectEntity: (kind, id) => puckController.open(kind, id, buildViewParams()),
@@ -409,6 +422,7 @@
         worldEl,
         clusterBy: state.clusterBy,
         focusNodeKey: state.focusNodeKey,
+        filterHops: state.neuralFilterHops,
         impactedIds,
         onSelectEffort: (effortId) => puckController.open("effort", effortId, buildViewParams()),
       });
@@ -763,6 +777,16 @@
 
     document.getElementById("view-neural-show-indirect")?.addEventListener("change", (ev) => {
       state.neuralShowIndirect = Boolean(ev.target.checked);
+      renderCanvasStage();
+    });
+
+    document.getElementById("neural-hops-select")?.addEventListener("change", (ev) => {
+      state.neuralFilterHops = ev.target.value;
+      const hopLabel =
+        state.neuralFilterHops === "all"
+          ? "Hops: All"
+          : `${state.neuralFilterHops}-Hop${state.neuralFilterHops === "1" ? "" : "s"}`;
+      pushFilterHistory(hopLabel);
       renderCanvasStage();
     });
 

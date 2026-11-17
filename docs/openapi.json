@@ -51,7 +51,7 @@
         "title": "AccumulatorPattern",
         "type": "string"
       },
-      "BijouManifestDTO-Input": {
+      "BijouManifestDTO": {
         "additionalProperties": false,
         "description": "Point-in-time manifest representing the complete Bijou v2 entity and relationship graph.",
         "properties": {
@@ -74,108 +74,7 @@
           "efforts": {
             "description": "Capability efforts & programs",
             "items": {
-              "$ref": "#/components/schemas/EffortDTO-Input"
-            },
-            "title": "Efforts",
-            "type": "array"
-          },
-          "exported_at": {
-            "description": "Manifest export timestamp",
-            "format": "date-time",
-            "title": "Exported At",
-            "type": "string"
-          },
-          "interest_interest_edges": {
-            "description": "Interest taxonomy hierarchy DAG",
-            "items": {
-              "$ref": "#/components/schemas/InterestInterestEdgeDTO"
-            },
-            "title": "Interest Interest Edges",
-            "type": "array"
-          },
-          "interests": {
-            "description": "Strategic interests & concepts",
-            "items": {
-              "$ref": "#/components/schemas/InterestDTO"
-            },
-            "title": "Interests",
-            "type": "array"
-          },
-          "org_effort_edges": {
-            "description": "Org-to-Effort direct resourcing",
-            "items": {
-              "$ref": "#/components/schemas/OrgEffortEdgeDTO"
-            },
-            "title": "Org Effort Edges",
-            "type": "array"
-          },
-          "org_interest_edges": {
-            "description": "Org-to-Interest stances & priorities",
-            "items": {
-              "$ref": "#/components/schemas/OrgInterestEdgeDTO"
-            },
-            "title": "Org Interest Edges",
-            "type": "array"
-          },
-          "org_org_edges": {
-            "description": "Org-to-Org relationships",
-            "items": {
-              "$ref": "#/components/schemas/OrgOrgEdgeDTO"
-            },
-            "title": "Org Org Edges",
-            "type": "array"
-          },
-          "organizations": {
-            "description": "Organizations",
-            "items": {
-              "$ref": "#/components/schemas/OrganizationDTO"
-            },
-            "title": "Organizations",
-            "type": "array"
-          },
-          "resource_pools": {
-            "description": "Organization resource pools",
-            "items": {
-              "$ref": "#/components/schemas/ResourcePoolDTO"
-            },
-            "title": "Resource Pools",
-            "type": "array"
-          },
-          "schema_version": {
-            "const": "2.0.0",
-            "default": "2.0.0",
-            "description": "Manifest schema version",
-            "title": "Schema Version",
-            "type": "string"
-          }
-        },
-        "title": "BijouManifestDTO",
-        "type": "object"
-      },
-      "BijouManifestDTO-Output": {
-        "additionalProperties": false,
-        "description": "Point-in-time manifest representing the complete Bijou v2 entity and relationship graph.",
-        "properties": {
-          "effort_effort_edges": {
-            "description": "Effort-to-Effort causal dependencies",
-            "items": {
-              "$ref": "#/components/schemas/EffortEffortEdgeDTO"
-            },
-            "title": "Effort Effort Edges",
-            "type": "array"
-          },
-          "effort_interest_edges": {
-            "description": "Effort-to-Interest alignments",
-            "items": {
-              "$ref": "#/components/schemas/EffortInterestEdgeDTO"
-            },
-            "title": "Effort Interest Edges",
-            "type": "array"
-          },
-          "efforts": {
-            "description": "Capability efforts & programs",
-            "items": {
-              "$ref": "#/components/schemas/EffortDTO-Output"
+              "$ref": "#/components/schemas/EffortDTO"
             },
             "title": "Efforts",
             "type": "array"
@@ -786,7 +685,7 @@
           },
           "exercised_mitigators": {
             "items": {
-              "$ref": "#/components/schemas/MitigatorDTO-Output"
+              "$ref": "#/components/schemas/MitigatorDTO"
             },
             "title": "Exercised Mitigators",
             "type": "array"
@@ -845,7 +744,7 @@
           },
           "unexercised_mitigators": {
             "items": {
-              "$ref": "#/components/schemas/MitigatorDTO-Output"
+              "$ref": "#/components/schemas/MitigatorDTO"
             },
             "title": "Unexercised Mitigators",
             "type": "array"
@@ -866,7 +765,7 @@
         "title": "EffortBriefingDTO",
         "type": "object"
       },
-      "EffortDTO-Input": {
+      "EffortDTO": {
         "additionalProperties": false,
         "description": "Work item, capability program, or discovery activity inside the progression tree.",
         "properties": {
@@ -910,103 +809,7 @@
           "mitigators": {
             "description": "Available or exercised mitigation options",
             "items": {
-              "$ref": "#/components/schemas/MitigatorDTO-Input"
-            },
-            "title": "Mitigators",
-            "type": "array"
-          },
-          "name": {
-            "description": "Effort display title",
-            "title": "Name",
-            "type": "string"
-          },
-          "resource_requirements": {
-            "description": "Required resources (personnel, compute, money, material)",
-            "items": {
-              "$ref": "#/components/schemas/ResourceRequirementDTO"
-            },
-            "title": "Resource Requirements",
-            "type": "array"
-          },
-          "risks": {
-            "description": "Known delivery risks",
-            "items": {
-              "$ref": "#/components/schemas/RiskDTO"
-            },
-            "title": "Risks",
-            "type": "array"
-          },
-          "start_date": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Explicit start date if known",
-            "title": "Start Date"
-          },
-          "state": {
-            "$ref": "#/components/schemas/EffortState",
-            "default": "PLANNED",
-            "description": "Execution state"
-          }
-        },
-        "required": [
-          "id",
-          "name"
-        ],
-        "title": "EffortDTO",
-        "type": "object"
-      },
-      "EffortDTO-Output": {
-        "additionalProperties": false,
-        "description": "Work item, capability program, or discovery activity inside the progression tree.",
-        "properties": {
-          "description": {
-            "default": "",
-            "description": "Scope and deliverable summary",
-            "title": "Description",
-            "type": "string"
-          },
-          "end_date": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Explicit end date if known",
-            "title": "End Date"
-          },
-          "estimated_duration_days": {
-            "anyOf": [
-              {
-                "minimum": 1.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Relative duration in days when explicit dates are unavailable",
-            "title": "Estimated Duration Days"
-          },
-          "id": {
-            "description": "Unique effort identifier",
-            "title": "Id",
-            "type": "string"
-          },
-          "mitigators": {
-            "description": "Available or exercised mitigation options",
-            "items": {
-              "$ref": "#/components/schemas/MitigatorDTO-Output"
+              "$ref": "#/components/schemas/MitigatorDTO"
             },
             "title": "Mitigators",
             "type": "array"
@@ -1161,7 +964,7 @@
           },
           "downstream_dependents": {
             "items": {
-              "$ref": "#/components/schemas/EffortDTO-Output"
+              "$ref": "#/components/schemas/EffortDTO"
             },
             "title": "Downstream Dependents",
             "type": "array"
@@ -1192,7 +995,7 @@
           },
           "upstream_dependencies": {
             "items": {
-              "$ref": "#/components/schemas/EffortDTO-Output"
+              "$ref": "#/components/schemas/EffortDTO"
             },
             "title": "Upstream Dependencies",
             "type": "array"
@@ -1502,7 +1305,7 @@
             "type": "array"
           },
           "effort": {
-            "$ref": "#/components/schemas/EffortDTO-Output",
+            "$ref": "#/components/schemas/EffortDTO",
             "description": "Core Effort entity"
           },
           "exercised_mitigator_count": {
@@ -1912,81 +1715,7 @@
         "title": "InterestKind",
         "type": "string"
       },
-      "MitigatorDTO-Input": {
-        "additionalProperties": false,
-        "description": "Actionable mitigation option (exercised or unexercised) offsetting Risk/slip on an Effort.",
-        "properties": {
-          "additional_requirements": {
-            "description": "Additional resource inputs needed to exercise this mitigator",
-            "items": {
-              "$ref": "#/components/schemas/ResourceRequirementDTO"
-            },
-            "title": "Additional Requirements",
-            "type": "array"
-          },
-          "description": {
-            "default": "",
-            "description": "Mitigation rationale and action",
-            "title": "Description",
-            "type": "string"
-          },
-          "effort_id": {
-            "description": "Target Effort ID",
-            "title": "Effort Id",
-            "type": "string"
-          },
-          "id": {
-            "description": "Unique mitigator ID",
-            "title": "Id",
-            "type": "string"
-          },
-          "is_exercised": {
-            "default": false,
-            "description": "True if mitigation option has been committed/exercised",
-            "title": "Is Exercised",
-            "type": "boolean"
-          },
-          "name": {
-            "description": "Mitigator action title",
-            "title": "Name",
-            "type": "string"
-          },
-          "risk_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional target Risk ID",
-            "title": "Risk Id"
-          },
-          "risk_reduction_factor": {
-            "default": 0.5,
-            "description": "Fractional risk severity/likelihood reduction (0.0 to 1.0)",
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Risk Reduction Factor",
-            "type": "number"
-          },
-          "slip_reduction_days": {
-            "default": 0,
-            "description": "Schedule slip days recovered when exercised",
-            "minimum": 0.0,
-            "title": "Slip Reduction Days",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "effort_id",
-          "name"
-        ],
-        "title": "MitigatorDTO",
-        "type": "object"
-      },
-      "MitigatorDTO-Output": {
+      "MitigatorDTO": {
         "additionalProperties": false,
         "description": "Actionable mitigation option (exercised or unexercised) offsetting Risk/slip on an Effort.",
         "properties": {
@@ -3262,7 +2991,7 @@
   "info": {
     "description": "Offline-capable organizational interest, effort dependency, and resource portfolio engine.",
     "title": "Bijou Strategic Orchestration API",
-    "version": "2.0.0"
+    "version": "2.0.1"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -3707,7 +3436,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/EffortDTO-Output"
+                    "$ref": "#/components/schemas/EffortDTO"
                   },
                   "title": "Response List Efforts",
                   "type": "array"
@@ -3725,7 +3454,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EffortDTO-Input"
+                "$ref": "#/components/schemas/EffortDTO"
               }
             }
           },
@@ -3736,7 +3465,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EffortDTO-Output"
+                  "$ref": "#/components/schemas/EffortDTO"
                 }
               }
             },
@@ -3816,7 +3545,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EffortDTO-Output"
+                  "$ref": "#/components/schemas/EffortDTO"
                 }
               }
             },
@@ -4004,7 +3733,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BijouManifestDTO-Output"
+                  "$ref": "#/components/schemas/BijouManifestDTO"
                 }
               }
             },
@@ -4033,7 +3762,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BijouManifestDTO-Input"
+                "$ref": "#/components/schemas/BijouManifestDTO"
               }
             }
           },
@@ -4077,7 +3806,7 @@
               "schema": {
                 "anyOf": [
                   {
-                    "$ref": "#/components/schemas/BijouManifestDTO-Input"
+                    "$ref": "#/components/schemas/BijouManifestDTO"
                   },
                   {
                     "type": "null"

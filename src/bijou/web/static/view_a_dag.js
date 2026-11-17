@@ -26,6 +26,7 @@
     clusterBy = "state",
     impactedIds = [],
     focusNodeKey = null,
+    filterHops = "all",
     onSelectEffort,
   }) {
     const { escapeHtml, fmtUsd, fmtForecast } = global.BijouApi;
@@ -38,11 +39,39 @@
     if (focusNodeKey && focusNodeKey.startsWith("effort:")) {
       const targetEid = focusNodeKey.slice(7);
       if (nodes.some((n) => n.effort.id === targetEid)) {
-        const keepEffs = new Set([targetEid]);
-        edges.forEach((edge) => {
-          if (edge.source_effort_id === targetEid) keepEffs.add(edge.target_effort_id);
-          if (edge.target_effort_id === targetEid) keepEffs.add(edge.source_effort_id);
+        const maxHops =
+          filterHops === "all" || filterHops === undefined || filterHops === null || filterHops === ""
+            ? Infinity
+            : Math.max(1, parseInt(filterHops, 10) || 1);
+
+        const adj = new Map();
+        edges.forEach((e) => {
+          if (!adj.has(e.source_effort_id)) adj.set(e.source_effort_id, new Set());
+          if (!adj.has(e.target_effort_id)) adj.set(e.target_effort_id, new Set());
+          adj.get(e.source_effort_id).add(e.target_effort_id);
+          adj.get(e.target_effort_id).add(e.source_effort_id);
         });
+
+        const keepEffs = new Set([targetEid]);
+        let frontier = new Set([targetEid]);
+        let currentHop = 0;
+        while (frontier.size > 0 && currentHop < maxHops) {
+          const nextFrontier = new Set();
+          frontier.forEach((eid) => {
+            const neighbors = adj.get(eid);
+            if (neighbors) {
+              neighbors.forEach((nb) => {
+                if (!keepEffs.has(nb)) {
+                  keepEffs.add(nb);
+                  nextFrontier.add(nb);
+                }
+              });
+            }
+          });
+          frontier = nextFrontier;
+          currentHop += 1;
+        }
+
         nodes = nodes.filter((n) => keepEffs.has(n.effort.id));
         edges = edges.filter((e) => keepEffs.has(e.source_effort_id) && keepEffs.has(e.target_effort_id));
       }

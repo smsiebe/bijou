@@ -384,7 +384,7 @@
           spec = JSON.parse(res.text);
           document.getElementById("api-title").textContent = spec.info.title || "Bijou API";
           document.getElementById("api-description").textContent = spec.info.description || "";
-          document.getElementById("docs-version-badge").textContent = `v${spec.info.version || "2.0.0"} · OFFLINE`;
+          document.getElementById("docs-version-badge").textContent = `v${spec.info.version || "2.0.1"} · OFFLINE`;
           render("");
         } catch (err) {
           document.getElementById("api-description").textContent = `Failed to load OpenAPI spec: ${err.message || err}`;
