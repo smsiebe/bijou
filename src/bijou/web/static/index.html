@@ -143,6 +143,7 @@
             <span class="mono-badge" id="zoom-level-label">100%</span>
             <button class="btn btn-secondary btn-xs" id="btn-zoom-in" title="Zoom In">+</button>
             <button class="btn btn-secondary btn-xs" id="btn-zoom-reset" title="Reset View">Fit</button>
+            <button class="btn btn-secondary btn-xs" id="btn-capture-graph" title="Save branded snapshot of visible graph">📷 Snapshot</button>
           </div>
           <button class="btn btn-accent btn-sm" id="btn-toggle-dock">Bill of Efforts Cart <span class="badge-count"
               id="cart-badge-count">0</span></button>
@@ -158,11 +159,19 @@
           </div>
           <div class="canvas-viewport-frame">
             <div class="canvas-legend" id="canvas-legend">
+              <span class="legend-group-title">Status:</span>
               <span class="legend-item"><span class="dot dot-completed"></span> Completed</span>
               <span class="legend-item"><span class="dot dot-inwork"></span> In Work</span>
-              <span class="legend-item"><span class="dot dot-planned"></span> Planned / Discovery</span>
+              <span class="legend-item"><span class="dot dot-planned"></span> Planned</span>
+              <span class="legend-item"><span class="dot dot-discovery"></span> Discovery</span>
+              <span class="legend-divider">|</span>
+              <span class="legend-group-title">Entity:</span>
+              <span class="legend-item"><span class="entity-swatch swatch-org"></span> Org</span>
+              <span class="legend-item"><span class="entity-swatch swatch-effort"></span> Effort</span>
+              <span class="legend-item"><span class="entity-swatch swatch-interest"></span> Interest</span>
+              <span class="legend-divider">|</span>
               <span class="legend-item"><span class="line-sample solid"></span> Blocking</span>
-              <span class="legend-item"><span class="line-sample dashed"></span> Informs / Indirect</span>
+              <span class="legend-item"><span class="line-sample dashed"></span> Indirect</span>
               <span class="legend-item"><span class="spof-sample">SPOF</span> Bottleneck</span>
               <span class="legend-item legend-tip">Scroll to zoom · Right-click to create/isolate · Drag ● handle to connect</span>
             </div>
@@ -398,6 +407,7 @@
   <script src="/static/entity_puck.js"></script>
   <script src="/static/studio.js"></script>
   <script src="/static/briefing.js"></script>
+  <script src="/static/graph_snapshot.js"></script>
   <script src="/static/app.js"></script>
 </body>
 

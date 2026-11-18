@@ -83,7 +83,7 @@ def create_app(settings: BijouSettings | None = None) -> FastAPI:
 
     app = FastAPI(
         title="Bijou Strategic Orchestration API",
-        version="2.0.1",
+        version="2.0.2",
         description="Offline-capable organizational interest, effort dependency, and resource portfolio engine.",
         lifespan=lifespan,
         docs_url=None,

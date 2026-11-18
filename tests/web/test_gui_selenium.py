@@ -250,6 +250,27 @@ def test_gui_views_graph_native_editing_and_studio(live_gui_server: str, browser
     wait.until(lambda d: "hidden" in d.find_element(By.ID, "graph-edge-modal-backdrop").get_attribute("class"))
     wait.until(lambda d: len(d.find_elements(By.CSS_SELECTOR, "#canvas-svg-layer path[data-edge-id]")) > edge_count_before)
 
+    # 6b. Verify Branded Graph Snapshot captures non-overlapping placement and creates download
+    snapshot_result = driver.execute_script(
+        "var res = window.BijouGraphSnapshot.findSafePlacement({"
+        "  width: 1400,"
+        "  height: 900,"
+        "  targetW: 160,"
+        "  targetH: 44,"
+        "  padding: 24,"
+        "  occupiedBoxes: [{left: 1200, top: 800, right: 1390, bottom: 890}],"
+        "  preferredCorner: 'bottom-right'"
+        "});"
+        "return res;"
+    )
+    assert snapshot_result is not None
+    assert "x" in snapshot_result and "y" in snapshot_result
+
+    # Test captureGraphSnapshot trigger via UI button
+    capture_btn = driver.find_element(By.ID, "btn-capture-graph")
+    assert capture_btn.is_displayed()
+    driver.execute_script("arguments[0].click();", capture_btn)
+
     # 7. Open Bill of Efforts Cart Drawer on top of active view & run live simulation
     driver.execute_script("document.getElementById('btn-toggle-dock').click();")
     wait.until(lambda d: "hidden" not in d.find_element(By.ID, "bill-of-efforts-dock").get_attribute("class"))

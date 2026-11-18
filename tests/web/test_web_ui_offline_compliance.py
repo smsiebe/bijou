@@ -52,6 +52,7 @@ def test_web_root_serves_v2_shell_and_assets() -> None:
     assert 'id="perspective-select"' in body
     assert 'id="pedigree-select"' in body
     assert 'id="neural-hops-select"' in body
+    assert 'id="btn-capture-graph"' in body
     assert 'id="briefing-scope-select"' in body
     assert 'id="briefing-effort-select"' in body
     assert 'id="briefing-template-select"' in body
@@ -79,6 +80,10 @@ def test_web_root_serves_v2_shell_and_assets() -> None:
     assert resp_editor.status_code == 200
     assert "BijouGraphEditor" in resp_editor.text
 
+    resp_snapshot = client.get("/static/graph_snapshot.js")
+    assert resp_snapshot.status_code == 200
+    assert "BijouGraphSnapshot" in resp_snapshot.text
+
 
 def test_print_stylesheet_present_for_one_slide_briefing() -> None:
     """Verifies @media print and @page CSS rules are defined for single-landscape print output."""
@@ -98,7 +103,7 @@ def test_wheel_bundle_includes_web_ui_and_sdk(tmp_path: Path, monkeypatch) -> No
     root_dir = Path(__file__).parent.parent.parent
     monkeypatch.chdir(root_dir)
     whl_name = _build_meta.build_wheel(str(tmp_path))
-    assert whl_name.startswith("bijou_portfolio-2.0.1-")
+    assert whl_name.startswith("bijou_portfolio-2.0.2-")
     whl_path = tmp_path / whl_name
     assert whl_path.exists()
 

@@ -817,6 +817,12 @@
       applyZoom();
     });
 
+    document.getElementById("btn-capture-graph")?.addEventListener("click", async () => {
+      if (global.BijouGraphSnapshot) {
+        await global.BijouGraphSnapshot.captureGraphSnapshot({ notify });
+      }
+    });
+
     setupPanning();
     setupWheelZoom();
     await initPerspectiveDropdown();
